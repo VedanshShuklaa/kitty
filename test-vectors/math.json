@@ -1,0 +1,4 @@
+{
+  "$comment": "Worked-vector amounts (TV-1 .. TV-6) for the bid/holdback/cover-pool math in the Kitty SRS section 7. Filled in during checkpoint C1 alongside Circle.sol; both forge test and vitest read the same numbers here.",
+  "vectors": []
+}

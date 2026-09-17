@@ -1,0 +1,29 @@
+{
+  "name": "services",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/api/server.ts",
+    "keeper": "tsx watch src/keeper/index.ts",
+    "sponsor": "tsx src/sponsor/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "fastify": "^5.12.5",
+    "@fastify/rate-limit": "^11.2.0",
+    "viem": "2.55.13",
+    "postgres": "^3.4.9",
+    "pino": "^10.3.1",
+    "dotenv": "^18.0.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "tsx": "^4.23.13",
+    "vitest": "^5.0.1",
+    "@types/node": "^24.0.0"
+  }
+}

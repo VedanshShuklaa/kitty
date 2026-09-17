@@ -1,0 +1,6 @@
+{
+  "webcredentials": { "apps": ["TEAM_ID.xyz.kitty.app"] },
+  "applinks": {
+    "details": [{ "appIDs": ["TEAM_ID.xyz.kitty.app"], "components": [{ "/": "/j/*" }] }]
+  }
+}

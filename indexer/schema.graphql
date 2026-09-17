@@ -1,0 +1,41 @@
+type Circle {
+  id: ID! # circle contract address
+  organizer: String!
+  createdAt: BigInt!
+  completedAt: BigInt
+}
+
+type Member {
+  id: ID! # `${circle}-${address}`
+  circle_id: String!
+  address: String!
+  seat: Int!
+  stake: BigInt!
+  paidOnTime: BigInt!
+  paidLate: BigInt!
+  lastPaymentAt: BigInt
+}
+
+type Payment {
+  id: ID! # `${txHash}-${logIndex}`
+  circle_id: String!
+  member_id: String!
+  round: Int!
+  amount: BigInt!
+  creditUsed: BigInt!
+  holdbackReleased: BigInt!
+  late: Boolean!
+  autopay: Boolean!
+  at: BigInt!
+}
+
+type Round {
+  id: ID! # `${circle}-${round}`
+  circle_id: String!
+  closedAt: BigInt
+  recipient: String
+  gross: BigInt
+  paid: BigInt
+  discount: BigInt
+  holdback: BigInt
+}

@@ -1,0 +1,6 @@
+{
+  "$comment": "Shared by contracts (Foundry) and app (Jest) tests, so Solidity and TypeScript can never silently disagree on a hash, digest or signature. Filled in during checkpoint C1 once the contract's exact encoding is fixed; keep both sides reading from this file rather than hardcoding literals.",
+  "bidCommitment": [],
+  "gasGrantDigest": [],
+  "inviteSignature": []
+}

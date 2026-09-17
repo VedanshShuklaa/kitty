@@ -1,0 +1,18 @@
+{
+  "name": "kitty",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Kitty — a rotating savings circle on Monad",
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@10.32.0",
+  "scripts": {
+    "test": "pnpm -r test",
+    "test:contracts": "pnpm --filter contracts test",
+    "test:indexer": "pnpm --filter indexer test",
+    "test:services": "pnpm --filter services test",
+    "test:app": "pnpm --filter app test",
+    "lint": "pnpm -r lint"
+  }
+}

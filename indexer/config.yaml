@@ -1,0 +1,39 @@
+# yaml-language-server: $schema=./node_modules/envio/evm.schema.json
+name: kitty
+description: Circles, rounds, payments and member records on Monad testnet
+
+contracts:
+  - name: CircleFactory
+    handler: ./src/handlers.ts
+    events:
+      - event: "CircleCreated(address indexed circle, address indexed organizer, (uint8,uint16,uint16,uint16,uint16,bool,uint64,uint64,uint32,uint32,uint32,uint32,uint64) rules, address[] inviteSigners)"
+  - name: Circle
+    handler: ./src/handlers.ts
+    events:
+      - event: "Joined(address indexed member, uint8 indexed seat, uint256 stake)"
+      - event: "Contributed(address indexed member, uint32 indexed round, uint256 paid, uint256 creditUsed, uint256 holdbackReleased, bool late, bool autopay)"
+      - event: "BidCommitted(address indexed member, uint32 indexed round, bytes32 commitment)"
+      - event: "BidRevealed(address indexed member, uint32 indexed round, uint16 discountBps)"
+      - event: "Covered(address indexed member, uint32 indexed round, uint256 fromStake, uint256 fromPool, uint256 shortfall)"
+      - event: "Defaulted(address indexed member, uint32 indexed round, uint256 obligation, uint256 fromStake, uint256 fromHoldback, uint256 fromPool, uint256 shortfall)"
+      - event: "PotPaid(address indexed recipient, uint32 indexed round, uint256 gross, uint256 paid, uint256 discount, uint256 holdback, uint256 arrearsRepaid)"
+      - event: "RoundClosed(uint32 indexed round, address indexed closer)"
+      - event: "Completed(uint64 at)"
+  - name: StakeVault
+    handler: ./src/handlers.ts
+    events:
+      - event: "Settled(address indexed circle, uint256 principal, uint256 assets, uint256 fees)"
+
+chains:
+  - id: 10143
+    start_block: 0 # replaced with the real deploy block once contracts/deployments/10143.json exists
+    contracts:
+      - name: CircleFactory
+        address:
+          - "0x0000000000000000000000000000000000000000" # placeholder, replaced at C0/C1 deploy
+      - name: StakeVault
+        address:
+          - "0x0000000000000000000000000000000000000000" # placeholder
+      - name: Circle # no address: registered dynamically when the factory creates one
+
+rollback_on_reorg: true

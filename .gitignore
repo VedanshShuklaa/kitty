@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Foundry (contracts/lib is vendored on purpose, installed via forge install)
+contracts/cache/
+contracts/out/
+
+# Envio codegen (ephemeral; regenerate with `pnpm codegen`)
+indexer/.envio/types.d.ts
+indexer/generated/
+
+# Secrets and local environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS junk
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp

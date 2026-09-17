@@ -1,0 +1,8 @@
+{
+  "name": "site",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "npx --yes serve public -l 4173"
+  }
+}
