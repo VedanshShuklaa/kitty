@@ -38,3 +38,6 @@ Desktop.ini
 *.swp
 
 .codegraph/
+
+# SRS artifact copy, kept local only
+SRS.html

@@ -58,9 +58,11 @@ disagree on an encoding.
 
 ## Status
 
-Early scaffold. The toolchain (Foundry + OpenZeppelin, the pnpm workspaces, Envio config, CI) is
-wired up and green; `Circle.sol`, `CircleFactory.sol` and `StakeVault.sol` themselves — and the
-matching bid/holdback math and test vectors — are next.
+Toolchain wired and green. `Circle.sol`, `CircleFactory.sol` and `StakeVault.sol` are written and
+tested (16 Foundry tests, invariants included) — join, contribute, sealed bids, ordered payouts,
+covers and defaults, holdback withhold/release, and completion/withdrawal. Not yet deployed to
+testnet: that, plus the physical-device passkey checklist, is next. See `CLAUDE.md` for the
+running build log.
 
 ## Getting started
 

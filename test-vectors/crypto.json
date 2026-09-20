@@ -1,6 +1,48 @@
 {
-  "$comment": "Shared by contracts (Foundry) and app (Jest) tests, so Solidity and TypeScript can never silently disagree on a hash, digest or signature. Filled in during checkpoint C1 once the contract's exact encoding is fixed; keep both sides reading from this file rather than hardcoding literals.",
-  "bidCommitment": [],
-  "gasGrantDigest": [],
-  "inviteSignature": []
+  "$comment": "Filled in during checkpoint C1 alongside Circle.sol, per SRS section 7.6. Read by both forge test (test-vectors/*.json via fs_permissions) and Jest, so Solidity and TypeScript can never silently disagree on a hash, digest or signature.",
+  "prfInput": {
+    "preimage": "kitty/prf/v1",
+    "sha256": "0xdfda1f010e538c84aa4e6f18b1b10d9a35a8409f08e51166d01095b8071c801a"
+  },
+  "bidSalt": {
+    "prfOutput": "0x0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20",
+    "chainId": 10143,
+    "circle": "0x1111111111111111111111111111111111111111",
+    "round": 2,
+    "expected": "0xb3c69f00475c38fe011f7f6700354c8e7914127d200d12ab593419347a89e18b"
+  },
+  "rosterWrapKey": {
+    "prfOutput": "0x0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20",
+    "info": "roster-wrap",
+    "expected": "0xb612cb4e98e45fc9fbeac50dec5a94c507749cc500fc1ca169beb736077e3dd1"
+  },
+  "bidCommitment": {
+    "chainId": 10143,
+    "circle": "0x1111111111111111111111111111111111111111",
+    "round": 2,
+    "member": "0x2222222222222222222222222222222222222222",
+    "discountBps": 800,
+    "salt": "0x3333333333333333333333333333333333333333333333333333333333333333",
+    "expected": "0xaa873ae92220a5f14850906868c44494206fe905c1a9a67cbfbba30f44df3698"
+  },
+  "joinTypehash": {
+    "preimage": "kitty.join.v1",
+    "expected": "0xf5f62a6c464c4f7950c3b0bd70e4a6a322eed91ee8040bf826275c5b07af5081"
+  },
+  "sponsorTypehash": {
+    "preimage": "kitty.sponsor.v1",
+    "expected": "0x5c2f2ea7297cd54b11271d20005cc7a32badea4293b06e6d23a4168e731b3bd5"
+  },
+  "joinDigest": {
+    "chainId": 10143,
+    "circle": "0x1111111111111111111111111111111111111111",
+    "seat": 3,
+    "joiner": "0x2222222222222222222222222222222222222222",
+    "expected": "0xfe5c80cb442be1b8de13201a4fdabb54b9b6f7c38d60014e8abd8e2f3ff0bfe1"
+  },
+  "inviteSignature": {
+    "note": "EIP-191 personal-sign over joinDigest; verified in Foundry to recover to signerAddress (see contracts/test/Signatures.t.sol). The private key itself is not recorded here since it is only a labelled example key, not load-bearing for the vector.",
+    "signerAddress": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+    "expected": "0x67a25a7547210e9563244b3b2d05b931fe25c39e5e98a076404053587b05feee0332fc46661f2900e73b71b4db6633f77ead8589f19a7053e9106352b718bb231b"
+  }
 }

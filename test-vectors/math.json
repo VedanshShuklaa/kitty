@@ -1,4 +1,42 @@
 {
-  "$comment": "Worked-vector amounts (TV-1 .. TV-6) for the bid/holdback/cover-pool math in the Kitty SRS section 7. Filled in during checkpoint C1 alongside Circle.sol; both forge test and vitest read the same numbers here.",
-  "vectors": []
+  "$comment": "Worked-vector amounts (TV-1 .. TV-6) for the bid/holdback/cover-pool math in the Kitty SRS section 7.8. TV-5 and TV-6 (no bidding involved) are exercised by C1's TC-1-09/TC-1-10; TV-1 to TV-4 involve sealed-bid discounts and are filled in during checkpoint C3 alongside the bid economics in Circle.sol.",
+  "vectors": [
+    {
+      "id": "TV-5",
+      "name": "Demo miss",
+      "setup": {
+        "memberCount": 5,
+        "contribution": 25000000,
+        "stakeBps": 10000,
+        "maxBidBps": 3000,
+        "poolShareBps": 1000,
+        "holdbackBps": 2000,
+        "afterVector": "TV-4",
+        "missingMember": "london",
+        "missedRound": 2,
+        "hasReceived": false
+      },
+      "expected": {
+        "coveredEvent": { "member": "london", "round": 2, "fromStake": 25000000, "fromPool": 0, "shortfall": 0 },
+        "standing": "Behind",
+        "arrearsOwed": 25000000,
+        "round2Gross": 125000000
+      }
+    },
+    {
+      "id": "TV-6",
+      "name": "Arrears",
+      "setup": {
+        "afterVector": "TV-5",
+        "payingMember": "london",
+        "beforeRoundCloses": 3
+      },
+      "expected": {
+        "arrearsPaid": 25000000,
+        "stakeRestored": 25000000,
+        "standing": "Good",
+        "mayBidRound": 3
+      }
+    }
+  ]
 }
