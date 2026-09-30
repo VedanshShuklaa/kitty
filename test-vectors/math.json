@@ -2,6 +2,99 @@
   "$comment": "Worked-vector amounts (TV-1 .. TV-6) for the bid/holdback/cover-pool math in the Kitty SRS section 7.8. TV-5 and TV-6 (no bidding involved) are exercised by C1's TC-1-09/TC-1-10; TV-1 to TV-4 involve sealed-bid discounts and are filled in during checkpoint C3 alongside the bid economics in Circle.sol.",
   "vectors": [
     {
+      "id": "TV-1",
+      "name": "Bid round",
+      "setup": {
+        "memberCount": 8,
+        "contribution": 100000000,
+        "stakeBps": 10000,
+        "maxBidBps": 3000,
+        "poolShareBps": 1000,
+        "holdbackBps": 2000,
+        "round": 2,
+        "misses": [],
+        "winner": "ada",
+        "bidBps": 800
+      },
+      "expected": {
+        "gross": 800000000,
+        "discount": 64000000,
+        "creditPerMember": 8228571,
+        "creditMembers": 7,
+        "toPool": 6400003,
+        "toPoolBase": 6400000,
+        "toPoolDust": 3,
+        "holdback": 120000000,
+        "holdbackReleasePerPayment": 20000000,
+        "paidToWinner": 616000000
+      }
+    },
+    {
+      "id": "TV-2",
+      "name": "The next round",
+      "setup": {
+        "afterVector": "TV-1",
+        "round": 3,
+        "allOnTime": true
+      },
+      "expected": {
+        "adaPays": 80000000,
+        "adaHoldbackRelease": 20000000,
+        "otherMemberPays": 91771429,
+        "otherMemberCredit": 8228571,
+        "gross": 800000000
+      }
+    },
+    {
+      "id": "TV-3",
+      "name": "Take-and-run",
+      "setup": {
+        "afterVector": "TV-1",
+        "round": 3,
+        "defaultingMember": "ada"
+      },
+      "expected": {
+        "left": 6,
+        "obligation": 600000000,
+        "fromStake": 100000000,
+        "fromHoldback": 120000000,
+        "fromPool": 6400003,
+        "filled": 226400003,
+        "shortfall": 373599997,
+        "fillPerRound": 37733333,
+        "fillPerRoundLast": 37733338,
+        "potReductionPerRemainingRound": 62266667,
+        "round3Gross": 737733333
+      }
+    },
+    {
+      "id": "TV-4",
+      "name": "Demo bid",
+      "setup": {
+        "memberCount": 5,
+        "contribution": 25000000,
+        "stakeBps": 10000,
+        "maxBidBps": 3000,
+        "poolShareBps": 1000,
+        "holdbackBps": 2000,
+        "round": 1,
+        "misses": [],
+        "winner": "lagos",
+        "bidBps": 500
+      },
+      "expected": {
+        "gross": 125000000,
+        "discount": 6250000,
+        "toPool": 625000,
+        "creditPerMember": 1406250,
+        "creditMembers": 4,
+        "dust": 0,
+        "holdback": 20000000,
+        "holdbackReleasePerPayment": 5000000,
+        "paidToWinner": 98750000
+      }
+    },
+    {
       "id": "TV-5",
       "name": "Demo miss",
       "setup": {

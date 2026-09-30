@@ -17,6 +17,7 @@ contract StakeVault is IStakeVault, Ownable, ReentrancyGuard {
     error InsufficientBalance();
     error AlreadySettled();
     error NotFactory();
+    error FactoryAlreadySet();
 
     IERC20 public immutable ausd;
     address public factory;
@@ -31,7 +32,10 @@ contract StakeVault is IStakeVault, Ownable, ReentrancyGuard {
 
     /// @dev One-time wiring: the factory address is not known at vault
     /// construction, since the factory itself takes the vault's address.
+    /// Re-pointing it later would let the owner register a fake circle
+    /// whose ledger is backed by every real circle's tokens.
     function setFactory(address factory_) external onlyOwner {
+        if (factory != address(0)) revert FactoryAlreadySet();
         factory = factory_;
     }
 

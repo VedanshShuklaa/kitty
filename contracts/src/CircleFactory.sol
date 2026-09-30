@@ -25,7 +25,7 @@ contract CircleFactory is ICircleFactory, Ownable, Pausable {
         ausdToken = ausd_;
         vaultAddress = vault_;
         minPeriodValue = minPeriod_;
-        circleImplementation = address(new Circle());
+        circleImplementation = address(new Circle(ausd_, vault_, address(this)));
     }
 
     function setPaused(bool paused_) external onlyOwner {
@@ -44,7 +44,7 @@ contract CircleFactory is ICircleFactory, Ownable, Pausable {
         organizerNonce[msg.sender] += 1;
         circle = Clones.cloneDeterministic(circleImplementation, salt);
 
-        Circle(circle).initialize(rules, inviteSigners, ausdToken, vaultAddress, msg.sender, address(this));
+        Circle(circle).initialize(rules, inviteSigners, msg.sender);
         vaultAddress.registerCircle(circle);
         _isCircle[circle] = true;
 
@@ -81,7 +81,8 @@ contract CircleFactory is ICircleFactory, Ownable, Pausable {
         if (r.memberCount < 2 || r.memberCount > 12) revert BadRules();
         if (r.contribution < 1_000000) revert BadRules();
         if (r.stakeBps < 5_000 || r.stakeBps > 20_000) revert BadRules();
-        if (r.maxBidBps > 5_000 || r.poolShareBps > 5_000 || r.holdbackBps > 5_000) revert BadRules();
+        // maxBidBps tops out at 3,000: the 30% discount cap in SRS 14.3
+        if (r.maxBidBps > 3_000 || r.poolShareBps > 5_000 || r.holdbackBps > 5_000) revert BadRules();
         if (r.period < minPeriodValue) revert BadRules();
         if (r.commitWindow == 0 || r.revealWindow == 0) revert BadRules();
         if (r.grace < r.revealWindow) revert BadRules();

@@ -6,7 +6,7 @@ pragma solidity 0.8.30;
 struct Rules {
     uint8 memberCount; // 2..12; seat 0 is the organizer
     uint16 stakeBps; // stake = contribution * stakeBps / 10_000       (default 10_000)
-    uint16 maxBidBps; // 0 turns bidding off; at most 5_000              (default 3_000)
+    uint16 maxBidBps; // 0 turns bidding off; at most 3_000              (default 3_000)
     uint16 poolShareBps; // share of a winning discount kept in the pool    (default 1_000)
     uint16 holdbackBps; // 0..5_000                                        (default 2_000)
     bool yieldOn; // collateral goes to the yield adapter

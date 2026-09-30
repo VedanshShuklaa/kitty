@@ -43,7 +43,7 @@ interface ICircle {
     function collect(address member, uint32 round) external; // anyone, inside the autopay window
     function payArrears() external;
     function commitBid(uint32 round, bytes32 commitment) external; // may be replaced until due(r)
-    function revealBid(uint32 round, uint16 discountBps, bytes32 salt) external;
+    function revealBid(uint32 round, uint16 discountBps, bytes32 salt) external; // current round only
     function closeRound(uint32 round) external; // anyone, from due(r) + grace
     function withdraw() external; // Completed or Cancelled
 
@@ -63,6 +63,11 @@ interface ICircle {
     function inviteSignerAt(uint8 seat) external view returns (address);
     function commitmentOf(uint32 round, address member) external view returns (bytes32);
     function withdrawable(address member) external view returns (uint256);
+    // App reads (the testnet RPC caps eth_getLogs at 100 blocks, so a phone
+    // cannot rebuild these from events)
+    function paidRound(uint32 round, address member) external view returns (bool);
+    function recipientOf(uint32 round) external view returns (address); // zero if nobody was paid
+    function revealedBid(uint32 round, address member) external view returns (bool revealed, uint16 discountBps);
 
     event Joined(address indexed member, uint8 indexed seat, uint256 stake);
     event InviteReissued(uint8 indexed seat, address signer);

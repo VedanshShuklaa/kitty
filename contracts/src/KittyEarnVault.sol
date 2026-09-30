@@ -19,10 +19,11 @@ contract KittyEarnVault is IYieldAdapter, Ownable {
 
     IERC20 public immutable asset;
     uint256 public totalShares;
+    uint256 public totalPending; // assets owed to queued redemptions, no longer backing shares
     mapping(address => uint256) public sharesOf;
 
     struct PendingClaim {
-        uint256 shares;
+        uint256 assets;
         uint256 claimableAt;
         bool claimed;
     }
@@ -37,7 +38,7 @@ contract KittyEarnVault is IYieldAdapter, Ownable {
     }
 
     function totalAssets() public view returns (uint256) {
-        return asset.balanceOf(address(this));
+        return asset.balanceOf(address(this)) - totalPending;
     }
 
     /// @dev Owner tops up the reserve to simulate accrued yield; never
@@ -49,6 +50,7 @@ contract KittyEarnVault is IYieldAdapter, Ownable {
     }
 
     function setInstantRedemptionFeeBps(uint16 bps) external onlyOwner {
+        require(bps <= 10_000, "fee too high");
         instantRedemptionFeeBps = bps;
     }
 
@@ -84,9 +86,10 @@ contract KittyEarnVault is IYieldAdapter, Ownable {
         sharesOf[msg.sender] -= shares;
         uint256 assets = _assetsFor(shares);
         totalShares -= shares;
+        totalPending += assets;
         uint256 epoch = nextEpoch[receiver]++;
         _pending[receiver][epoch] =
-            PendingClaim({ shares: assets, claimableAt: block.timestamp + LAG_DURATION, claimed: false });
+            PendingClaim({ assets: assets, claimableAt: block.timestamp + LAG_DURATION, claimed: false });
         return (epoch, epoch, 0, 0);
     }
 
@@ -95,10 +98,11 @@ contract KittyEarnVault is IYieldAdapter, Ownable {
         returns (uint256 shares, uint256 assetsAfterFee)
     {
         PendingClaim storage c = _pending[msg.sender][y];
-        require(c.shares > 0 && !c.claimed, "no claim");
+        require(c.assets > 0 && !c.claimed, "no claim");
         require(block.timestamp >= c.claimableAt, "still queued");
         c.claimed = true;
-        assetsAfterFee = c.shares;
+        totalPending -= c.assets;
+        assetsAfterFee = c.assets;
         asset.safeTransfer(receiver, assetsAfterFee);
         return (0, assetsAfterFee);
     }

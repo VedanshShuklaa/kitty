@@ -12,7 +12,8 @@ import { HDKey } from "@scure/bip32";
 import { entropyToMnemonic, mnemonicToSeedSync } from "@scure/bip39";
 import { wordlist } from "@scure/bip39/wordlists/english";
 
-const rpId = process.env.EXPO_PUBLIC_RP_ID!;
+import { rpId } from "../config";
+
 const ACCOUNT_PATH = "m/44'/60'/0'/0/0";
 
 export async function createAccount(displayName: string) {

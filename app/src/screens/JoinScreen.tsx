@@ -1,0 +1,142 @@
+import { useEffect, useMemo, useState } from "react";
+import { StyleSheet, useWindowDimensions, View } from "react-native";
+
+import { explain } from "../errors";
+import { money } from "../format";
+import { depositOf, JOIN_STEPS, joinCircle, loadSnapshot, type Snapshot } from "../kitty";
+import { parseInvite } from "../links";
+import type { ScreenProps } from "../nav";
+import { beadsFor, nameAt, rulesInWords } from "../phase";
+import { Ring } from "../Ring";
+import { useSigner } from "../session";
+import { saveCircle } from "../store";
+import { color, font, radius, space } from "../theme";
+import { Body, Button, Heading, Notice, Screen, Section, Small, Steps, Title, type StepState } from "../ui";
+
+export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
+  const signer = useSigner();
+  const { width } = useWindowDimensions();
+  const invite = useMemo(() => parseInvite(route.params.link), [route.params.link]);
+  const [snap, setSnap] = useState<Snapshot | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [run, setRun] = useState<{ active: string; failed: boolean; error?: string } | null>(null);
+
+  useEffect(() => {
+    if (!invite) return;
+    loadSnapshot(invite.circle, signer.address)
+      .then(setSnap)
+      .catch((e) => setLoadError(explain(e)));
+  }, [invite, signer.address]);
+
+  if (!invite) {
+    return (
+      <Screen onBack={() => navigation.goBack()}>
+        <Title>This isn't a Kitty invite</Title>
+        <Body>Ask the organizer to send the link again, and open it straight from WhatsApp.</Body>
+      </Screen>
+    );
+  }
+
+  const names = invite.names;
+  const who = nameAt(names, invite.seat);
+  const organizer = nameAt(names, 0);
+
+  async function join() {
+    if (!invite) return;
+    let current = JOIN_STEPS[0].id;
+    try {
+      await joinCircle(signer, invite, (id) => {
+        current = id;
+        setRun({ active: id, failed: false });
+      });
+      await saveCircle(signer.address, {
+        address: invite.circle,
+        title: invite.title,
+        names,
+        seat: invite.seat,
+        organizer: false,
+        addedAt: Date.now(),
+      });
+      navigation.replace("Circle", { address: invite.circle });
+    } catch (e) {
+      setRun({ active: current, failed: true, error: explain(e) });
+    }
+  }
+
+  if (run) {
+    const at = JOIN_STEPS.findIndex((s) => s.id === run.active);
+    const steps = JOIN_STEPS.map((s, i) => ({
+      label: s.label,
+      state: (i < at ? "done" : i === at ? (run.failed ? "failed" : "active") : "todo") as StepState,
+    }));
+    return (
+      <Screen footer={run.failed ? <Button label="Try again" onPress={join} /> : undefined}>
+        <Title>Joining {invite.title}</Title>
+        <Small>Your phone may ask for your fingerprint or screen lock.</Small>
+        <View style={{ marginTop: space.md }}>
+          <Steps steps={steps} />
+        </View>
+        {run.error && <Notice tone="error">{run.error}</Notice>}
+      </Screen>
+    );
+  }
+
+  const now = Date.now() / 1000;
+  let blocker: string | null = null;
+  let already = false;
+  if (snap) {
+    const seat = snap.members[invite.seat];
+    if (snap.me) already = true;
+    else if (seat?.address) blocker = `${who} already took this place. If that wasn't you, ask ${organizer} for a new link.`;
+    else if (snap.state !== "forming" || now >= Number(snap.rules.joinDeadline)) blocker = "Joining has closed for this circle.";
+  }
+
+  const beads = snap ? beadsFor(snap, names, now).map((b, i) => ({ ...b, turn: i === invite.seat })) : [];
+
+  return (
+    <Screen
+      onBack={() => navigation.goBack()}
+      footer={
+        already ? (
+          <Button label="Open the circle" onPress={() => navigation.replace("Circle", { address: invite.circle })} />
+        ) : snap && !blocker ? (
+          <Button label={`Join and put down ${money(depositOf(snap.rules))}`} onPress={join} />
+        ) : undefined
+      }
+    >
+      <View style={styles.hero}>
+        <Small style={{ color: color.onIndigoMuted }}>{organizer} invited you to</Small>
+        <Title style={{ color: color.onIndigo }}>{invite.title}</Title>
+        {snap && (
+          <View style={{ alignItems: "center", marginTop: space.md }}>
+            <Ring beads={beads} size={Math.min(width - space.md * 2 - space.lg * 2, 240)}>
+              <Heading style={{ color: color.onIndigo }}>{who}</Heading>
+              <Small style={{ color: color.onIndigoMuted }}>your place</Small>
+            </Ring>
+          </View>
+        )}
+      </View>
+
+      {loadError && <Notice tone="error">{loadError}</Notice>}
+      {!snap && !loadError && <Small>Loading the circle…</Small>}
+      {already && <Notice tone="good">You're already in this circle.</Notice>}
+      {blocker && <Notice tone="error">{blocker}</Notice>}
+
+      {snap && (
+        <Section title="Before you join">
+          <View style={{ gap: space.sm }}>
+            {rulesInWords(snap.rules).map((l) => (
+              <Body key={l.lead}>
+                <Body style={{ fontFamily: font.bodyBold }}>{l.lead}</Body> {l.text}
+              </Body>
+            ))}
+          </View>
+        </Section>
+      )}
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  hero: { backgroundColor: color.indigo, borderRadius: radius.hero, padding: space.lg, gap: space.xs, marginTop: space.xs },
+});

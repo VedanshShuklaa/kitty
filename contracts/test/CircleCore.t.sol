@@ -138,10 +138,14 @@ contract CircleCoreTest is Test {
         Rules memory r = _baseRules(3);
         (address[] memory signers,) = _signers(3);
         address predicted = factory.predictCircle(organizer);
+        vm.expectEmit(true, true, false, true, address(factory));
+        emit ICircleFactory.CircleCreated(predicted, organizer, r, signers);
         vm.prank(organizer);
         address circle = factory.createCircle(r, signers);
         assertEq(circle, predicted);
         assertTrue(factory.isCircle(circle));
+        assertEq(keccak256(abi.encode(Circle(circle).rules())), keccak256(abi.encode(r)));
+        assertTrue(vault.isRegistered(circle));
     }
 
     // ---- TC-1-03 / TC-1-04: invite signatures ----
@@ -180,6 +184,67 @@ contract CircleCoreTest is Test {
         vm.expectRevert(ICircle.BadInvite.selector);
         Circle(circle).join(1, _joinSig(wrongKey, circle, 1, m1));
         vm.stopPrank();
+    }
+
+    function test_TC1_04_signatureForSomethingElseReverts() public {
+        Rules memory r = _baseRules(3);
+        (address[] memory signers, uint256[] memory k) = _signers(3);
+        vm.prank(organizer);
+        address circle = factory.createCircle(r, signers);
+        vm.prank(organizer);
+        address other = factory.createCircle(r, signers);
+        address m1 = makeAddr("m1");
+        ausd.mint(m1, CONTRIBUTION);
+        vm.prank(m1);
+        ausd.approve(circle, type(uint256).max);
+
+        bytes[4] memory bad = [
+            _joinSig(k[1], circle, 1, makeAddr("someone else")), // different joiner
+            _joinSig(k[1], circle, 2, m1), // different seat
+            _joinSig(k[1], other, 1, m1), // different circle
+            _joinSigOnChain(k[1], 1, circle, 1, m1) // different chain id
+        ];
+        for (uint256 i = 0; i < bad.length; i++) {
+            vm.prank(m1);
+            vm.expectRevert(ICircle.BadInvite.selector);
+            Circle(circle).join(1, bad[i]);
+        }
+        vm.prank(m1);
+        Circle(circle).join(1, _joinSig(k[1], circle, 1, m1));
+        assertEq(vault.balanceOf(circle, m1, IStakeVault.Kind.Stake), CONTRIBUTION);
+    }
+
+    function _joinSigOnChain(uint256 privKey, uint256 chainId, address circle, uint8 seat, address joiner)
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes32 digest = keccak256(abi.encode(JOIN_TYPEHASH, chainId, circle, seat, joiner));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privKey, MessageHashUtils.toEthSignedMessageHash(digest));
+        return abi.encodePacked(r, s, v);
+    }
+
+    // ---- TC-1-06: on time, late inside grace, TooLate after it ----
+    function test_TC1_06_lateMarkingAndTooLate() public {
+        (address circle, address[] memory members,) = _createAndFill(3);
+        Rules memory r = Circle(circle).rules();
+
+        vm.warp(r.firstDue);
+        vm.expectEmit(true, true, false, true, circle);
+        emit ICircle.Contributed(members[0], 1, CONTRIBUTION, 0, 0, false, false);
+        vm.prank(members[0]);
+        Circle(circle).contribute(1);
+
+        vm.warp(r.firstDue + r.grace);
+        vm.expectEmit(true, true, false, true, circle);
+        emit ICircle.Contributed(members[1], 1, CONTRIBUTION, 0, 0, true, false);
+        vm.prank(members[1]);
+        Circle(circle).contribute(1);
+
+        vm.warp(r.firstDue + r.grace + 1);
+        vm.prank(members[2]);
+        vm.expectRevert(ICircle.TooLate.selector);
+        Circle(circle).contribute(1);
     }
 
     // ---- TC-1-05: last seat activates; deadline; cancel refunds ----
@@ -275,6 +340,37 @@ contract CircleCoreTest is Test {
         assertEq(vault.balanceOf(circle, members[0], IStakeVault.Kind.Stake), arrears);
     }
 
+    function test_TC1_10_behindMemberSkippedInPayoutOrder() public {
+        (address circle, address[] memory members,) = _createAndFill(3);
+        Rules memory r = Circle(circle).rules();
+        // organizer (seat 0) misses round 1: seat 1 receives instead
+        vm.warp(r.firstDue - 1);
+        vm.prank(members[1]);
+        Circle(circle).contribute(1);
+        vm.prank(members[2]);
+        Circle(circle).contribute(1);
+        vm.warp(r.firstDue + r.grace);
+        Circle(circle).closeRound(1);
+        (, bool orgReceived,,) = Circle(circle).standingOf(members[0]);
+        (, bool m1Received,,) = Circle(circle).standingOf(members[1]);
+        assertFalse(orgReceived);
+        assertTrue(m1Received);
+
+        // after paying arrears the organizer is back in line ahead of seat 2
+        vm.prank(members[0]);
+        Circle(circle).payArrears();
+        uint64 due2 = Circle(circle).dueTime(2);
+        vm.warp(due2 - 1);
+        for (uint8 i = 0; i < 3; i++) {
+            vm.prank(members[i]);
+            Circle(circle).contribute(2);
+        }
+        vm.warp(due2 + r.grace);
+        Circle(circle).closeRound(2);
+        (, orgReceived,,) = Circle(circle).standingOf(members[0]);
+        assertTrue(orgReceived);
+    }
+
     // ---- TC-1-11: full circle completes, double withdraw reverts ----
     function test_TC1_11_fullCircleCompletesAndSettles() public {
         (address circle, address[] memory members,) = _createAndFill(3);
@@ -283,13 +379,10 @@ contract CircleCoreTest is Test {
         for (uint32 round = 1; round <= 3; round++) {
             uint64 due = r.firstDue + uint64(round - 1) * r.period;
             vm.warp(due - 1);
+            // everyone pays every round, whether or not they have received
             for (uint8 i = 0; i < 3; i++) {
-                (, bool received,,) = Circle(circle).standingOf(members[i]);
-                if (!received || Circle(circle).currentRound() != round) {
-                    // everyone still pays each round regardless of having received
-                }
                 vm.prank(members[i]);
-                try Circle(circle).contribute(round) { } catch { }
+                Circle(circle).contribute(round);
             }
             vm.warp(due + r.grace);
             Circle(circle).closeRound(round);
@@ -302,6 +395,11 @@ contract CircleCoreTest is Test {
             Circle(circle).withdraw();
         }
         assertEq(ausd.balanceOf(circle), 0);
+        for (uint8 i = 0; i < 3; i++) {
+            assertEq(vault.balanceOf(circle, members[i], IStakeVault.Kind.Stake), 0);
+            assertEq(vault.balanceOf(circle, members[i], IStakeVault.Kind.Holdback), 0);
+        }
+        assertEq(ausd.balanceOf(address(vault)), 0);
 
         vm.expectRevert(ICircle.NothingToWithdraw.selector);
         vm.prank(members[0]);

@@ -11,8 +11,12 @@ import { KittyEarnVault } from "../src/KittyEarnVault.sol";
 /// @notice Deploys StakeVault, CircleFactory (which deploys the Circle
 /// implementation it clones) and KittyEarnVault against the AUSD already
 /// live on Monad testnet, and writes ../deployments/10143.json (FR-OPS-03).
-/// Run with:
-///   forge script script/Deploy.s.sol --rpc-url monad_testnet --account kitty-deployer --broadcast --verify
+/// Run with (after `set -a; source .env.local; set +a`):
+///   forge script script/Deploy.s.sol --rpc-url monad_testnet \
+///     --keystore ~/.foundry/keystores/kitty-deployer --sender <deployer address> --broadcast --verify
+/// --sender is required: without it `msg.sender` below is Foundry's default
+/// sender, so the vault and factory would be owned by an address nobody holds
+/// and setFactory would revert.
 contract Deploy is Script {
     // Agora's testnet AUSD, verified live on 18 Sep 2026 (SRS section 4.2).
     address constant AUSD_TESTNET = 0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC;
@@ -20,9 +24,9 @@ contract Deploy is Script {
 
     function run() external {
         uint256 chainId = block.chainid;
-        address deployer = msg.sender;
 
         vm.startBroadcast();
+        address deployer = msg.sender;
 
         StakeVault vault = new StakeVault(IERC20(AUSD_TESTNET), deployer);
         CircleFactory factory = new CircleFactory(IERC20(AUSD_TESTNET), vault, MIN_PERIOD_TESTNET, deployer);

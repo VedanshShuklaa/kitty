@@ -11,7 +11,10 @@ bytecode_hash = "none"
 cbor_metadata = false
 use_literal_content = true
 chain_id = 10143
-fs_permissions = [{ access = "read", path = "../test-vectors" }]
+fs_permissions = [
+    { access = "read", path = "../test-vectors" },
+    { access = "read-write", path = "../deployments" },
+]
 
 [profile.default.invariant]
 runs = 256

@@ -4,7 +4,7 @@
     "target": {
       "namespace": "android_app",
       "package_name": "xyz.kitty.app",
-      "sha256_cert_fingerprints": ["REPLACE_WITH_EAS_CREDENTIALS_SHA256"]
+      "sha256_cert_fingerprints": ["1B:B5:23:61:C8:AE:4F:33:3C:0B:DA:D6:2C:4A:8F:7B:63:8E:EE:8A:83:00:EF:27:9C:2B:CC:DF:30:EE:07:DC"]
     }
   }
 ]

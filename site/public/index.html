@@ -4,9 +4,68 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Kitty</title>
+<meta name="description" content="A savings circle for people who already trust each other. Everyone puts in, one person takes the pot, and nobody holds the money." />
+<link rel="icon" href="/favicon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root { --paper:#EEF0F6; --indigo:#25215E; --muted:#A9A6D6; --marigold:#F2B233; --leaf:#2F7D5B; --slate:#6B6B8A; --on:#F4F3FF; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--indigo); font:17px/1.55 Figtree, system-ui, sans-serif; }
+  .hero { background:var(--indigo); color:var(--on); padding:24px 20px 44px; border-radius:0 0 40px 40px; overflow:hidden; }
+  .wrap { max-width:640px; margin:0 auto; position:relative; }
+  .marker { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); }
+  .marker::before { content:""; width:6px; height:6px; border-radius:3px; background:var(--marigold); }
+  .ring { width:220px; height:220px; position:relative; margin:28px -40px 0 auto; }
+  .ring i { position:absolute; width:34px; height:34px; border-radius:50%; border:2.5px solid var(--muted); background:var(--indigo); }
+  .ring b { position:absolute; left:80px; top:80px; width:60px; height:60px; border-radius:50%; background:var(--marigold); }
+  h1 { font:800 88px/0.9 "Bricolage Grotesque", sans-serif; letter-spacing:-3px; margin:-48px 0 0; }
+  .lead { color:var(--muted); font-size:21px; line-height:1.45; margin:18px 0 0; max-width:28ch; }
+  main { max-width:640px; margin:0 auto; padding:32px 20px 48px; }
+  .btn { display:inline-block; text-decoration:none; font:700 17px Figtree, sans-serif; padding:17px 26px; border-radius:14px; background:var(--marigold); color:var(--indigo); }
+  .btn:focus-visible { outline:3px solid var(--indigo); outline-offset:2px; }
+  h2 { font:700 26px/1.2 "Bricolage Grotesque", sans-serif; margin:40px 0 12px; letter-spacing:-0.5px; }
+  ol { padding:0; margin:0; list-style:none; counter-reset:s; }
+  ol li { counter-increment:s; display:grid; grid-template-columns:40px 1fr; gap:12px; padding:14px 0; border-bottom:1px solid #D5D7E6; }
+  ol li::before { content:counter(s); width:32px; height:32px; border-radius:50%; background:var(--indigo); color:var(--on); display:grid; place-items:center; font-weight:700; font-size:15px; }
+  ol strong { display:block; }
+  ol span { color:var(--slate); }
+  .fine { color:var(--slate); font-size:14px; margin-top:32px; }
+  @media (min-width:700px) { h1 { font-size:120px; } }
+</style>
 </head>
 <body>
-<h1>Kitty</h1>
-<p>Your circle, minus the collector. Open this link on your phone to join.</p>
+  <div class="hero">
+    <div class="wrap">
+      <div class="marker">Test dollars on Monad testnet</div>
+      <div class="ring" id="ring" aria-hidden="true"><b></b></div>
+      <h1>kitty</h1>
+      <p class="lead">A savings circle for people who already trust each other. Nobody holds the money.</p>
+    </div>
+  </div>
+  <main>
+    <a class="btn" href="/download">Get Kitty for Android</a>
+    <h2>How a circle works</h2>
+    <ol>
+      <li><div><strong>Start a circle</strong><span>Name it, add the people you already save with, pick an amount and how often.</span></div></li>
+      <li><div><strong>Send the invites</strong><span>Each person gets their own link on WhatsApp. It opens Kitty and takes their place.</span></div></li>
+      <li><div><strong>Everyone pays, one person takes the pot</strong><span>Each round, the pot goes to the next person in line, or to whoever offers to give up a little to take it sooner.</span></div></li>
+      <li><div><strong>Everyone gets a turn</strong><span>Deposits cover a missed payment. At the end, deposits come back.</span></div></li>
+    </ol>
+    <p class="fine">Kitty runs on Monad testnet with test dollars. No real money moves.</p>
+  </main>
+<script>
+  (function () {
+    var ring = document.getElementById("ring");
+    for (var i = 0; i < 7; i++) {
+      var a = -Math.PI / 2 + (i * 2 * Math.PI) / 7, b = document.createElement("i");
+      b.style.left = 93 + 88 * Math.cos(a) + "px"; b.style.top = 93 + 88 * Math.sin(a) + "px";
+      if (i === 2) b.style.borderColor = "#F2B233";
+      else if (i % 2 === 0) { b.style.background = "#2F7D5B"; b.style.borderColor = "#2F7D5B"; }
+      ring.appendChild(b);
+    }
+  })();
+</script>
 </body>
 </html>
