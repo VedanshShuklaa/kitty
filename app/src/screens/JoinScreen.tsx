@@ -9,7 +9,7 @@ import type { ScreenProps } from "../nav";
 import { beadsFor, nameAt, rulesInWords } from "../phase";
 import { Ring } from "../Ring";
 import { useSigner } from "../session";
-import { saveCircle } from "../store";
+import { getCircle, saveCircle } from "../store";
 import { color, font, radius, space } from "../theme";
 import { Body, Button, Heading, Notice, Screen, Section, Small, Steps, Title, type StepState } from "../ui";
 
@@ -27,6 +27,25 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
       .then(setSnap)
       .catch((e) => setLoadError(explain(e)));
   }, [invite, signer.address]);
+
+  // A member who reinstalled comes back through their invite link: the chain
+  // says they're in, but this phone has forgotten the circle. Put it back on
+  // Home, with the names from the link (FR-ROS-02 stand-in).
+  useEffect(() => {
+    if (!invite || !snap?.me) return;
+    const me = snap.me;
+    getCircle(signer.address, invite.circle).then((known) => {
+      if (known) return;
+      return saveCircle(signer.address, {
+        address: invite.circle,
+        title: invite.title,
+        names: invite.names,
+        seat: me.seat,
+        organizer: snap.organizer.toLowerCase() === signer.address.toLowerCase(),
+        addedAt: Date.now(),
+      });
+    });
+  }, [invite, snap, signer.address]);
 
   if (!invite) {
     return (

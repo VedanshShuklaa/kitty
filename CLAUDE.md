@@ -558,3 +558,7 @@ the circle isn't re-saved to Home (JoinScreen `already` path skips
 `saveCircle`), which blocks the reinstall-and-reveal demo take.
 
 Next: user runs the two-phone circle; fix the JoinScreen re-save; commit.
+
+**2026-10-01 — Reinstall re-save fixed.** JoinScreen now saves the circle back
+to Home (names from the invite link, seat from chain) when an already-joined
+member opens their invite. Needs a new preview APK to reach phones.
