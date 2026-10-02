@@ -1,5 +1,7 @@
 # Kitty — build log
 
+Frontend work: read [UI_GUIDE.md](UI_GUIDE.md) and `app/CLAUDE.md` before changing app screens, styles, assets, or copy.
+
 General instruction (keep this section forever): after finishing a unit of
 work on a checkpoint in the SRS (`SRS.html` at the repo root, gitignored —
 it's a Claude artifact, not repo content), append a short entry below saying
@@ -562,3 +564,50 @@ Next: user runs the two-phone circle; fix the JoinScreen re-save; commit.
 **2026-10-01 — Reinstall re-save fixed.** JoinScreen now saves the circle back
 to Home (names from the invite link, seat from chain) when an already-joined
 member opens their invite. Needs a new preview APK to reach phones.
+
+**2026-10-01 — New APK live.** EAS build 6981cbf5 finished (reinstall re-save fix
+included); `/download` now points at it. Next: user installs it on both phones.
+
+**2026-10-01 — Contracts verified; SRS Face ID wording fixed; Envio stays in scope.**
+All four testnet contracts (factory, vault, circle impl, earn vault) verified via
+Etherscan v2 (`chainid=10143`; 143 is mainnet). Key in gitignored
+`contracts/.env.local` as `MONADSCAN_API_KEY`; `foundry.toml` etherscan url now the v2 endpoint.
+SRS "Face ID" -> fingerprint/screen lock (8 lines; TC-0-01 iPhone line left), artifact v3.
+User wants the Envio indexer kept for the bounty: it is back on the build list.
+
+**2026-10-01 — C2 pink mobile redesign and frontend guide.**
+New generated Kitty logo, light pink dashboard and compact circle summaries; shared accessible controls, keyboard layouts and explicit read-error/retry states across the app. Frontend contract: `UI_GUIDE.md` (also linked in `app/CLAUDE.md`). TypeScript + 22 tests + Android export pass; sample-data browser preview/screenshots in `app/qa/`.
+Next: new preview APK and native large-text, keyboard, screen-reader, icon-mask and two-phone checks. Existing live APK/download link unchanged by this work.
+
+**2026-10-02 — Four bounties chosen; SRS v1.1 (section 15) and runbook v3 rewritten.**
+Targets: Agora cross-border ($10k), Envio ($1k), Mera UX ($2.5k), Mera "one passkey, many
+keys" ($2.5k); all close 14 Oct 09:29 IST. Read on testnet: Agora Instant Settlement factory
+`0x8468…5375`, CTK/AUSD pair `0x1Aa8…e0ae` (1:1, fee 0), whitelister `0x7c10…6BD5` whose
+`setApprovedSwapper(address)` is open to anyone. Mera 0.2.0 sessions have no scope/expiry
+(app supplies it); default PRF salt is sha256("mera.prf.salt.v1"), so the SRS's "kitty/prf/v1"
+was wrong and is corrected (changing it would change every address). Back in scope: Envio
+indexer (2 chains: testnet Kitty+Agora, mainnet earnAUSD), yield (testnet only, simulated;
+NFR-COMP-02 amended), reminders (on-phone scheduled + optional event push). New: FR-SND
+(send via Instant Settlement with recipient as swap `to`), FR-SES (session policy), FR-RST
+(stateless restore), FR-KEY (roster/invite/profile/push namespaces via HKDF). Keeper: no hosted
+one; the open app auto-closes due rounds, laptop script for filming. Reviewed the user's pink
+frontend redesign: tsc clean, 22/22 tests; `Ring.tsx` now unused; not committed, not in an APK.
+Next: user supplies Envio token + repo access, Upstash on Vercel, Firebase/FCM, second phone,
+four members; Claude commits redesign on go-ahead, then indexer (3 Oct) per SRS 15.9.
+
+**2026-10-02 — Yield live (SRS 15.7), reminders and auto-close in the app, redeployed.**
+StakeVault: 30% liquid buffer, rest to the adapter at each closeRound (not at the activating
+join: that busts the 220k budget); instant redeem when a take outruns the buffer; settle →
+circle allocates surplus pro rata to stakes, or pool topUp then stake writeDown on a fee
+shortfall. Fuzzing (invariants now yield-on with a random rate) found two real bugs, both
+fixed with regression tests: a full collateral drain bricked closeRound on the redemption fee
+(take now pays what it holds; the circle covers the gap from its pool), and withdrawable's
+preview ordered fees before defaulted-credit forfeits. 86/86, invariants clean at 3,000 runs.
+Redeployed + verified: factory `0x99a7C360…B846`, vault `0x3f2A036B…40e8`, earn vault
+`0x8fd0e8EB…a31f` (450 bps, speedUp 4,320, ~5k AUSD reserve), deploy block 67476151. App:
+yield toggle (default on) and "earned so far" line; local reminders (`src/reminders.ts`, no
+Firebase); auto-close of due rounds. Removed default Expo icons and the unused Ring.
+Committed as four commits (contracts, redesign, cleanup, app). New preview APK built (EAS 73f4388a); /download updated.
+Next: indexer (SRS 15.6), session policy + derived invites + encrypted roster (15.5),
+Agora send (FR-SND), event pushes once Firebase exists; republish SRS artifact (still says
+StakeVault has no adapter).
