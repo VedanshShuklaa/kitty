@@ -7,6 +7,7 @@ import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/Mes
 import { CircleFactory } from "../src/CircleFactory.sol";
 import { StakeVault } from "../src/StakeVault.sol";
 import { Circle } from "../src/Circle.sol";
+import { KittyEarnVault } from "../src/KittyEarnVault.sol";
 import { ICircle } from "../src/interfaces/ICircle.sol";
 import { Rules } from "../src/interfaces/ICircleFactory.sol";
 import { IStakeVault } from "../src/interfaces/IStakeVault.sol";
@@ -26,11 +27,13 @@ contract FullInvariantHandler is Test {
     MockAUSD public ausd;
     StakeVault public vault;
     CircleFactory public factory;
+    KittyEarnVault public earn;
 
     address[] public actors; // actor 0 is the organizer of every circle
     Circle[] public circles;
     mapping(Circle => address[]) internal _members;
     mapping(Circle => bytes32) public rulesHash;
+    mapping(Circle => bool) public settled;
 
     // ghosts
     mapping(Circle => mapping(address => bool)) public everDefaulted;
@@ -50,7 +53,14 @@ contract FullInvariantHandler is Test {
         ausd = new MockAUSD();
         vault = new StakeVault(ausd, address(this));
         factory = new CircleFactory(ausd, vault, 300, address(this));
+        earn = new KittyEarnVault(ausd, address(this));
+        vault.setAdapter(earn);
         vault.setFactory(address(factory));
+        // a reserve big enough to pay yield for the whole run
+        ausd.mint(address(this), 1_000_000_000000);
+        ausd.approve(address(earn), type(uint256).max);
+        earn.fundReserve(1_000_000_000000);
+        earn.setRate(450, 4_320);
 
         for (uint256 i = 0; i < 6; i++) {
             address actor = vm.addr(uint256(keccak256(abi.encode("actor", i))));
@@ -59,11 +69,13 @@ contract FullInvariantHandler is Test {
         }
 
         Rules memory a = _baseRules(5);
+        a.yieldOn = true;
         uint256[] memory seatsA = new uint256[](5);
         (seatsA[0], seatsA[1], seatsA[2], seatsA[3], seatsA[4]) = (0, 1, 2, 3, 4);
         _open(a, seatsA, 5);
 
         Rules memory b = _baseRules(4);
+        b.yieldOn = true;
         b.stakeBps = 5_000;
         b.holdbackBps = 5_000;
         b.poolShareBps = 5_000;
@@ -246,6 +258,13 @@ contract FullInvariantHandler is Test {
         _scanLogs(c);
     }
 
+    /// Yield on or off at any moment, from nothing (so redemption fees
+    /// outrun it and the pool or stakes absorb them) to 50% a year
+    function tuneYield(uint256 seed) external {
+        uint32[3] memory apr = [uint32(0), 450, 5_000];
+        earn.setRate(apr[seed % 3], 4_320);
+    }
+
     function cancelUnfilled() external {
         Circle c = circles[2];
         _warpTo(c.rules().joinDeadline);
@@ -262,6 +281,7 @@ contract FullInvariantHandler is Test {
         vm.prank(m);
         try c.withdraw() {
             withdrawals++;
+            if (c.state() == ICircle.State.Completed) settled[c] = true;
             if (ausd.balanceOf(m) - balBefore != shown) _violate("withdraw paid a different amount than withdrawable");
         } catch {
             if (shown != 0) _violate("withdraw reverted with a positive withdrawable");
@@ -317,9 +337,9 @@ contract FullInvariantHandler is Test {
 }
 
 /// @notice TC-3-13 and the full TC-1-14 list: SRS 7.9's INV-01..INV-10 with
-/// bids, holdbacks, covers, defaults, autopay and cancellation in play. Yield
-/// is not: StakeVault wires no adapter (NFR-COMP-02), so INV-02/03 are
-/// checked in their no-yield form.
+/// bids, holdbacks, covers, defaults, autopay and cancellation in play, and
+/// yield on for A and B (SRS 15.7) at a rate the handler changes at random,
+/// so both the yield split and the fee-shortfall path get exercised.
 contract FullInvariantTest is Test {
     FullInvariantHandler h;
 
@@ -343,8 +363,9 @@ contract FullInvariantTest is Test {
     function _circleSolvency(Circle c) internal view {
         address[] memory ms = h.membersOf(c);
         uint256 expected = c.pot() + c.defaultReserve();
-        if (c.state() == ICircle.State.Completed) {
-            // withdrawable previews the settlement: credits, pool and shares
+        if (h.settled(c)) {
+            // after settlement the circle holds only credits and pool shares:
+            // what each member can withdraw beyond their vault ledger
             for (uint256 i = 0; i < ms.length; i++) {
                 expected += c.withdrawable(ms[i]) - _ledger(c, ms[i]);
             }
@@ -358,23 +379,32 @@ contract FullInvariantTest is Test {
         assertEq(h.ausd().balanceOf(address(c)), expected, "INV-01");
     }
 
-    /// INV-02: the vault's AUSD equals the sum of every circle's ledgers.
+    /// INV-02: every circle's ledger is backed. The vault's AUSD is exactly
+    /// the circles' liquid buffers; each position's principal is its ledger;
+    /// and with yield off, or once settled, the buffer is the whole ledger.
     function invariant_INV02_vaultSolvency() public view {
-        uint256 sum = 0;
+        uint256 liquidSum = 0;
         for (uint256 i = 0; i < h.circleCount(); i++) {
             Circle c = h.circles(i);
             address[] memory ms = h.membersOf(c);
+            uint256 ledger = 0;
             for (uint256 j = 0; j < ms.length; j++) {
-                sum += _ledger(c, ms[j]) + h.vault().balanceOf(address(c), ms[j], IStakeVault.Kind.Pool);
+                ledger += _ledger(c, ms[j]);
             }
+            (uint256 principal, uint256 liquid, uint256 invested, bool earning) = h.vault().positionOf(address(c));
+            assertEq(principal, ledger, "INV-02 principal");
+            if (!earning || h.settled(c)) assertEq(liquid, ledger, "INV-02 liquid");
+            if (h.settled(c)) assertEq(invested, 0, "INV-02 settled");
+            liquidSum += liquid;
         }
-        assertEq(h.ausd().balanceOf(address(h.vault())), sum, "INV-02");
+        assertEq(h.ausd().balanceOf(address(h.vault())), liquidSum, "INV-02");
     }
 
     /// INV-03 / INV-05: no AUSD is created, destroyed or sent anywhere but
     /// members, circles and the vault.
     function invariant_INV03_INV05_conservation() public view {
-        uint256 total = h.ausd().balanceOf(address(h.vault()));
+        uint256 total = h.ausd().balanceOf(address(h.vault())) + h.ausd().balanceOf(address(h.earn()))
+            + h.ausd().balanceOf(address(h));
         for (uint256 i = 0; i < h.actorCount(); i++) {
             total += h.ausd().balanceOf(h.actors(i));
         }
@@ -425,6 +455,8 @@ contract FullInvariantTest is Test {
         }
         assertEq(h.ausd().balanceOf(address(c)), 0, "INV-09 circle");
         assertEq(ledger, 0, "INV-09 ledger");
+        (uint256 principal, uint256 liquid, uint256 invested,) = h.vault().positionOf(address(c));
+        assertEq(principal + liquid + invested, 0, "INV-09 vault position");
     }
 
     /// INV-10: a defaulted member stays Defaulted.
@@ -451,6 +483,7 @@ contract FullInvariantTest is Test {
 
     function _ledger(Circle c, address m) internal view returns (uint256) {
         return h.vault().balanceOf(address(c), m, IStakeVault.Kind.Stake)
-            + h.vault().balanceOf(address(c), m, IStakeVault.Kind.Holdback);
+            + h.vault().balanceOf(address(c), m, IStakeVault.Kind.Holdback)
+            + h.vault().balanceOf(address(c), m, IStakeVault.Kind.Pool);
     }
 }

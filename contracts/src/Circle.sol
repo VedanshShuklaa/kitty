@@ -173,8 +173,11 @@ contract Circle is ICircle, ReentrancyGuard {
         _paidRound[round][member] = true;
         if (creditUsed > 0) _creditOf[member] -= creditUsed;
         if (holdbackReleased > 0) {
-            vault.take(member, IStakeVault.Kind.Holdback, holdbackReleased, address(this));
+            // whatever fees ate of the holdback, the member pays in instead
+            uint256 got = _take(member, IStakeVault.Kind.Holdback, holdbackReleased);
             _holdbackRemaining[member] -= holdbackReleased;
+            pay += holdbackReleased - got;
+            holdbackReleased = got;
         }
         if (pay > 0) ausd.safeTransferFrom(member, address(this), pay);
         pot += _rules.contribution;
@@ -296,7 +299,7 @@ contract Circle is ICircle, ReentrancyGuard {
             if (!_receivedOf[m]) {
                 uint256 stakeBal = vault.balanceOf(address(this), m, IStakeVault.Kind.Stake);
                 uint256 fromStake = stakeBal < _rules.contribution ? stakeBal : _rules.contribution;
-                if (fromStake > 0) vault.take(m, IStakeVault.Kind.Stake, fromStake, address(this));
+                if (fromStake > 0) fromStake = _take(m, IStakeVault.Kind.Stake, fromStake);
                 uint256 remaining = _rules.contribution - fromStake;
                 uint256 fromPool = pool < remaining ? pool : remaining;
                 pool -= fromPool;
@@ -313,14 +316,14 @@ contract Circle is ICircle, ReentrancyGuard {
 
                 uint256 stakeBal = vault.balanceOf(address(this), m, IStakeVault.Kind.Stake);
                 uint256 fromStake = stakeBal < obligation ? stakeBal : obligation;
-                if (fromStake > 0) vault.take(m, IStakeVault.Kind.Stake, fromStake, address(this));
+                if (fromStake > 0) fromStake = _take(m, IStakeVault.Kind.Stake, fromStake);
                 uint256 rem = obligation - fromStake;
 
                 uint256 hbBal = _holdbackRemaining[m];
                 uint256 fromHoldback = hbBal < rem ? hbBal : rem;
                 if (fromHoldback > 0) {
-                    vault.take(m, IStakeVault.Kind.Holdback, fromHoldback, address(this));
                     _holdbackRemaining[m] -= fromHoldback;
+                    fromHoldback = _take(m, IStakeVault.Kind.Holdback, fromHoldback);
                 }
                 rem -= fromHoldback;
 
@@ -445,6 +448,9 @@ contract Circle is ICircle, ReentrancyGuard {
         }
 
         emit RoundClosed(round, msg.sender);
+        // with yield on, collateral above the buffer starts earning here, not
+        // at the activating join, which has no gas left for it (SRS 7.10)
+        vault.rebalance();
         if (round == n) {
             _state = State.Completed;
             emit Completed(uint64(block.timestamp));
@@ -467,7 +473,7 @@ contract Circle is ICircle, ReentrancyGuard {
         if (_state != State.Completed) revert WrongState();
 
         if (!_settled) {
-            vault.settle();
+            (uint256 assets, uint256 principal) = vault.settle();
             uint8 n = _rules.memberCount;
             uint256 numGood = 0;
             for (uint8 s = 0; s < n; s++) {
@@ -477,6 +483,34 @@ contract Circle is ICircle, ReentrancyGuard {
                     _creditOf[m] = 0;
                 } else {
                     numGood++;
+                }
+            }
+            if (assets > principal) {
+                // yield, pro rata to remaining stakes (SRS 7.7)
+                uint256[] memory y = _yieldSplit(assets - principal);
+                for (uint8 s = 0; s < n; s++) {
+                    if (y[s] > 0) vault.allocate(_memberAt[s], IStakeVault.Kind.Pool, y[s]);
+                }
+            } else if (assets < principal) {
+                // redemption fees outran yield: the pool absorbs the
+                // difference first, then stakes pro rata
+                uint256 d = principal - assets;
+                uint256 fromPool = pool < d ? pool : d;
+                if (fromPool > 0) {
+                    pool -= fromPool;
+                    ausd.safeTransfer(address(vault), fromPool);
+                    vault.topUp(fromPool);
+                }
+                if (d > fromPool) {
+                    (uint256[] memory st, uint256[] memory hb) = _writeDownSplit(d - fromPool);
+                    for (uint8 s = 0; s < n; s++) {
+                        address m = _memberAt[s];
+                        if (st[s] > 0) vault.writeDown(m, IStakeVault.Kind.Stake, st[s]);
+                        if (hb[s] > 0) {
+                            vault.writeDown(m, IStakeVault.Kind.Holdback, hb[s]);
+                            _holdbackRemaining[m] -= hb[s];
+                        }
+                    }
                 }
             }
             if (numGood > 0) {
@@ -496,13 +530,15 @@ contract Circle is ICircle, ReentrancyGuard {
 
         uint256 stakeBal_ = vault.balanceOf(address(this), msg.sender, IStakeVault.Kind.Stake);
         uint256 hbBal = vault.balanceOf(address(this), msg.sender, IStakeVault.Kind.Holdback);
+        uint256 yieldBal = vault.balanceOf(address(this), msg.sender, IStakeVault.Kind.Pool);
         uint256 creditAmt = _creditOf[msg.sender];
         uint256 poolShare = _finalPoolShare[msg.sender];
 
-        uint256 total = stakeBal_ + hbBal + creditAmt + poolShare;
+        uint256 total = stakeBal_ + hbBal + yieldBal + creditAmt + poolShare;
         if (total == 0) revert NothingToWithdraw();
 
         if (stakeBal_ > 0) vault.take(msg.sender, IStakeVault.Kind.Stake, stakeBal_, msg.sender);
+        if (yieldBal > 0) vault.take(msg.sender, IStakeVault.Kind.Pool, yieldBal, msg.sender);
         if (hbBal > 0) {
             vault.take(msg.sender, IStakeVault.Kind.Holdback, hbBal, msg.sender);
             _holdbackRemaining[msg.sender] = 0;
@@ -516,6 +552,84 @@ contract Circle is ICircle, ReentrancyGuard {
             ausd.safeTransfer(msg.sender, poolShare);
         }
         emit Withdrawn(msg.sender, total);
+    }
+
+    /// @dev Takes collateral into the circle. If redemption fees have eaten
+    /// the last of the circle's collateral, the pool covers what the vault
+    /// could not pay (SRS 7.7: fees fall on yield, then the pool), and what
+    /// the pool can't cover is lost to the member whose ledger it was.
+    function _take(address m, IStakeVault.Kind kind, uint256 amount) internal returns (uint256 got) {
+        got = vault.take(m, kind, amount, address(this));
+        if (got < amount) {
+            uint256 fromPool = pool < amount - got ? pool : amount - got;
+            pool -= fromPool;
+            got += fromPool;
+        }
+    }
+
+    /// @dev Yield per seat: pro rata to remaining stake, or equally among
+    /// members who did not default when no stake remains. Rounding dust goes
+    /// to the lowest seat that receives any.
+    function _yieldSplit(uint256 y) internal view returns (uint256[] memory out) {
+        uint8 n = _rules.memberCount;
+        out = new uint256[](n);
+        uint256[] memory w = new uint256[](n);
+        uint256 total = 0;
+        for (uint8 s = 0; s < n; s++) {
+            w[s] = vault.balanceOf(address(this), _memberAt[s], IStakeVault.Kind.Stake);
+            total += w[s];
+        }
+        if (total == 0) {
+            for (uint8 s = 0; s < n; s++) {
+                w[s] = _standingOf[_memberAt[s]] == Standing.Defaulted ? 0 : 1;
+                total += w[s];
+            }
+        }
+        if (total == 0) return out;
+        uint256 given = 0;
+        uint8 first = n;
+        for (uint8 s = 0; s < n; s++) {
+            if (w[s] == 0) continue;
+            if (first == n) first = s;
+            out[s] = (y * w[s]) / total;
+            given += out[s];
+        }
+        out[first] += y - given;
+    }
+
+    /// @dev A shortfall of `d` written down pro rata across stakes; rounding
+    /// and anything stakes can't absorb come off the lowest seats first,
+    /// stakes then holdbacks. `d` never exceeds the ledger, so it all lands.
+    function _writeDownSplit(uint256 d) internal view returns (uint256[] memory st, uint256[] memory hb) {
+        uint8 n = _rules.memberCount;
+        st = new uint256[](n);
+        hb = new uint256[](n);
+        uint256[] memory bal = new uint256[](n);
+        uint256 total = 0;
+        for (uint8 s = 0; s < n; s++) {
+            bal[s] = vault.balanceOf(address(this), _memberAt[s], IStakeVault.Kind.Stake);
+            total += bal[s];
+        }
+        uint256 left = d;
+        if (total > 0) {
+            uint256 base = d < total ? d : total;
+            for (uint8 s = 0; s < n; s++) {
+                st[s] = (base * bal[s]) / total;
+                left -= st[s];
+            }
+        }
+        for (uint8 s = 0; s < n && left > 0; s++) {
+            uint256 room = bal[s] - st[s];
+            uint256 x = room < left ? room : left;
+            st[s] += x;
+            left -= x;
+        }
+        for (uint8 s = 0; s < n && left > 0; s++) {
+            uint256 room = vault.balanceOf(address(this), _memberAt[s], IStakeVault.Kind.Holdback);
+            uint256 x = room < left ? room : left;
+            hb[s] = x;
+            left -= x;
+        }
     }
 
     // ------------------------------------------------------------- views
@@ -583,11 +697,15 @@ contract Circle is ICircle, ReentrancyGuard {
         if (_state != State.Completed) return 0;
         uint256 stakeBal = vault.balanceOf(address(this), member, IStakeVault.Kind.Stake);
         uint256 hbBal = vault.balanceOf(address(this), member, IStakeVault.Kind.Holdback);
-        if (_settled) return stakeBal + hbBal + _creditOf[member] + _finalPoolShare[member];
+        if (_settled) {
+            return stakeBal + hbBal + vault.balanceOf(address(this), member, IStakeVault.Kind.Pool)
+                + _creditOf[member] + _finalPoolShare[member];
+        }
         // before the first withdraw settles the circle, preview what
-        // settlement will do: defaulted credits forfeit into the pool, which
-        // then splits equally, remainder to the lowest non-defaulted seat
-        if (_standingOf[member] == Standing.Defaulted) return stakeBal + hbBal;
+        // settlement will do, in its order: defaulted credits forfeit into
+        // the pool; then yield is split, or fees come off the pool and then
+        // stakes; then the pool splits equally, remainder to the lowest
+        // non-defaulted seat
         uint8 n = _rules.memberCount;
         uint256 pool_ = pool;
         uint256 numGood = 0;
@@ -601,6 +719,21 @@ contract Circle is ICircle, ReentrancyGuard {
                 numGood++;
             }
         }
+        uint8 seat = _seatIndexPlusOne[member] - 1;
+        (uint256 assets, uint256 principal) = vault.previewSettle(address(this));
+        if (assets > principal) {
+            stakeBal += _yieldSplit(assets - principal)[seat];
+        } else if (assets < principal) {
+            uint256 d = principal - assets;
+            uint256 fromPool = pool_ < d ? pool_ : d;
+            pool_ -= fromPool;
+            if (d > fromPool) {
+                (uint256[] memory st, uint256[] memory hb) = _writeDownSplit(d - fromPool);
+                stakeBal -= st[seat];
+                hbBal -= hb[seat];
+            }
+        }
+        if (_standingOf[member] == Standing.Defaulted) return stakeBal + hbBal;
         uint256 share = pool_ / numGood + (member == firstGood ? pool_ % numGood : 0);
         return stakeBal + hbBal + _creditOf[member] + share;
     }

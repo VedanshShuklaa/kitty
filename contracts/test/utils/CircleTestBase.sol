@@ -6,6 +6,7 @@ import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/Mes
 import { CircleFactory } from "../../src/CircleFactory.sol";
 import { StakeVault } from "../../src/StakeVault.sol";
 import { Circle } from "../../src/Circle.sol";
+import { KittyEarnVault } from "../../src/KittyEarnVault.sol";
 import { Rules } from "../../src/interfaces/ICircleFactory.sol";
 import { MockAUSD } from "../mocks/MockAUSD.sol";
 
@@ -24,6 +25,7 @@ abstract contract CircleTestBase is Test {
     MockAUSD internal ausd;
     StakeVault internal vault;
     CircleFactory internal factory;
+    KittyEarnVault internal earn;
 
     address internal owner = makeAddr("owner");
     address internal organizer = makeAddr("organizer");
@@ -32,8 +34,12 @@ abstract contract CircleTestBase is Test {
         ausd = new MockAUSD();
         vault = new StakeVault(ausd, owner);
         factory = new CircleFactory(ausd, vault, 300, owner);
-        vm.prank(owner);
+        // the adapter is wired for every suite; circles only use it with yieldOn
+        earn = new KittyEarnVault(ausd, owner);
+        vm.startPrank(owner);
+        vault.setAdapter(earn);
         vault.setFactory(address(factory));
+        vm.stopPrank();
     }
 
     function _rules(uint8 memberCount) internal view returns (Rules memory r) {

@@ -30,4 +30,4 @@ bracket_spacing = true
 monad_testnet = "${MONAD_RPC_URL}"
 
 [etherscan]
-monad_testnet = { key = "${MONADSCAN_API_KEY}", chain = 10143, url = "https://sourcify-api-monad.blockvision.org" }
+monad_testnet = { key = "${MONADSCAN_API_KEY}", chain = 10143, url = "https://api.etherscan.io/v2/api?chainid=10143" }

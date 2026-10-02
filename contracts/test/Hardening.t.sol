@@ -168,7 +168,6 @@ contract HardeningTest is CircleTestBase {
 /// redemption were still counted in totalAssets(), so everyone else's shares
 /// were overvalued and the queue could be left unpayable.
 contract KittyEarnVaultTest is CircleTestBase {
-    KittyEarnVault earn;
     address alice = makeAddr("alice");
     address bob = makeAddr("bob");
 
@@ -209,9 +208,39 @@ contract KittyEarnVaultTest is CircleTestBase {
         vm.prank(bob);
         earn.deposit(address(ausd), 300_000000, bob);
         vm.prank(owner);
-        earn.accrueYield(40_000000);
+        earn.fundReserve(100_000000);
+        vm.prank(owner);
+        earn.setRate(10_000, 1); // 100% a year
+        vm.warp(block.timestamp + 365 days / 10);
         assertEq(earn.totalAssetsOf(alice), 110_000000);
         assertEq(earn.totalAssetsOf(bob), 330_000000);
+    }
+
+    function test_yieldStopsWhenReserveRunsOut() public {
+        vm.prank(alice);
+        earn.deposit(address(ausd), 100_000000, alice);
+        vm.prank(owner);
+        earn.fundReserve(5_000000);
+        vm.prank(owner);
+        earn.setRate(10_000, 1);
+        vm.warp(block.timestamp + 365 days);
+        assertEq(earn.totalAssetsOf(alice), 105_000000);
+        // crediting the reserve leaves nothing behind it
+        vm.prank(alice);
+        earn.deposit(address(ausd), 1_000000, alice);
+        assertEq(earn.reserve(), 0);
+        assertEq(earn.totalAssets(), 106_000000);
+    }
+
+    function test_speedUpCompressesTime() public {
+        vm.prank(alice);
+        earn.deposit(address(ausd), 100_000000, alice);
+        vm.prank(owner);
+        earn.fundReserve(100_000000);
+        vm.prank(owner);
+        earn.setRate(1_200, 365); // 12% a year, a year per day
+        vm.warp(block.timestamp + 1 days);
+        assertEq(earn.totalAssetsOf(alice), 112_000000);
     }
 
     function test_pendingRedemptionNotCountedAsAssets() public {

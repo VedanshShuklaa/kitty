@@ -47,4 +47,8 @@ contract NoYieldAdapter is IYieldAdapter {
     function totalAssetsOf(address holder) external view returns (uint256) {
         return sharesOf[holder];
     }
+
+    function previewInstantRedeem(uint256 shares) external pure returns (uint256 assetsAfterFee) {
+        return shares;
+    }
 }

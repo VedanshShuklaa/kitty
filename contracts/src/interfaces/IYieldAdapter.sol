@@ -14,4 +14,6 @@ interface IYieldAdapter {
         external
         returns (uint256 shares, uint256 assetsAfterFee);
     function totalAssetsOf(address holder) external view returns (uint256);
+    /// @dev What instantRedeem(shares) would pay in this block, after the fee.
+    function previewInstantRedeem(uint256 shares) external view returns (uint256 assetsAfterFee);
 }
