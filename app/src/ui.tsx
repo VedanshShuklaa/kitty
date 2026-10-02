@@ -1,7 +1,9 @@
 import * as Haptics from "expo-haptics";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -9,6 +11,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
   type StyleProp,
   type TextInputProps,
   type TextStyle,
@@ -23,8 +26,8 @@ import { color, font, radius, space } from "./theme";
 type TProps = { children: ReactNode; style?: StyleProp<TextStyle>; numberOfLines?: number; selectable?: boolean };
 
 export const Display = (p: TProps) => <Text {...p} style={[t.display, p.style]} />;
-export const Title = (p: TProps) => <Text {...p} style={[t.title, p.style]} />;
-export const Heading = (p: TProps) => <Text {...p} style={[t.heading, p.style]} />;
+export const Title = (p: TProps) => <Text accessibilityRole="header" {...p} style={[t.title, p.style]} />;
+export const Heading = (p: TProps) => <Text accessibilityRole="header" {...p} style={[t.heading, p.style]} />;
 export const Body = (p: TProps) => <Text {...p} style={[t.body, p.style]} />;
 export const Small = (p: TProps) => <Text {...p} style={[t.small, p.style]} />;
 export const Amount = (p: TProps) => <Text {...p} style={[t.amount, p.style]} />;
@@ -54,6 +57,7 @@ export function Button({ label, onPress, tone = "primary", busy, disabled, style
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
       accessibilityState={{ disabled: !!off, busy: !!busy }}
       disabled={off}
       onPress={() => {
@@ -62,23 +66,20 @@ export function Button({ label, onPress, tone = "primary", busy, disabled, style
       }}
       style={({ pressed }) => [b.base, b[tone], off && b.off, pressed && b.pressed, style]}
     >
-      {busy ? (
-        <ActivityIndicator color={tone === "dark" ? color.onIndigo : color.indigo} />
-      ) : (
-        <Text style={[b.label, tone === "dark" && { color: color.onIndigo }]}>{label}</Text>
-      )}
+      {busy && <ActivityIndicator color={tone === "quiet" ? color.pink : color.surface} />}
+      <Text style={[b.label, tone !== "quiet" && { color: color.surface }]}>{busy ? "Please wait…" : label}</Text>
     </Pressable>
   );
 }
 
 const b = StyleSheet.create({
-  base: { minHeight: 56, borderRadius: radius.control, alignItems: "center", justifyContent: "center", paddingHorizontal: space.lg },
-  primary: { backgroundColor: color.marigold },
+  base: { minHeight: 56, borderRadius: radius.control, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center", paddingHorizontal: space.md, paddingVertical: 14 },
+  primary: { backgroundColor: color.pink },
   dark: { backgroundColor: color.indigo },
-  quiet: { backgroundColor: "transparent", borderWidth: 1.5, borderColor: color.line, minHeight: 50 },
+  quiet: { backgroundColor: color.surface, borderWidth: 1, borderColor: color.line, minHeight: 52 },
   off: { opacity: 0.45 },
   pressed: { transform: [{ scale: 0.985 }], opacity: 0.9 },
-  label: { fontFamily: font.bodyBold, fontSize: 17, color: color.indigo },
+  label: { fontFamily: font.bodyBold, fontSize: 16, color: color.indigo, textAlign: "center", flexShrink: 1 },
 });
 
 // ----------------------------------------------------------------- screen
@@ -103,8 +104,12 @@ type ScreenProps = {
 };
 
 export function Screen({ children, footer, onBack, right, refreshing, onRefresh }: ScreenProps) {
+  const { height, fontScale } = useWindowDimensions();
+  // Short displays / large type need a scrolling footer instead of obscured content.
+  const inlineFooter = height < 650 || fontScale > 1.3;
   return (
     <SafeAreaView style={s.safe} edges={["top", "bottom"]}>
+      <KeyboardAvoidingView style={s.frame} behavior={Platform.OS === "ios" ? "padding" : "height"}>
       <View style={s.top}>
         {onBack ? (
           <Pressable onPress={onBack} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back" style={s.back}>
@@ -118,39 +123,47 @@ export function Screen({ children, footer, onBack, right, refreshing, onRefresh 
       <ScrollView
         contentContainerStyle={s.content}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
         refreshControl={
           onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={color.indigo} /> : undefined
         }
       >
         {onBack && <TestnetMarker />}
         {children}
+        {footer && inlineFooter && <View style={s.inlineFooter}>{footer}</View>}
       </ScrollView>
-      {footer && <View style={s.footer}>{footer}</View>}
+      {footer && !inlineFooter && <View style={s.footer}>{footer}</View>}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: color.paper },
+  frame: { flex: 1, width: "100%", maxWidth: 600, alignSelf: "center" },
   top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: space.md, paddingVertical: space.sm, minHeight: 48 },
-  back: { paddingVertical: space.xs },
+  back: { minHeight: 48, paddingRight: space.md, justifyContent: "center" },
   backText: { fontFamily: font.bodyBold, fontSize: 16, color: color.indigo },
-  content: { paddingHorizontal: space.md, paddingBottom: space.xl, gap: space.md },
+  content: { paddingHorizontal: space.md, paddingTop: space.sm, paddingBottom: space.xl, gap: space.md },
+  inlineFooter: { gap: space.sm, marginTop: space.sm },
   footer: { paddingHorizontal: space.md, paddingTop: space.sm, paddingBottom: space.sm, gap: space.sm, backgroundColor: color.paper, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: color.line },
-  marker: { flexDirection: "row", alignItems: "center", gap: 6 },
+  marker: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 },
   markerDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: color.marigold },
-  markerText: { fontFamily: font.bodyMedium, fontSize: 12, color: color.slate },
+  markerText: { fontFamily: font.bodyMedium, fontSize: 12, color: color.slate, flexShrink: 1 },
 });
 
 // ------------------------------------------------------------------ input
 
 export function Field({ label, hint, prefix, ...rest }: TextInputProps & { label: string; hint?: string; prefix?: string }) {
+  const [focused, setFocused] = useState(false);
   return (
     <View style={{ gap: 6 }}>
       <Text style={f.label}>{label}</Text>
-      <View style={f.box}>
+      <View style={[f.box, focused && { borderColor: color.pink, borderWidth: 2 }]}>
         {prefix && <Text style={f.prefix}>{prefix}</Text>}
-        <TextInput placeholderTextColor={color.slate} {...rest} style={[f.input, rest.style]} />
+        <TextInput placeholderTextColor={color.slate} accessibilityLabel={label} accessibilityHint={hint} {...rest}
+          onFocus={(e) => { setFocused(true); rest.onFocus?.(e); }}
+          onBlur={(e) => { setFocused(false); rest.onBlur?.(e); }} style={[f.input, rest.style]} />
       </View>
       {hint && <Small>{hint}</Small>}
     </View>
@@ -161,7 +174,7 @@ const f = StyleSheet.create({
   label: { fontFamily: font.bodyMedium, fontSize: 15, color: color.indigo },
   box: { flexDirection: "row", alignItems: "center", backgroundColor: color.surface, borderRadius: radius.control, borderWidth: 1, borderColor: color.line, paddingHorizontal: space.md },
   prefix: { fontFamily: font.display, fontSize: 20, color: color.slate, marginRight: 4 },
-  input: { flex: 1, minHeight: 52, fontFamily: font.body, fontSize: 17, color: color.indigo },
+  input: { flex: 1, minWidth: 0, minHeight: 54, paddingVertical: 12, fontFamily: font.body, fontSize: 17, color: color.indigo },
 });
 
 export function Choice<T extends string | number>({
@@ -181,7 +194,7 @@ export function Choice<T extends string | number>({
           <Pressable
             key={String(o.value)}
             accessibilityRole="radio"
-            accessibilityState={{ selected: on }}
+            accessibilityState={{ checked: on }}
             onPress={() => {
               Haptics.selectionAsync().catch(() => {});
               onChange(o.value);
@@ -198,10 +211,10 @@ export function Choice<T extends string | number>({
 
 const c = StyleSheet.create({
   row: { flexDirection: "row", flexWrap: "wrap", gap: space.sm },
-  pill: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: radius.pill, borderWidth: 1, borderColor: color.line, backgroundColor: color.surface },
-  on: { backgroundColor: color.indigo, borderColor: color.indigo },
+  pill: { minHeight: 48, justifyContent: "center", paddingHorizontal: 16, paddingVertical: 12, borderRadius: radius.control, borderWidth: 1, borderColor: color.line, backgroundColor: color.surface },
+  on: { backgroundColor: color.pinkSoft, borderColor: color.pink },
   text: { fontFamily: font.bodyMedium, fontSize: 15, color: color.indigo },
-  textOn: { color: color.onIndigo },
+  textOn: { color: color.pink, fontFamily: font.bodyBold },
 });
 
 export function Check({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
@@ -210,7 +223,7 @@ export function Check({ label, value, onChange }: { label: string; value: boolea
       accessibilityRole="checkbox"
       accessibilityState={{ checked: value }}
       onPress={() => onChange(!value)}
-      style={{ flexDirection: "row", alignItems: "center", gap: space.sm, paddingVertical: space.xs }}
+      style={{ minHeight: 48, flexDirection: "row", alignItems: "center", gap: space.sm, paddingVertical: space.sm }}
     >
       <View style={[k.box, value && k.on]}>{value && <Text style={k.tick}>✓</Text>}</View>
       <Body style={{ flex: 1 }}>{label}</Body>
@@ -279,7 +292,7 @@ const p = StyleSheet.create({
 export function Section({ title, children, right }: { title: string; children: ReactNode; right?: ReactNode }) {
   return (
     <View style={{ gap: space.sm, marginTop: space.sm }}>
-      <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" }}>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm, alignItems: "baseline", justifyContent: "space-between" }}>
         <Heading>{title}</Heading>
         {right}
       </View>
@@ -300,7 +313,7 @@ export function Row({ children, onPress, last }: { children: ReactNode; onPress?
   ];
   if (!onPress) return <View style={style}>{children}</View>;
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [style, pressed && { backgroundColor: color.paper }]}>
+    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [style, pressed && { backgroundColor: color.paper }]}>
       {children}
     </Pressable>
   );
@@ -317,10 +330,10 @@ export function Bead({ label, tone = "indigo", size = 36 }: { label: string; ton
 }
 
 export function Tag({ label, tone }: { label: string; tone: "leaf" | "clay" | "slate" | "marigold" }) {
-  const fg = { leaf: color.leaf, clay: color.clay, slate: color.slate, marigold: "#8A5A00" }[tone];
+  const fg = { leaf: color.leaf, clay: color.clay, slate: color.slate, marigold: color.pink }[tone];
   const bg = { leaf: color.leafSoft, clay: color.claySoft, slate: color.paper, marigold: color.marigoldSoft }[tone];
   return (
-    <View style={{ backgroundColor: bg, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4 }}>
+    <View style={{ maxWidth: "55%", flexShrink: 1, backgroundColor: bg, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5 }}>
       <Text style={{ fontFamily: font.bodyBold, fontSize: 13, color: fg }}>{label}</Text>
     </View>
   );

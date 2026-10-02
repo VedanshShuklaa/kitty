@@ -1,7 +1,7 @@
 import { useFocusEffect } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useState } from "react";
-import { Linking, Pressable, Share, StyleSheet, useWindowDimensions, View } from "react-native";
+import { Linking, Pressable, Share, StyleSheet, View } from "react-native";
 import type { Hex } from "viem";
 
 import { explorerAddress } from "../chain";
@@ -21,8 +21,7 @@ import {
 } from "../kitty";
 import { inviteLink } from "../links";
 import type { ScreenProps } from "../nav";
-import { beadsFor, nameAt, nextInLine, plan, rulesInWords, type Action } from "../phase";
-import { Ring } from "../Ring";
+import { nameAt, nextInLine, plan, rulesInWords, type Action } from "../phase";
 import { useSigner } from "../session";
 import { getCircle, getInviteKeys, type CircleRef } from "../store";
 import { color, font, radius, space } from "../theme";
@@ -31,7 +30,6 @@ import { Amount, Bead, Body, Button, Heading, List, Notice, Row, Screen, Section
 export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
   const { address } = route.params;
   const signer = useSigner();
-  const { width } = useWindowDimensions();
   const [ref, setRef] = useState<CircleRef | undefined>();
   const [keys, setKeys] = useState<(Hex | null)[] | null>(null);
   const [snap, setSnap] = useState<Snapshot | null>(null);
@@ -132,7 +130,7 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
     return (
       <Screen onBack={() => navigation.goBack()}>
         <Title>{title}</Title>
-        {loadError ? <Notice tone="error">{loadError}</Notice> : <Small>Loading the circle…</Small>}
+        {loadError ? <><Notice tone="error">{loadError}</Notice><Button label="Try again" busy={refreshing} onPress={refresh} /></> : <Small>Loading the circle…</Small>}
       </Screen>
     );
   }
@@ -141,11 +139,10 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
   const n = r.memberCount;
   const p = plan(snap, now);
   const [primary, ...secondary] = p.actions;
-  const beads = beadsFor(snap, names, now);
   const next = snap.state === "active" ? nextInLine(snap.members) : undefined;
   const mySeat = snap.me?.seat;
   const joined = snap.members.filter((m) => m.address).length;
-  const ringSize = Math.min(width - space.md * 2 - space.lg * 2, 300);
+  const paid = snap.members.filter((m) => m.paid).length;
 
   let heroLine = "";
   if (snap.state === "forming") heroLine = `First payment ${when(Number(r.firstDue))}`;
@@ -162,42 +159,29 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
       onRefresh={refresh}
       footer={
         primary ? (
-          <Button label={primary.label} busy={busy === primary.kind} disabled={!!busy} onPress={() => act(primary)} />
+          <Button label={primary.label} busy={busy === primary.kind} disabled={!!busy || !!loadError} onPress={() => act(primary)} />
         ) : undefined
       }
     >
+      <Title>{title}</Title>
       <View style={styles.hero}>
         <View style={styles.heroTop}>
-          <Heading style={{ color: color.onIndigo, flex: 1 }} numberOfLines={1}>
-            {title}
-          </Heading>
-          {snap.state === "active" && (
-            <Small style={{ color: color.onIndigoMuted }}>
-              Round {snap.round} of {n}
-            </Small>
-          )}
+          <Body>{snap.state === "forming" ? "Getting your circle ready" : "This round’s pot"}</Body>
+          {snap.state === "active" && <Tag label={`Round ${snap.round} of ${n}`} tone="marigold" />}
         </View>
-        <View style={{ alignItems: "center", marginVertical: space.sm }}>
-          <Ring beads={beads} size={ringSize}>
-            {snap.state === "forming" ? (
-              <>
-                <Amount style={{ color: color.onIndigo }}>
-                  {joined} of {n}
-                </Amount>
-                <Small style={{ color: color.onIndigoMuted }}>have joined</Small>
-              </>
-            ) : snap.state === "active" ? (
-              <>
-                <Amount style={{ color: color.onIndigo }}>{money(snap.pot)}</Amount>
-                <Small style={{ color: color.onIndigoMuted }}>of {money(potOf(r))} in the pot</Small>
-              </>
-            ) : (
-              <Amount style={{ color: color.onIndigo, fontSize: 30 }}>{snap.state === "completed" ? "Done" : "Called off"}</Amount>
-            )}
-          </Ring>
-        </View>
-        <Body style={{ color: color.onIndigoMuted, textAlign: "center" }}>{heroLine}</Body>
+        {snap.state === "forming" ? <>
+          <Amount>{joined} of {n}</Amount>
+          <Small>people have joined</Small>
+        </> : snap.state === "active" ? <>
+          <Amount selectable>{money(snap.pot)}</Amount>
+          <Small>of {money(potOf(r))} expected · {paid} of {n} paid</Small>
+        </> : <Heading>{snap.state === "completed" ? "Circle complete" : "Circle called off"}</Heading>}
+        {(snap.state === "forming" || snap.state === "active") && <View style={styles.track}>
+          <View style={[styles.fill, { width: `${(snap.state === "forming" ? joined : paid) / n * 100}%` }]} />
+        </View>}
+        <Body>{heroLine}</Body>
       </View>
+      {loadError && <><Notice tone="error">Couldn't refresh. These are the last loaded amounts. Refresh before making a payment.</Notice><Button label="Try again" tone="quiet" busy={refreshing} onPress={refresh} /></>}
 
       <View style={{ gap: space.xs }}>
         <Title>{p.headline}</Title>
@@ -213,7 +197,7 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
 
       {notice && <Notice tone={notice.tone}>{notice.text}</Notice>}
       {secondary.map((a) => (
-        <Button key={a.kind} label={a.label} tone="quiet" busy={busy === a.kind} disabled={!!busy} onPress={() => act(a)} />
+        <Button key={a.kind} label={a.label} tone="quiet" busy={busy === a.kind} disabled={!!busy || !!loadError} onPress={() => act(a)} />
       ))}
 
       <Section title="Members">
@@ -240,7 +224,7 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
                     <Button
                       label="Send"
                       tone="dark"
-                      style={{ minHeight: 40, paddingHorizontal: space.md }}
+                      style={{ minHeight: 48, paddingHorizontal: space.md }}
                       onPress={() =>
                         Share.share({ message: `${who}, join "${title}", our savings circle on Kitty: ${link}` }).catch(() => {})
                       }
@@ -327,6 +311,8 @@ function MemberRow({ m, snap, name, me, now, last }: { m: Member; snap: Snapshot
 }
 
 const styles = StyleSheet.create({
-  hero: { backgroundColor: color.indigo, borderRadius: radius.hero, padding: space.lg, marginTop: space.xs },
-  heroTop: { flexDirection: "row", alignItems: "baseline", gap: space.sm },
+  hero: { backgroundColor: color.pinkSoft, borderRadius: radius.hero, padding: 20, gap: 10 },
+  track: { height: 7, backgroundColor: color.surface, borderRadius: 4, overflow: "hidden" },
+  fill: { height: 7, backgroundColor: color.pink, borderRadius: 4 },
+  heroTop: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: space.sm },
 });

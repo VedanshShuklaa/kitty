@@ -35,7 +35,7 @@ export function rulesInWords(r: Rules): { lead: string; text: string }[] {
           text: `Offer to give up to ${r.maxBidBps / 100}% of a pot to take it early. The others share what you give up. With no offers, turns go in order.`,
         }
       : { lead: "Turns go in order.", text: "Bidding is off in this circle." },
-    { lead: `${money(depositOf(r))} deposit.`, text: "You put it down when you join and get it back at the end." },
+    { lead: `${money(depositOf(r))} deposit.`, text: "You put it down when you join. Any deposit left after covering missed payments is returned at the end." },
     {
       lead: "Late or short?",
       text: `You have ${span(r.grace)} after each due time. Miss a round and your deposit covers you; you catch up later.`,

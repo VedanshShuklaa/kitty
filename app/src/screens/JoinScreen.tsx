@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
-import { StyleSheet, useWindowDimensions, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { StyleSheet, View } from "react-native";
 
 import { explain } from "../errors";
 import { money } from "../format";
 import { depositOf, JOIN_STEPS, joinCircle, loadSnapshot, type Snapshot } from "../kitty";
 import { parseInvite } from "../links";
 import type { ScreenProps } from "../nav";
-import { beadsFor, nameAt, rulesInWords } from "../phase";
-import { Ring } from "../Ring";
+import { nameAt, rulesInWords } from "../phase";
+import { KittyLogo } from "../Brand";
 import { useSigner } from "../session";
 import { getCircle, saveCircle } from "../store";
 import { color, font, radius, space } from "../theme";
@@ -15,18 +15,19 @@ import { Body, Button, Heading, Notice, Screen, Section, Small, Steps, Title, ty
 
 export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
   const signer = useSigner();
-  const { width } = useWindowDimensions();
   const invite = useMemo(() => parseInvite(route.params.link), [route.params.link]);
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [run, setRun] = useState<{ active: string; failed: boolean; error?: string } | null>(null);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!invite) return;
-    loadSnapshot(invite.circle, signer.address)
-      .then(setSnap)
-      .catch((e) => setLoadError(explain(e)));
+    setLoadError(null);
+    try { setSnap(await loadSnapshot(invite.circle, signer.address)); }
+    catch (e) { setLoadError(explain(e)); }
   }, [invite, signer.address]);
+
+  useEffect(() => { void load(); }, [load]);
 
   // A member who reinstalled comes back through their invite link: the chain
   // says they're in, but this phone has forgotten the circle. Put it back on
@@ -110,7 +111,6 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
     else if (snap.state !== "forming" || now >= Number(snap.rules.joinDeadline)) blocker = "Joining has closed for this circle.";
   }
 
-  const beads = snap ? beadsFor(snap, names, now).map((b, i) => ({ ...b, turn: i === invite.seat })) : [];
 
   return (
     <Screen
@@ -124,19 +124,18 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
       }
     >
       <View style={styles.hero}>
-        <Small style={{ color: color.onIndigoMuted }}>{organizer} invited you to</Small>
-        <Title style={{ color: color.onIndigo }}>{invite.title}</Title>
-        {snap && (
-          <View style={{ alignItems: "center", marginTop: space.md }}>
-            <Ring beads={beads} size={Math.min(width - space.md * 2 - space.lg * 2, 240)}>
-              <Heading style={{ color: color.onIndigo }}>{who}</Heading>
-              <Small style={{ color: color.onIndigoMuted }}>your place</Small>
-            </Ring>
-          </View>
-        )}
+        <KittyLogo size={64} />
+        <Small>{organizer} invited you to</Small>
+        <Title>{invite.title}</Title>
+        <Body>A place for {who}, with people you know.</Body>
+        {snap && <View style={{ marginTop: space.sm, gap: space.sm }}>
+          <Heading>{money(snap.rules.contribution)} each round</Heading>
+          <Small>{snap.rules.memberCount} people · {snap.rules.memberCount} rounds</Small>
+          <Small>Deposit to join: {money(depositOf(snap.rules))}. Read the rules below before you confirm.</Small>
+        </View>}
       </View>
 
-      {loadError && <Notice tone="error">{loadError}</Notice>}
+      {loadError && <><Notice tone="error">{loadError}</Notice><Button label="Try again" tone="quiet" onPress={load} /></>}
       {!snap && !loadError && <Small>Loading the circle…</Small>}
       {already && <Notice tone="good">You're already in this circle.</Notice>}
       {blocker && <Notice tone="error">{blocker}</Notice>}
@@ -157,5 +156,5 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
 }
 
 const styles = StyleSheet.create({
-  hero: { backgroundColor: color.indigo, borderRadius: radius.hero, padding: space.lg, gap: space.xs, marginTop: space.xs },
+  hero: { backgroundColor: color.pinkSoft, borderRadius: radius.hero, padding: space.lg, gap: space.xs, marginTop: space.xs },
 });

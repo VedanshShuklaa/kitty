@@ -1,5 +1,5 @@
 import Slider from "@react-native-community/slider";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { View } from "react-native";
 
 import { explain } from "../errors";
@@ -18,20 +18,22 @@ export function BidScreen({ route, navigation }: ScreenProps<"Bid">) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadSnapshot(address, signer.address)
-      .then((s) => {
-        setSnap(s);
-        setBps(Math.min(1_000, s.rules.maxBidBps));
-      })
-      .catch((e) => setError(explain(e)));
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const s = await loadSnapshot(address, signer.address);
+      setSnap(s);
+      setBps(Math.min(1_000, s.rules.maxBidBps));
+    } catch (e) { setError(explain(e)); }
   }, [address, signer.address]);
+
+  useEffect(() => { void load(); }, [load]);
 
   if (!snap) {
     return (
       <Screen onBack={() => navigation.goBack()}>
         <Title>Want the pot sooner?</Title>
-        {error ? <Notice tone="error">{error}</Notice> : <Small>Loading…</Small>}
+        {error ? <><Notice tone="error">{error}</Notice><Button label="Try again" onPress={load} /></> : <Small>Loading…</Small>}
       </Screen>
     );
   }
@@ -76,7 +78,8 @@ export function BidScreen({ route, navigation }: ScreenProps<"Bid">) {
         <Amount>{money(takeNow)}</Amount>
         {holdback > 0n && <Small>plus {money(holdback)} back over the next rounds, as you keep paying.</Small>}
         <Slider
-          style={{ marginTop: space.md, height: 40 }}
+          style={{ marginTop: space.md, height: 48 }}
+          disabled={busy}
           minimumValue={50}
           maximumValue={r.maxBidBps}
           step={50}
@@ -90,6 +93,11 @@ export function BidScreen({ route, navigation }: ScreenProps<"Bid">) {
         <Body>
           Give up {money(discount)} ({(bps / 100).toFixed(bps % 100 ? 1 : 0)}%)
         </Body>
+        <View style={{ flexDirection: "row", gap: space.sm }}>
+          <Button label="Give up less" tone="quiet" disabled={bps <= 50 || busy} onPress={() => setBps(Math.max(50, bps - 50))} style={{ flex: 1 }} />
+          <Button label="Give up more" tone="quiet" disabled={bps >= r.maxBidBps || busy} onPress={() => setBps(Math.min(r.maxBidBps, bps + 50))} style={{ flex: 1 }} />
+        </View>
+        <Small>Adjust by 0.5% with the buttons, or use the slider. This estimate assumes everyone pays.</Small>
       </View>
 
       <Notice tone="info">

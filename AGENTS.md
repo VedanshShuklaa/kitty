@@ -73,3 +73,7 @@ real testnet AUSD, needs `MONAD_RPC_URL`), TC-1-16 (gas budget check against
 SRS 7.10's actual numbers, not just snapshot-stability), TC-1-17 (rehearsal
 script run live) — then moving into C3's bid economics tests against
 `test-vectors/math.json` TV-1..TV-4.
+
+**2026-10-01 — C2 mobile UI refreshed in Kitty pink.**
+Redesigned welcome, home and circle summaries; themed all flows; added generated kitty logo/launcher assets, larger accessible controls, keyboard handling and clearer failed-read/retry states. `UI_GUIDE.md` and `app/CLAUDE.md` define frontend rules. TypeScript, 22 tests and Android export pass; browser layout checks cover small phones/tablets.
+Next: build a new preview APK and check native text scaling, keyboard, screen readers, launcher masks and two-phone payment flows. No APK published in this change.

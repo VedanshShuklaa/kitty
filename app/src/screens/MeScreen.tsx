@@ -1,7 +1,8 @@
 import * as Clipboard from "expo-clipboard";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Linking, View } from "react-native";
 
+import { BottomNav } from "../Brand";
 import { explorerAddress } from "../chain";
 import { initials, shortAddress } from "../format";
 import { loadSnapshot, type Snapshot } from "../kitty";
@@ -9,14 +10,14 @@ import type { ScreenProps } from "../nav";
 import { useSession, useSigner } from "../session";
 import { listCircles, type CircleRef } from "../store";
 import { space } from "../theme";
-import { Bead, Body, Button, List, Row, Screen, Section, Small, Tag, Title } from "../ui";
+import { Bead, Body, Button, List, Notice, Row, Screen, Section, Small, Tag, Title } from "../ui";
 
 type Words = { label: string; tone: "leaf" | "clay" | "slate" | "marigold"; clean: boolean };
 
 // FR-TRU-11: standing reads as plain words, never a number, and never
 // "credit", "score", "rating" or "collateral".
 function standingWords(s: Snapshot | null): Words {
-  if (!s) return { label: "Loading", tone: "slate", clean: false };
+  if (!s) return { label: "Could not update", tone: "slate", clean: false };
   const mine = s.me ? s.members[s.me.seat] : undefined;
   if (!mine) return { label: "Not joined", tone: "slate", clean: false };
   if (mine.standing === "defaulted") return { label: "Missed, not repaid", tone: "clay", clean: false };
@@ -32,30 +33,39 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
   const [items, setItems] = useState<{ ref: CircleRef; snap: Snapshot | null }[]>([]);
   const [copied, setCopied] = useState(false);
 
-  useEffect(() => {
-    listCircles(signer.address).then(async (refs) => {
-      setItems(refs.map((ref) => ({ ref, snap: null })));
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const load = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const refs = await listCircles(signer.address);
       const snaps = await Promise.all(refs.map((r) => loadSnapshot(r.address, signer.address).catch(() => null)));
       setItems(refs.map((ref, i) => ({ ref, snap: snaps[i] })));
-    });
+      setLoaded(true);
+      setLoadError(snaps.some((s) => !s));
+    } catch { setLoadError(true); }
+    finally { setRefreshing(false); }
   }, [signer.address]);
+  useEffect(() => { void load(); }, [load]);
 
   const clean = items.filter((i) => standingWords(i.snap).clean).length;
 
   return (
-    <Screen onBack={() => navigation.goBack()}>
+    <Screen onBack={() => navigation.goBack()} footer={<BottomNav active="Account" onHome={() => navigation.navigate("Home")} onJoin={() => navigation.navigate("Paste")} onAccount={() => {}} />}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: space.md, marginTop: space.sm }}>
         <Bead label={initials(profile?.name ?? "?")} size={64} />
         <View style={{ flex: 1 }}>
           <Title>{profile?.name}</Title>
           <Small>
-            {items.length === 0
+            {!loaded ? "Checking your circles…" : items.length === 0
               ? "No circles yet"
               : `${items.length} ${items.length === 1 ? "circle" : "circles"}, in good shape in ${clean}`}
           </Small>
         </View>
       </View>
 
+      {loadError && <><Notice tone="error">Couldn’t update your record. Check your connection and try again.</Notice><Button label="Try again" busy={refreshing} onPress={load} /></>}
       {items.length > 0 && (
         <Section title="Your record">
           <List>
@@ -63,7 +73,7 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
               const w = standingWords(snap);
               return (
                 <Row key={ref.address} last={i === items.length - 1} onPress={() => navigation.navigate("Circle", { address: ref.address })}>
-                  <Body style={{ flex: 1 }} numberOfLines={1}>
+                  <Body style={{ flex: 1 }} >
                     {ref.title}
                   </Body>
                   <Tag label={w.label} tone={w.tone} />
@@ -85,7 +95,7 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
             <Button
               label={copied ? "Copied" : "Copy"}
               tone="quiet"
-              style={{ minHeight: 36, paddingHorizontal: space.md }}
+              style={{ minHeight: 48, paddingHorizontal: space.md }}
               onPress={async () => {
                 await Clipboard.setStringAsync(signer.address);
                 setCopied(true);
@@ -102,7 +112,7 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
       <View style={{ gap: space.sm, marginTop: space.md }}>
         <Button label="Lock Kitty" tone="dark" onPress={lock} />
         <Button label="Sign out on this phone" tone="quiet" onPress={forget} />
-        <Small>Signing out keeps your account. Sign back in with the same passkey to see your circles again.</Small>
+        <Small>Signing out keeps your account. Sign back in with the same passkey. If a circle is missing, open its invite link again.</Small>
       </View>
     </Screen>
   );

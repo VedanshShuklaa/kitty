@@ -115,6 +115,7 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
       }
     >
       <Title>Start a circle</Title>
+      <Small>Choose who saves with you, how much, and how often.</Small>
 
       <Field label="Name your circle" placeholder="Market Friday susu" value={title} onChangeText={setTitle} maxLength={40} />
 
@@ -142,7 +143,7 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
                   accessibilityLabel={`Remove person ${i + 2}`}
                   hitSlop={8}
                   onPress={() => setOthers(others.filter((_, j) => j !== i))}
-                  style={{ marginTop: 26, padding: space.sm }}
+                  style={{ marginTop: 26, minWidth: 48, minHeight: 48, alignItems: "center", justifyContent: "center", padding: space.sm }}
                 >
                   <Text style={{ fontFamily: font.bodyBold, fontSize: 20, color: color.slate }}>×</Text>
                 </Pressable>
@@ -183,11 +184,11 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
 
       {contribution && contribution > 0n ? (
         <View style={{ backgroundColor: color.indigoMist, borderRadius: radius.card, padding: space.md, gap: space.xs, marginTop: space.sm }}>
-          <Heading>In short</Heading>
+          <Heading>Check your circle</Heading>
           <Body>
             Each round, all {n} of you put in {money(contribution)}, {c.every}. One person takes the{" "}
             {money(contribution * BigInt(n))} pot. Everyone also puts down a {money(contribution)} deposit when they join, and gets it
-            back at the end.
+            back at the end, less any missed payments covered by that deposit.
           </Body>
         </View>
       ) : null}

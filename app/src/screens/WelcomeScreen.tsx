@@ -1,23 +1,12 @@
 import { useState } from "react";
-import { ScrollView, StyleSheet, View } from "react-native";
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { explain } from "../errors";
-import { Ring, type RingBead } from "../Ring";
+import { KittyLogo } from "../Brand";
 import { useSession } from "../session";
 import { color, font, radius, space } from "../theme";
 import { Body, Button, Check, Choice, Display, Field, Notice, Small, TestnetMarker, Title } from "../ui";
-
-// A still life of a circle mid-round: some have paid, one is up next.
-const HERO: RingBead[] = [
-  { label: "", tone: "paid", received: true },
-  { label: "", tone: "paid" },
-  { label: "", tone: "waiting", turn: true },
-  { label: "", tone: "paid" },
-  { label: "", tone: "waiting" },
-  { label: "", tone: "paid" },
-  { label: "", tone: "waiting" },
-];
 
 const COUNTRIES = [
   { label: "Ghana", value: "GH" },
@@ -49,17 +38,25 @@ export function WelcomeScreen() {
   const returning = status === "locked" && profile;
 
   return (
-    <SafeAreaView style={styles.safe} edges={["bottom"]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: space.xl }} keyboardShouldPersistTaps="handled">
+    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+      <KeyboardAvoidingView style={styles.frame} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      <ScrollView contentContainerStyle={{ paddingBottom: space.xl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <View style={styles.hero}>
-          <SafeAreaView edges={["top"]}>
-            <TestnetMarker onIndigo />
-          </SafeAreaView>
-          <View style={styles.ringWrap}>
-            <Ring beads={HERO} size={230} />
+          <TestnetMarker />
+          <View style={styles.brand}>
+            <KittyLogo size={112} />
+            <Display style={styles.wordmark}>kitty</Display>
           </View>
-          <Display style={styles.wordmark}>kitty</Display>
-          <Body style={styles.tagline}>Save with people you trust. Take turns with the pot. Nobody holds the money.</Body>
+          <Display style={styles.headline}>A little each round.
+More, together.</Display>
+          <Body style={styles.tagline}>Save with people you trust. Everyone contributes, and you take turns receiving the pot.</Body>
+          <View style={styles.explainer}>
+            <Small style={{ color: color.pink }}>Start a circle</Small>
+            <Small>→</Small>
+            <Small style={{ color: color.pink }}>Save together</Small>
+            <Small>→</Small>
+            <Small style={{ color: color.pink }}>Take turns</Small>
+          </View>
         </View>
 
         <View style={styles.body}>
@@ -73,6 +70,8 @@ export function WelcomeScreen() {
             </>
           ) : (
             <>
+              <Title>Let’s get you started</Title>
+              <Small>Try Kitty with test dollars. No real money needed.</Small>
               <Field
                 label="What should your circle call you?"
                 placeholder="Your first name"
@@ -101,28 +100,24 @@ export function WelcomeScreen() {
                 disabled={!!busy}
                 onPress={() => run("unlock", () => unlock(name.trim() || undefined, country))}
               />
-              <Small>Your account is a passkey on this phone. No password, nothing to write down.</Small>
+              <Small>Your phone uses a passkey to sign you in with your fingerprint or screen lock. No password to remember.</Small>
             </>
           )}
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: color.paper },
-  hero: {
-    backgroundColor: color.indigo,
-    borderBottomLeftRadius: radius.hero,
-    borderBottomRightRadius: radius.hero,
-    paddingHorizontal: space.lg,
-    paddingBottom: space.xl,
-    paddingTop: space.sm,
-    overflow: "hidden",
-  },
-  ringWrap: { alignItems: "flex-end", marginTop: space.md, marginRight: -space.xl },
-  wordmark: { color: color.onIndigo, fontSize: 64, lineHeight: 66, marginTop: -space.xl },
-  tagline: { color: color.onIndigoMuted, fontSize: 18, lineHeight: 26, marginTop: space.sm, maxWidth: 320 },
+  frame: { flex: 1, width: "100%", maxWidth: 600, alignSelf: "center" },
+  hero: { paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.lg, backgroundColor: color.surface, borderBottomLeftRadius: radius.hero, borderBottomRightRadius: radius.hero },
+  brand: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 16, marginTop: space.lg, marginBottom: space.md },
+  wordmark: { color: color.pink, fontSize: 52, lineHeight: 60 },
+  headline: { fontSize: 34, lineHeight: 40, letterSpacing: -0.8 },
+  tagline: { color: color.slate, marginTop: 12 },
+  explainer: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 20 },
   body: { padding: space.lg, gap: space.md },
 });

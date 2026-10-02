@@ -22,7 +22,7 @@ const config: ExpoConfig = {
   scheme: "kitty",
   version: "1.0.0",
   orientation: "portrait",
-  icon: "./assets/icon.png",
+  icon: "./assets/kitty-icon.png",
   userInterfaceStyle: "light",
   ios: {
     bundleIdentifier: applicationId,
@@ -32,10 +32,8 @@ const config: ExpoConfig = {
   android: {
     package: applicationId,
     adaptiveIcon: {
-      backgroundColor: "#25215E",
-      foregroundImage: "./assets/android-icon-foreground.png",
-      backgroundImage: "./assets/android-icon-background.png",
-      monochromeImage: "./assets/android-icon-monochrome.png",
+      backgroundColor: "#FAFBE6",
+      foregroundImage: "./assets/kitty-adaptive.png",
     },
     intentFilters: [
       {
@@ -47,10 +45,10 @@ const config: ExpoConfig = {
     ],
   },
   web: {
-    favicon: "./assets/favicon.png",
+    favicon: "./assets/kitty-favicon.png",
   },
   plugins: [
-    ["expo-splash-screen", { image: "./assets/splash-icon.png", imageWidth: 200, backgroundColor: "#25215E" }],
+    ["expo-splash-screen", { image: "./assets/kitty-icon.png", imageWidth: 200, backgroundColor: "#FAFBE6" }],
     ["expo-secure-store", { faceIDPermission: "Unlock the circle account on this phone." }],
     "expo-notifications",
   ],

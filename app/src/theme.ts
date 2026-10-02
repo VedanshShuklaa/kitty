@@ -1,21 +1,26 @@
-// Design tokens. Adire indigo carries the ink and the circle's hero block;
-// marigold marks whose turn it is and the one primary action on a screen.
+// Kitty pink. See UI_GUIDE.md before changing frontend styles or copy.
+// Legacy color names are aliases so existing financial flows share the theme.
 export const color = {
-  paper: "#EEF0F6",
+  paper: "#F8F6F7",
   surface: "#FFFFFF",
-  indigo: "#25215E",
-  indigoSoft: "#3A357A",
-  indigoMist: "#DCDDF0",
-  marigold: "#F2B233",
-  marigoldSoft: "#FCEBC4",
-  leaf: "#2F7D5B",
-  leafSoft: "#D6EDE2",
-  clay: "#C2413A",
-  claySoft: "#F6DAD8",
-  slate: "#6B6B8A",
-  line: "#D5D7E6",
-  onIndigo: "#F4F3FF",
-  onIndigoMuted: "#A9A6D6",
+  ink: "#32232D",
+  pink: "#AD245F",
+  pinkSoft: "#FCE5EF",
+  pinkBright: "#EC7BAD",
+  cream: "#FAFBE6",
+  indigo: "#32232D",
+  indigoSoft: "#614451",
+  indigoMist: "#FCE5EF",
+  marigold: "#EC7BAD",
+  marigoldSoft: "#FCE5EF",
+  leaf: "#246448",
+  leafSoft: "#E4F2E9",
+  clay: "#AC3434",
+  claySoft: "#FCE9E6",
+  slate: "#71636C",
+  line: "#E8DEE3",
+  onIndigo: "#FFFFFF",
+  onIndigoMuted: "#E9CCD9",
 } as const;
 
 export const font = {
@@ -30,4 +35,4 @@ export const font = {
 export const space = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 } as const;
 
 // Radii encode hierarchy: the hero block is the softest, controls are tighter.
-export const radius = { control: 14, card: 20, hero: 32, pill: 999 } as const;
+export const radius = { control: 16, card: 22, hero: 28, pill: 999 } as const;
