@@ -1,25 +1,9 @@
 import { zeroHash } from "viem";
 
-import { countdown, initials, money, span, when } from "./format";
+import { countdown, money, span, when } from "./format";
 import { CADENCES, cadenceOf, depositOf, potOf, type Member, type Rules, type Snapshot } from "./kitty";
-import type { BeadTone, RingBead } from "./Ring";
 
 export const nameAt = (names: string[], seat: number) => names[seat]?.trim() || `Seat ${seat + 1}`;
-
-/** Ring beads for the current moment: who has paid, who is late, whose turn. */
-export function beadsFor(s: Snapshot, names: string[], now: number): RingBead[] {
-  const turn = s.state === "active" ? nextInLine(s.members)?.seat : undefined;
-  return s.members.map((m) => {
-    let tone: BeadTone;
-    if (!m.address) tone = "empty";
-    else if (m.standing === "defaulted") tone = "out";
-    else if (s.state !== "active") tone = s.state === "forming" ? "paid" : "waiting";
-    else if (m.paid) tone = "paid";
-    else if (now > s.due) tone = "late";
-    else tone = "waiting";
-    return { label: initials(nameAt(names, m.seat)), tone, turn: m.seat === turn, received: m.received };
-  });
-}
 
 /** FR-CIR-03: the rules in plain words, before anyone joins. */
 export function rulesInWords(r: Rules): { lead: string; text: string }[] {

@@ -41,3 +41,9 @@ Desktop.ini
 
 # SRS artifact copy, kept local only
 SRS.html
+
+# Agent tooling scratch (browser logs, per-folder skill installs)
+.playwright-mcp/
+site/.agents/
+site/.claude/
+site/skills-lock.json
