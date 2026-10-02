@@ -1,6 +1,6 @@
 import { useFocusEffect } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Linking, Pressable, Share, StyleSheet, View } from "react-native";
 import type { Hex } from "viem";
 
@@ -22,6 +22,7 @@ import {
 import { inviteLink } from "../links";
 import type { ScreenProps } from "../nav";
 import { nameAt, nextInLine, plan, rulesInWords, type Action } from "../phase";
+import { remindersFor, syncReminders } from "../reminders";
 import { useSigner } from "../session";
 import { getCircle, getInviteKeys, type CircleRef } from "../store";
 import { color, font, radius, space } from "../theme";
@@ -45,12 +46,16 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
     getInviteKeys(address).then(setKeys);
   }, [signer.address, address]);
 
+  const titleRef = useRef("Savings circle");
+  titleRef.current = ref?.title ?? "Savings circle";
   const load = useCallback(async () => {
     try {
       const s = await loadSnapshot(address, signer.address);
+      const off = s.chainNow - Date.now() / 1000;
       setSnap(s);
-      setOffset(s.chainNow - Date.now() / 1000);
+      setOffset(off);
       setLoadError(null);
+      syncReminders(address, remindersFor(s, titleRef.current, s.chainNow), off).catch(() => {});
     } catch (e) {
       setLoadError(explain(e));
     }
@@ -78,7 +83,7 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
   const names = ref?.names ?? [];
   const title = ref?.title ?? "Savings circle";
 
-  async function act(a: Action) {
+  async function act(a: Action, auto = false) {
     if (!snap) return;
     if (a.kind === "bid") {
       navigation.navigate("Bid", { address, round: snap.round });
@@ -116,15 +121,33 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
           break;
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      setNotice({ tone: "good", text: done });
+      setNotice({ tone: "good", text: auto ? "The round was due, so your phone handed out the pot." : done });
       await load();
     } catch (e) {
+      if (auto) {
+        // another member's phone likely got there first; just catch up
+        await load();
+        return;
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       setNotice({ tone: "error", text: explain(e) });
     } finally {
       setBusy(null);
     }
   }
+
+  // FR-KEEP-01: an open circle whose round is due gets closed by whichever
+  // member's phone has it open, without a prompt. Once per round per visit;
+  // the button stays as the manual path.
+  const closable = !!snap && snap.state === "active" && now >= snap.due + snap.rules.grace;
+  const autoClosed = useRef<number | null>(null);
+  useEffect(() => {
+    if (!snap || !closable || busy || loadError || autoClosed.current === snap.round) return;
+    autoClosed.current = snap.round;
+    act({ kind: "close", label: "Hand out the pot" }, true);
+    // act is recreated every render, so it stays out of the deps; the round
+    // guard keeps this to one call
+  }, [snap, closable, busy, loadError]);
 
   if (!snap) {
     return (
@@ -180,6 +203,11 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
           <View style={[styles.fill, { width: `${(snap.state === "forming" ? joined : paid) / n * 100}%` }]} />
         </View>}
         <Body>{heroLine}</Body>
+        {snap.yield && snap.yield.earned > 0n && (
+          <Small>
+            Deposits have earned {money(snap.yield.earned)} so far (simulated testnet yield, following earnAUSD on Monad mainnet).
+          </Small>
+        )}
       </View>
       {loadError && <><Notice tone="error">Couldn't refresh. These are the last loaded amounts. Refresh before making a payment.</Notice><Button label="Try again" tone="quiet" busy={refreshing} onPress={refresh} /></>}
 

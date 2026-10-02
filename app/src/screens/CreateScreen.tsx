@@ -9,7 +9,7 @@ import type { ScreenProps } from "../nav";
 import { useSession, useSigner } from "../session";
 import { saveCircle, saveInviteKeys, type CircleRef } from "../store";
 import { color, font, radius, space } from "../theme";
-import { Body, Button, Choice, Field, Heading, Notice, Screen, Section, Small, Steps, Title, type StepState } from "../ui";
+import { Body, Button, Check, Choice, Field, Heading, Notice, Screen, Section, Small, Steps, Title, type StepState } from "../ui";
 
 const QUICK = ["5", "10", "20", "50"];
 const BIDDING = [
@@ -30,6 +30,7 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
   const [cadence, setCadence] = useState<Cadence>("demo");
   const [startIn, setStartIn] = useState(CADENCES.demo.starts[0].seconds);
   const [maxBid, setMaxBid] = useState(3_000);
+  const [earn, setEarn] = useState(true);
   const [run, setRun] = useState<Run | null>(null);
 
   const me = profile?.name ?? "You";
@@ -44,7 +45,7 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
         ? "Each round needs to be at least $1."
         : null;
 
-  const draft: CircleDraft = { title: title.trim(), names, contribution: contribution ?? 0n, cadence, startIn, maxBidBps: maxBid };
+  const draft: CircleDraft = { title: title.trim(), names, contribution: contribution ?? 0n, cadence, startIn, maxBidBps: maxBid, yieldOn: earn };
 
   async function submit() {
     let current = CREATE_STEPS[0].id;
@@ -180,6 +181,15 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
       <Section title="Bidding">
         <Small>Someone who needs the pot early can offer to give up part of it. The rest of you share what they give up.</Small>
         <Choice options={BIDDING} value={maxBid} onChange={setMaxBid} />
+      </Section>
+
+      <Section title="Deposits">
+        <Check label="Let deposits earn while they're locked" value={earn} onChange={setEarn} />
+        <Small>
+          {earn
+            ? "Most of the deposits go into a test version of earnAUSD. Any earnings are simulated testnet yield, shared out by deposit when the circle ends."
+            : "Deposits sit untouched until the circle ends."}
+        </Small>
       </Section>
 
       {contribution && contribution > 0n ? (

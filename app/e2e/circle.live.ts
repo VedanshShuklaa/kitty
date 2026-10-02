@@ -40,7 +40,7 @@ it("creates a circle, joins it by invite, and both members pay round 1", async (
 
   const circle = await createCircle(
     org,
-    { title: "E2E", names: ["Ama", "Kofi"], contribution: 1_000000n, cadence: "demo", startIn: 900, maxBidBps: 3_000 },
+    { title: "E2E", names: ["Ama", "Kofi"], contribution: 1_000000n, cadence: "demo", startIn: 900, maxBidBps: 3_000, yieldOn: true },
     (id) => steps.push(id),
     async (_c, k) => {
       keys = k;
@@ -59,6 +59,8 @@ it("creates a circle, joins it by invite, and both members pay round 1", async (
   expect(s.state).toBe("active");
   expect(s.round).toBe(1);
   expect(s.me?.seat).toBe(1);
+  // the yield vault answers; nothing is invested until round 1 closes
+  expect(s.yield).toEqual({ earned: 0n });
   expect(plan(s, s.chainNow).actions[0]).toMatchObject({ kind: "pay", amount: 1_000000n });
 
   await contribute(mem, circle, 1, s.me!.pay);

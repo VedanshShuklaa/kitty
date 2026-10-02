@@ -15,11 +15,15 @@ jest.mock("../config", () => ({
   },
 }));
 
+// only the pure remindersFor is under test here
+jest.mock("expo-notifications", () => ({}));
+
 import { bidSalt } from "../account/keys";
 import { countdown, money, parseMoney, span } from "../format";
 import { buildRules, CADENCES, commitmentFor, joinDigest, recoverBid, type Member, type Snapshot } from "../kitty";
 import { inviteLink, parseInvite } from "../links";
-import { plan } from "../phase";
+import { plan, rulesInWords } from "../phase";
+import { remindersFor } from "../reminders";
 
 describe("format", () => {
   it("shows dollars, dropping .00 and grouping thousands", () => {
@@ -108,7 +112,7 @@ describe("rules", () => {
       for (const start of c.starts) {
         const now = 1_800_000_000;
         const r = buildRules(
-          { title: "t", names: ["a", "b", "c"], contribution: 10_000000n, cadence: k as keyof typeof CADENCES, startIn: start.seconds, maxBidBps: 3_000 },
+          { title: "t", names: ["a", "b", "c"], contribution: 10_000000n, cadence: k as keyof typeof CADENCES, startIn: start.seconds, maxBidBps: 3_000, yieldOn: false },
           now,
         );
         expect(r.grace).toBeGreaterThanOrEqual(r.revealWindow);
@@ -127,7 +131,7 @@ describe("plan", () => {
   const third = "0x4444444444444444444444444444444444444444" as Address;
   const due = 10_000;
   const rules = buildRules(
-    { title: "t", names: ["a", "b", "c"], contribution: 10_000000n, cadence: "demo", startIn: 900, maxBidBps: 3_000 },
+    { title: "t", names: ["a", "b", "c"], contribution: 10_000000n, cadence: "demo", startIn: 900, maxBidBps: 3_000, yieldOn: true },
     due - 900,
   );
   const member = (seat: number, address: Address, over: Partial<Member> = {}): Member => ({
@@ -152,6 +156,7 @@ describe("plan", () => {
     recipients: [null, null, null],
     due,
     chainNow: due,
+    yield: null,
     me: { seat: 0, pay: 10_000000n, creditUsed: 0n, holdbackReleased: 0n, commitment: zeroHash, revealedBps: 0, withdrawable: 0n, balance: 0n, ...meOver },
     ...over,
   });
@@ -195,5 +200,22 @@ describe("plan", () => {
   it("finished: collect what's owed", () => {
     expect(kinds(snap({ state: "completed" }, { withdrawable: 12_000000n }), due)).toEqual(["withdraw"]);
     expect(kinds(snap({ state: "completed" }), due)).toEqual([]);
+  });
+
+  // FR-NOT-01: a demo circle reminds 2 minutes before the due time, when
+  // bidding opens, and when the round can close; nothing already past
+  it("reminders: pay, bid and close for the current round, future only", () => {
+    const ids = (s: Snapshot, now: number) => remindersFor(s, "Susu", now).map((x) => x.id.split(":").slice(2).join(":"));
+    expect(ids(snap(), due - rules.commitWindow - 60)).toEqual(["pay:120", "bid", "close"]);
+    expect(ids(snap(), due - 60)).toEqual(["close"]);
+    const paid = snap({ members: [member(0, me, { paid: true }), member(1, other), member(2, third)] });
+    expect(ids(paid, due - rules.commitWindow - 60)).toEqual(["bid", "close"]);
+    expect(ids(snap({}, { commitment: "0x01" as Hex }), due - 200)).toEqual(["pay:120", "reveal", "close"]);
+    expect(remindersFor(snap({ state: "completed" }), "Susu", due)).toEqual([]);
+  });
+
+  it("rules in words mention simulated yield only when it is on", () => {
+    expect(rulesInWords(rules).some((l) => /simulated testnet yield/.test(l.text))).toBe(true);
+    expect(rulesInWords({ ...rules, yieldOn: false }).some((l) => /yield/.test(l.text))).toBe(false);
   });
 });

@@ -36,6 +36,7 @@ export const circleAbi = parseAbi([
   "function paidRound(uint32 round, address member) view returns (bool)",
   "function recipientOf(uint32 round) view returns (address)",
   "function revealedBid(uint32 round, address member) view returns (bool revealed, uint16 discountBps)",
+  "function vault() view returns (address)",
   "error WrongState()",
   "error NotMember()",
   "error SeatTaken()",
@@ -51,6 +52,13 @@ export const circleAbi = parseAbi([
   "error BadReveal()",
   "error AutopayOff()",
   "error NothingToWithdraw()",
+]);
+
+// SRS 15.7: how much of a circle's collateral is earning, and what it has
+// earned. Circles from before the yield vault have no such view.
+export const vaultAbi = parseAbi([
+  "function positionOf(address circle) view returns (uint256 principal, uint256 liquid, uint256 invested, bool earning)",
+  "function previewSettle(address circle) view returns (uint256 assets, uint256 principal)",
 ]);
 
 export const ausdAbi = parseAbi([

@@ -25,6 +25,12 @@ export function rulesInWords(r: Rules): { lead: string; text: string }[] {
       text: `You have ${span(r.grace)} after each due time. Miss a round and your deposit covers you; you catch up later.`,
     },
   ];
+  if (r.yieldOn) {
+    lines.push({
+      lead: "Deposits earn while they're locked.",
+      text: "Most of the deposits sit in a test version of earnAUSD. What they earn is simulated testnet yield, shared out by deposit at the end.",
+    });
+  }
   return lines;
 }
 

@@ -20,7 +20,7 @@ import {
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { keccak_256 } from "@noble/hashes/sha3";
 
-import { ausdAbi, circleAbi, factoryAbi, faucetAbi } from "./abi";
+import { ausdAbi, circleAbi, factoryAbi, faucetAbi, vaultAbi } from "./abi";
 import { bidSalt } from "./account/keys";
 import { monadTestnet } from "./chain";
 import { apiUrl, contracts } from "./config";
@@ -121,6 +121,7 @@ export type CircleDraft = {
   cadence: Cadence;
   startIn: number; // seconds from now to the first due time
   maxBidBps: number; // 0 turns bidding off
+  yieldOn: boolean; // deposits earn simulated testnet yield (SRS 15.7)
 };
 
 export function buildRules(d: CircleDraft, nowSec: number): Rules {
@@ -132,7 +133,7 @@ export function buildRules(d: CircleDraft, nowSec: number): Rules {
     maxBidBps: d.maxBidBps,
     poolShareBps: 1_000,
     holdbackBps: 2_000,
-    yieldOn: false,
+    yieldOn: d.yieldOn,
     contribution: d.contribution,
     firstDue,
     period: c.period,
@@ -369,6 +370,8 @@ export type Snapshot = {
   recipients: (Address | null)[]; // index = round - 1
   due: number; // current round's due time, or the first due time while forming
   chainNow: number;
+  /** Simulated yield on the circle's deposits, if they are earning. */
+  yield: null | { earned: bigint };
   me: null | {
     seat: number;
     pay: bigint;
@@ -421,6 +424,7 @@ export async function loadSnapshot(circle: Address, me: Address | null): Promise
   );
 
   const state = STATES[stateN] ?? "forming";
+  const earnings = rules.yieldOn ? await readYield(circle) : null;
   let mine: Snapshot["me"] = null;
   const mySeat = me ? addrs.findIndex((a) => a.toLowerCase() === me.toLowerCase()) : -1;
   if (me && mySeat >= 0) {
@@ -459,8 +463,25 @@ export async function loadSnapshot(circle: Address, me: Address | null): Promise
     recipients: recipients.map((a) => (a === zeroAddress ? null : a)),
     due: Number(due),
     chainNow: Number(block.timestamp),
+    yield: earnings,
     me: mine,
   };
+}
+
+/** What settlement would pay out above the deposits, right now. */
+async function readYield(circle: Address): Promise<Snapshot["yield"]> {
+  try {
+    const vault = await client.readContract({ address: circle, abi: circleAbi, functionName: "vault" });
+    const [assets, principal] = await client.readContract({
+      address: vault,
+      abi: vaultAbi,
+      functionName: "previewSettle",
+      args: [circle],
+    });
+    return { earned: assets > principal ? assets - principal : 0n };
+  } catch {
+    return null; // a circle from before the yield vault
+  }
 }
 
 // ---------------------------------------------------------------- actions
