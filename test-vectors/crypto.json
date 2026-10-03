@@ -44,5 +44,39 @@
     "note": "EIP-191 personal-sign over joinDigest; verified in Foundry to recover to signerAddress (see contracts/test/Signatures.t.sol). The private key itself is not recorded here since it is only a labelled example key, not load-bearing for the vector.",
     "signerAddress": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
     "expected": "0x67a25a7547210e9563244b3b2d05b931fe25c39e5e98a076404053587b05feee0332fc46661f2900e73b71b4db6633f77ead8589f19a7053e9106352b718bb231b"
+  },
+  "namespaces": {
+    "note": "SRS 15.5. HKDF-SHA256 over the passkey's PRF output with salt \"kitty/v1\"; chainId is 8 bytes big-endian, circle 20 bytes, seat 1 byte, n 4 bytes. Invite and send-link keys take 48 bytes of output reduced to (k mod (n-1)) + 1 on secp256k1. Computed independently in Python (hmac) and by app/src/account/keys.ts; addresses from cast wallet address.",
+    "prfOutput": "0x0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20",
+    "chainId": 10143,
+    "circle": "0x1111111111111111111111111111111111111111",
+    "roster": {
+      "info": "roster | chainId | circle",
+      "expected": "0x2803be11e6787c7a1209a484d6792fc544b12795e715e33743819b8e761cbf0d"
+    },
+    "invite": {
+      "info": "invite | chainId | circle | seat",
+      "seat": 3,
+      "privateKey": "0xd654577f67b6bc55c9ae357f18997017d5268c6cef20a054fc609b5b06cc046b",
+      "signerAddress": "0xae68797Ace1e16EeD312529a94a650aA0A2EB165"
+    },
+    "profile": {
+      "info": "profile",
+      "expected": "0x332bcb594db97b134675263d034c095313ca81db698bb9346d9fa3579c8ab647"
+    },
+    "profileId": {
+      "info": "profile-id",
+      "expected": "0xc36b23abb0424ca30d3a5c319fff53573313ef38ef0c3c9272e28b7c06c32571"
+    },
+    "push": {
+      "info": "push | chainId | circle",
+      "expected": "0xbc3c9c1d1ec0b7b996e06a681fe530d8b6181e29f5167227a40f1bbc6ef00687"
+    },
+    "sendLink": {
+      "info": "send-link | n",
+      "n": 0,
+      "privateKey": "0x0e2ef61bdd1bc89048cbfef4aad8b4a4d6f0bf0d5c3873d7d99adc351e4baa63",
+      "address": "0xbefb15FB91d2C2cAb2D9c48E9C2ED64662094C19"
+    }
   }
 }

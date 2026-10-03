@@ -111,6 +111,55 @@ contract SignaturesTest is CircleTestBase {
         );
     }
 
+    /// FR-KEY-01 (SRS 15.5): the roster key re-derives here, and the derived
+    /// invite key is the one whose address the circle checks at join. Joining
+    /// a real clone with a signature from the re-derived key proves the
+    /// organizer can re-share an invite from the passkey alone.
+    function test_FRKEY01_derivedInviteKeyJoins() public {
+        bytes memory prf = vm.parseJsonBytes(json, ".namespaces.prfOutput");
+        uint64 chainId = uint64(vm.parseJsonUint(json, ".namespaces.chainId"));
+        address vectorCircle = vm.parseJsonAddress(json, ".namespaces.circle");
+        assertEq(
+            _hkdf32(prf, abi.encodePacked("roster", chainId, vectorCircle)),
+            vm.parseJsonBytes32(json, ".namespaces.roster.expected")
+        );
+
+        uint8 seat = uint8(vm.parseJsonUint(json, ".namespaces.invite.seat"));
+        uint256 key = _scalar(prf, abi.encodePacked("invite", chainId, vectorCircle, seat));
+        assertEq(bytes32(key), vm.parseJsonBytes32(json, ".namespaces.invite.privateKey"));
+        assertEq(vm.addr(key), vm.parseJsonAddress(json, ".namespaces.invite.signerAddress"));
+
+        // the same derivation for a circle that exists: the organizer predicts
+        // its address, derives the seat key, and creates it with that signer
+        address predicted = factory.predictCircle(organizer);
+        uint256 seatKey = _scalar(prf, abi.encodePacked("invite", uint64(block.chainid), predicted, uint8(1)));
+        address[] memory signers = _signers(3);
+        signers[1] = vm.addr(seatKey);
+        vm.prank(organizer);
+        address circle = factory.createCircle(_rules(3), signers);
+        assertEq(circle, predicted);
+
+        address joiner = makeAddr("joiner");
+        bytes32 digest = keccak256(abi.encode(keccak256("kitty.join.v1"), block.chainid, circle, uint8(1), joiner));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(seatKey, MessageHashUtils.toEthSignedMessageHash(digest));
+        _fund(joiner, circle);
+        vm.prank(joiner);
+        Circle(circle).join(1, abi.encodePacked(r, s, v));
+        assertEq(Circle(circle).memberAt(1), joiner);
+    }
+
+    // secp256k1 key from 48 bytes of HKDF output, reduced into [1, n - 1]
+    function _scalar(bytes memory ikm, bytes memory info) internal pure returns (uint256) {
+        uint256 m = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141 - 1;
+        bytes32 prk = _hmac(bytes("kitty/v1"), ikm);
+        bytes32 t1 = _hmac(abi.encodePacked(prk), abi.encodePacked(info, uint8(1)));
+        bytes32 t2 = _hmac(abi.encodePacked(prk), abi.encodePacked(t1, info, uint8(2)));
+        // the 48 bytes are t1 then the first 16 bytes of t2, read big-endian:
+        // (t1 * 2^128 + top half of t2) mod (n - 1), without overflow
+        uint256 x = mulmod(uint256(t1), 2 ** 128, m);
+        return addmod(x, uint256(t2) >> 128, m) + 1;
+    }
+
     // HKDF-SHA256 (RFC 5869), salt "kitty/v1", one 32-byte output block
     function _hkdf32(bytes memory ikm, bytes memory info) internal pure returns (bytes32) {
         bytes32 prk = _hmac(bytes("kitty/v1"), ikm);
