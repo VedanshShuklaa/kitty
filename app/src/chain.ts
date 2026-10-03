@@ -20,3 +20,4 @@ export const monadTestnet = defineChain({
 });
 
 export const explorerAddress = (a: string) => `${monadTestnet.blockExplorers.default.url}/address/${a}`;
+export const explorerTx = (hash: string) => `${monadTestnet.blockExplorers.default.url}/tx/${hash}`;

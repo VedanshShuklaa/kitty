@@ -3,7 +3,6 @@
 // the sponsor, so it is not part of the default suite. Run with:
 //   pnpm exec jest --config e2e/jest.config.js
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
-import type { Hex } from "viem";
 
 jest.mock("../src/config", () => {
   const d = JSON.parse(
@@ -22,8 +21,9 @@ jest.mock("../src/config", () => {
   };
 });
 
-import { contribute, createCircle, joinCircle, loadSnapshot, type Signer } from "../src/kitty";
+import { contribute, createCircle, inviteKeyFor, joinCircle, loadSnapshot, type Signer } from "../src/kitty";
 import { plan } from "../src/phase";
+import { getMemberKey, getRoster, organizerRosterKey, putMemberKey, putRoster } from "../src/vault";
 
 jest.setTimeout(10 * 60_000);
 
@@ -36,15 +36,10 @@ it("creates a circle, joins it by invite, and both members pay round 1", async (
   const org = signer();
   const mem = signer();
   const steps: string[] = [];
-  let keys: (Hex | null)[] = [];
-
   const circle = await createCircle(
     org,
     { title: "E2E", names: ["Ama", "Kofi"], contribution: 1_000000n, cadence: "demo", startIn: 900, maxBidBps: 3_000, yieldOn: true },
     (id) => steps.push(id),
-    async (_c, k) => {
-      keys = k;
-    },
   );
   console.log("circle", circle);
   expect(steps).toEqual(["topup", "dollars", "create", "approve", "deposit"]);
@@ -53,12 +48,22 @@ it("creates a circle, joins it by invite, and both members pay round 1", async (
   expect(s.state).toBe("forming");
   expect(s.members[0].address).toBe(org.address);
 
-  await joinCircle(mem, { circle, seat: 1, key: keys[1] as Hex, title: "E2E", names: ["Ama", "Kofi"] }, () => {});
+  await joinCircle(mem, { circle, seat: 1, key: inviteKeyFor(org, circle, 1), title: "E2E", names: ["Ama", "Kofi"], roster: null }, () => {});
 
   s = await loadSnapshot(circle, mem.address);
   expect(s.state).toBe("active");
   expect(s.round).toBe(1);
   expect(s.me?.seat).toBe(1);
+
+  // FR-KEY-03, FR-RST-02: names stored sealed by the organizer, the roster key
+  // kept wrapped by the member, both recoverable from each passkey alone
+  const roster = { title: "E2E", names: ["Ama", "Kofi"] };
+  await putRoster(org, circle, roster);
+  await putMemberKey(mem, circle, organizerRosterKey(org, circle));
+  const unwrapped = await getMemberKey(mem, circle);
+  expect(await getRoster(circle, unwrapped!)).toEqual(roster);
+  // only the circle's organizer can replace its roster
+  await expect(putRoster(mem, circle, { title: "Mine now", names: [] })).rejects.toThrow();
   // the yield vault answers; nothing is invested until round 1 closes
   expect(s.yield).toEqual({ earned: 0n });
   expect(plan(s, s.chainNow).actions[0]).toMatchObject({ kind: "pay", amount: 1_000000n });

@@ -14,6 +14,10 @@ const contracts = {
   circleFactory: deployment.circleFactory as string,
   ausd: deployment.ausd as string,
   ausdFaucet: process.env.AUSD_FAUCET ?? "0xd236c18D274E54FAccC3dd9DDA4b27965a73ee6C",
+  // Agora Instant Settlement on testnet (SRS 15.3): CTK stands in for USDC
+  ctk: "0x7BEb5D9DB0d85cBEa543C04f0dE8c23c2176cd9D",
+  pair: "0x1Aa8958Aa34cEC8096EF4381cb335effe977b0ae",
+  whitelister: "0x7c10F56d6f04a51376393a1C3670e966863F6BD5",
 };
 
 const config: ExpoConfig = {
@@ -39,7 +43,11 @@ const config: ExpoConfig = {
       {
         action: "VIEW",
         autoVerify: true,
-        data: [{ scheme: "https", host: rpId, pathPrefix: "/j/" }],
+        data: [
+          { scheme: "https", host: rpId, pathPrefix: "/j/" },
+          { scheme: "https", host: rpId, pathPrefix: "/p/" },
+          { scheme: "https", host: rpId, pathPrefix: "/s/" },
+        ],
         category: ["BROWSABLE", "DEFAULT"],
       },
     ],
@@ -51,12 +59,16 @@ const config: ExpoConfig = {
     ["expo-splash-screen", { image: "./assets/kitty-icon.png", imageWidth: 200, backgroundColor: "#FAFBE6" }],
     ["expo-secure-store", { faceIDPermission: "Unlock the circle account on this phone." }],
     "expo-notifications",
+    ["expo-camera", { cameraPermission: "Scan a Kitty code to send money to someone." }],
   ],
   extra: {
     rpId,
     siteUrl,
     // Sponsor endpoint lives on the same Vercel project as the site
     apiUrl: process.env.EXPO_PUBLIC_API_URL ?? siteUrl,
+    // The Envio indexer's GraphQL endpoint. Unset, the app goes through the
+    // site's /api/graphql, which forwards to wherever the indexer is hosted.
+    indexerUrl: process.env.EXPO_PUBLIC_INDEXER_URL ?? `${process.env.EXPO_PUBLIC_API_URL ?? siteUrl}/api/graphql`,
     contracts,
     eas: { projectId: "a2794367-b084-405b-b948-1b85ccf6c8fd" },
   },

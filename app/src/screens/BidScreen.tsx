@@ -6,13 +6,13 @@ import { explain } from "../errors";
 import { money, span, when } from "../format";
 import { commitBid, loadSnapshot, potOf, type Snapshot } from "../kitty";
 import type { ScreenProps } from "../nav";
-import { useSigner } from "../session";
+import { useMe } from "../session";
 import { color, radius, space } from "../theme";
 import { Amount, Body, Button, Notice, Screen, Small, Title } from "../ui";
 
 export function BidScreen({ route, navigation }: ScreenProps<"Bid">) {
   const { address, round } = route.params;
-  const signer = useSigner();
+  const { address: me, need } = useMe();
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [bps, setBps] = useState(1_000);
   const [busy, setBusy] = useState(false);
@@ -21,11 +21,11 @@ export function BidScreen({ route, navigation }: ScreenProps<"Bid">) {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const s = await loadSnapshot(address, signer.address);
+      const s = await loadSnapshot(address, me);
       setSnap(s);
       setBps(Math.min(1_000, s.rules.maxBidBps));
     } catch (e) { setError(explain(e)); }
-  }, [address, signer.address]);
+  }, [address, me]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -53,7 +53,7 @@ export function BidScreen({ route, navigation }: ScreenProps<"Bid">) {
     setBusy(true);
     setError(null);
     try {
-      await commitBid(signer, address, round, bps);
+      await commitBid(await need(), address, round, bps);
       navigation.goBack();
     } catch (e) {
       setError(explain(e));

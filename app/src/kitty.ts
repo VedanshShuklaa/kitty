@@ -17,11 +17,11 @@ import {
   type Hex,
   type LocalAccount,
 } from "viem";
-import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
+import { privateKeyToAccount } from "viem/accounts";
 import { keccak_256 } from "@noble/hashes/sha3";
 
 import { ausdAbi, circleAbi, factoryAbi, faucetAbi, vaultAbi } from "./abi";
-import { bidSalt } from "./account/keys";
+import { bidSalt, inviteKey } from "./account/keys";
 import { monadTestnet } from "./chain";
 import { apiUrl, contracts } from "./config";
 import type { Invite } from "./links";
@@ -156,9 +156,9 @@ export function cadenceOf(r: Pick<Rules, "period">): Cadence | null {
 
 // ------------------------------------------------------------------- sends
 
-type Call = { address: Address; abi: Abi; functionName: string; args?: readonly unknown[] };
+export type Call = { address: Address; abi: Abi; functionName: string; args?: readonly unknown[] };
 
-async function send(s: Signer, call: Call): Promise<Hex> {
+export async function send(s: Signer, call: Call): Promise<Hex> {
   // FR-GAS-03: explicit limit, estimate + 20%. Estimating first also
   // surfaces a revert (and its custom error) before anything is signed.
   const gas = await client.estimateContractGas({ ...call, account: s.account } as never);
@@ -264,11 +264,19 @@ export async function nowOnChain(): Promise<number> {
   return Number((await client.getBlock()).timestamp);
 }
 
+/**
+ * FR-KEY-02: each seat's invite key comes from the organizer's passkey and the
+ * circle's address, so it is never stored and can be re-shared from any phone
+ * the passkey signs in on. Seat 0 is the organizer's own and has no key.
+ */
+export const inviteKeyFor = (s: Pick<Signer, "prf">, circle: Address, seat: number): Hex =>
+  inviteKey(s.prf, BigInt(contracts.chainId), circle, seat);
+
 export async function createCircle(
   s: Signer,
   draft: CircleDraft,
   onStep: (id: string) => void,
-  beforeCreate: (circle: Address, keys: (Hex | null)[]) => Promise<void>,
+  onPredicted: (circle: Address) => void = () => {},
 ): Promise<Address> {
   onStep("topup");
   await ensureTopUp(s.address);
@@ -277,17 +285,15 @@ export async function createCircle(
   onStep("dollars");
   await ensureDollars(s, depositOf(rules) + rules.contribution);
 
-  // one single-use invite key per seat; seat 0 is the organizer (FR-INV-01)
-  const keys: (Hex | null)[] = draft.names.map((_, i) => (i === 0 ? null : generatePrivateKey()));
-  const signers = keys.map((k) => (k ? privateKeyToAccount(k).address : zeroAddress));
   const circle = await client.readContract({
     address: contracts.circleFactory,
     abi: factoryAbi,
     functionName: "predictCircle",
     args: [s.address],
   });
-  // keys are saved before the circle exists, so a crash can't orphan the invites
-  await beforeCreate(circle, keys);
+  onPredicted(circle);
+  // one single-use invite key per seat (FR-INV-01), derived, never stored
+  const signers = draft.names.map((_, i) => (i === 0 ? zeroAddress : privateKeyToAccount(inviteKeyFor(s, circle, i)).address));
 
   onStep("create");
   await send(s, { address: contracts.circleFactory, abi: factoryAbi, functionName: "createCircle", args: [rules, signers] });

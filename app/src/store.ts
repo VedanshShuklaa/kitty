@@ -2,9 +2,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import type { Address, Hex } from "viem";
 
-// What this phone remembers. Nothing here is secret except the organizer's
-// invite keys, which live in the OS keystore. The passkey's PRF output is
-// never stored (FR-ACC-04).
+// What this phone remembers, as a cache (FR-RST-01): everything here can be
+// rebuilt from the passkey, the indexer and Kitty's encrypted storage. The
+// passkey's PRF output and every key derived from it are never stored
+// (FR-ACC-04, SRS 15.5).
 
 export type Profile = { name: string; address: Address; country: string };
 
@@ -15,6 +16,8 @@ export type CircleRef = {
   seat: number;
   organizer: boolean;
   addedAt: number; // unix ms
+  /** The roster (organizer) or this member's wrapped roster key is in Kitty's storage. */
+  synced?: boolean;
 };
 
 const PROFILE = "kitty:profile";
@@ -50,11 +53,14 @@ export async function saveCircle(me: Address, ref: CircleRef): Promise<void> {
   await AsyncStorage.setItem(circlesKey(me), JSON.stringify(list));
 }
 
-/** Seat-indexed invite keys; index 0 (the organizer's seat) is null. */
-export async function saveInviteKeys(circle: Address, keys: (Hex | null)[]): Promise<void> {
-  await SecureStore.setItemAsync(invitesKey(circle), JSON.stringify(keys));
+export async function forgetCircles(me: Address): Promise<void> {
+  await AsyncStorage.removeItem(circlesKey(me));
 }
 
+/**
+ * Seat-indexed invite keys for circles created before invite keys were
+ * derived from the passkey. Newer circles derive them (kitty.ts inviteKeyFor).
+ */
 export async function getInviteKeys(circle: Address): Promise<(Hex | null)[] | null> {
   const raw = await SecureStore.getItemAsync(invitesKey(circle));
   return raw ? (JSON.parse(raw) as (Hex | null)[]) : null;

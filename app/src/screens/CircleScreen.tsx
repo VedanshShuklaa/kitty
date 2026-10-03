@@ -2,15 +2,18 @@ import { useFocusEffect } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Linking, Pressable, Share, StyleSheet, View } from "react-native";
-import type { Hex } from "viem";
+import type { Address, Hex } from "viem";
 
 import { explorerAddress } from "../chain";
 import { explain } from "../errors";
-import { initials, money, when } from "../format";
+import { feedLine } from "../feed";
+import { initials, money, shortAddress, when } from "../format";
+import { earnRate, feedOf, type Activity } from "../indexer";
 import {
   cancelCircle,
   closeRound,
   contribute,
+  inviteKeyFor,
   loadSnapshot,
   payArrears,
   potOf,
@@ -23,16 +26,19 @@ import { inviteLink } from "../links";
 import type { ScreenProps } from "../nav";
 import { nameAt, nextInLine, plan, rulesInWords, type Action } from "../phase";
 import { remindersFor, syncReminders } from "../reminders";
-import { useSigner } from "../session";
+import { rosterKeyHex, syncCircle } from "../restore";
+import { useMe } from "../session";
 import { getCircle, getInviteKeys, type CircleRef } from "../store";
 import { color, font, radius, space } from "../theme";
 import { Amount, Bead, Body, Button, Heading, List, Notice, Row, Screen, Section, Small, Tag, Title } from "../ui";
 
 export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
   const { address } = route.params;
-  const signer = useSigner();
+  const { address: me, signer, need } = useMe();
   const [ref, setRef] = useState<CircleRef | undefined>();
-  const [keys, setKeys] = useState<(Hex | null)[] | null>(null);
+  const [legacyKeys, setLegacyKeys] = useState<(Hex | null)[] | null>(null);
+  const [feed, setFeed] = useState<Activity[] | null>(null);
+  const [rate, setRate] = useState<number | null>(null);
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [offset, setOffset] = useState(0); // chain clock minus phone clock
   const [, setTick] = useState(0);
@@ -42,24 +48,37 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    getCircle(signer.address, address).then(setRef);
-    getInviteKeys(address).then(setKeys);
-  }, [signer.address, address]);
+    getCircle(me, address).then(setRef);
+    getInviteKeys(address).then(setLegacyKeys);
+    earnRate()
+      .then((r) => setRate(r?.aprBps ?? null))
+      .catch(() => {});
+  }, [me, address]);
+
+  // FR-KEY-03: the organizer's roster goes to Kitty's storage once, sealed
+  useEffect(() => {
+    if (ref && signer && ref.organizer && !ref.synced) {
+      syncCircle(signer, ref)
+        .then(() => getCircle(me, address).then(setRef))
+        .catch(() => {});
+    }
+  }, [ref, signer, me, address]);
 
   const titleRef = useRef("Savings circle");
   titleRef.current = ref?.title ?? "Savings circle";
   const load = useCallback(async () => {
     try {
-      const s = await loadSnapshot(address, signer.address);
+      const s = await loadSnapshot(address, me);
       const off = s.chainNow - Date.now() / 1000;
       setSnap(s);
       setOffset(off);
       setLoadError(null);
       syncReminders(address, remindersFor(s, titleRef.current, s.chainNow), off).catch(() => {});
+      feedOf(address).then(setFeed).catch(() => {});
     } catch (e) {
       setLoadError(explain(e));
     }
-  }, [address, signer.address]);
+  }, [address, me]);
 
   useFocusEffect(
     useCallback(() => {
@@ -89,34 +108,39 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
       navigation.navigate("Bid", { address, round: snap.round });
       return;
     }
+    // the auto-close never prompts: it only runs while the session is live
+    if (auto && !signer) return;
     setBusy(a.kind);
     setNotice(null);
     try {
+      // SRS 15.4: these sign without a prompt while the session is live, and
+      // after one unlock prompt if it has ended
+      const s = await need();
       let done = "";
       switch (a.kind) {
         case "pay":
-          await contribute(signer, address, snap.round, a.amount ?? 0n);
+          await contribute(s, address, snap.round, a.amount ?? 0n);
           done = "Paid. Everyone in the circle can see it.";
           break;
         case "reveal": {
-          const bps = await revealBid(signer, address, snap.round, snap.rules.maxBidBps);
+          const bps = await revealBid(s, address, snap.round, snap.rules.maxBidBps);
           done = `Your offer is open: you'd give up ${bps / 100}%.`;
           break;
         }
         case "close":
-          await closeRound(signer, address, snap.round);
+          await closeRound(s, address, snap.round);
           done = "The pot has been handed out.";
           break;
         case "withdraw":
-          await withdraw(signer, address);
+          await withdraw(s, address);
           done = "Collected. It's in your test dollars now.";
           break;
         case "cancel":
-          await cancelCircle(signer, address);
+          await cancelCircle(s, address);
           done = "The circle is called off. Everyone can collect their deposit.";
           break;
         case "arrears":
-          await payArrears(signer, address, a.amount ?? 0n);
+          await payArrears(s, address, a.amount ?? 0n);
           done = "You're caught up.";
           break;
       }
@@ -142,12 +166,12 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
   const closable = !!snap && snap.state === "active" && now >= snap.due + snap.rules.grace;
   const autoClosed = useRef<number | null>(null);
   useEffect(() => {
-    if (!snap || !closable || busy || loadError || autoClosed.current === snap.round) return;
+    if (!snap || !closable || busy || loadError || !signer || autoClosed.current === snap.round) return;
     autoClosed.current = snap.round;
     act({ kind: "close", label: "Hand out the pot" }, true);
     // act is recreated every render, so it stays out of the deps; the round
     // guard keeps this to one call
-  }, [snap, closable, busy, loadError]);
+  }, [snap, closable, busy, loadError, signer]);
 
   if (!snap) {
     return (
@@ -205,7 +229,8 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
         <Body>{heroLine}</Body>
         {snap.yield && snap.yield.earned > 0n && (
           <Small>
-            Deposits have earned {money(snap.yield.earned)} so far (simulated testnet yield, following earnAUSD on Monad mainnet).
+            Deposits have earned {money(snap.yield.earned)} so far (simulated testnet yield, following earnAUSD on Monad mainnet
+            {rate !== null && rate > 0 ? `, now ${(rate / 100).toFixed(1)}% a year` : ""}).
           </Small>
         )}
       </View>
@@ -236,31 +261,39 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
         </List>
       </Section>
 
-      {snap.state === "forming" && ref?.organizer && keys && (
+      {snap.state === "forming" && ref?.organizer && (
         <Section title="Invite links">
           <Small>Each link works for one person only. Send it to them on WhatsApp.</Small>
-          <List>
-            {snap.members
-              .filter((m) => !m.address && keys[m.seat])
-              .map((m, i, open) => {
-                const link = inviteLink({ circle: address, seat: m.seat, key: keys[m.seat] as Hex, title, names });
-                const who = nameAt(names, m.seat);
-                return (
-                  <Row key={m.seat} last={i === open.length - 1}>
-                    <Bead label={initials(who)} tone="mist" />
-                    <Body style={{ flex: 1 }}>{who}</Body>
-                    <Button
-                      label="Send"
-                      tone="dark"
-                      style={{ minHeight: 48, paddingHorizontal: space.md }}
-                      onPress={() =>
-                        Share.share({ message: `${who}, join "${title}", our savings circle on Kitty: ${link}` }).catch(() => {})
-                      }
-                    />
-                  </Row>
-                );
-              })}
-          </List>
+          {!signer && !legacyKeys ? (
+            <Button label="Unlock to show invite links" tone="quiet" onPress={() => need().catch(() => {})} />
+          ) : (
+            <List>
+              {snap.members
+                .filter((m) => !m.address && m.seat > 0)
+                .map((m, i, open) => {
+                  // FR-KEY-02: derived from the passkey, so any phone it signs in on can re-share them
+                  const key = legacyKeys?.[m.seat] ?? (signer ? inviteKeyFor(signer, address, m.seat) : null);
+                  if (!key) return null;
+                  const roster = signer && !legacyKeys ? rosterKeyHex(signer, address) : null;
+                  const link = inviteLink({ circle: address, seat: m.seat, key, title, names, roster });
+                  const who = nameAt(names, m.seat);
+                  return (
+                    <Row key={m.seat} last={i === open.length - 1}>
+                      <Bead label={initials(who)} tone="mist" />
+                      <Body style={{ flex: 1 }}>{who}</Body>
+                      <Button
+                        label="Send"
+                        tone="dark"
+                        style={{ minHeight: 48, paddingHorizontal: space.md }}
+                        onPress={() =>
+                          Share.share({ message: `${who}, join "${title}", our savings circle on Kitty: ${link}` }).catch(() => {})
+                        }
+                      />
+                    </Row>
+                  );
+                })}
+            </List>
+          )}
         </Section>
       )}
 
@@ -289,6 +322,25 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
         </Section>
       )}
 
+      {feed && feed.length > 0 && (
+        <Section title="What's happened">
+          <List>
+            {feed
+              .map((a) => ({ a, line: feedLine(a, (who: Address | null) => personName(who, snap, names, me)) }))
+              .filter((x): x is { a: Activity; line: string } => !!x.line)
+              .slice(0, 12)
+              .map(({ a, line }, i, rows) => (
+                <Row key={a.id} last={i === rows.length - 1}>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Body>{line}</Body>
+                    <Small>{when(a.at)}</Small>
+                  </View>
+                </Row>
+              ))}
+          </List>
+        </Section>
+      )}
+
       <Section title="How this circle works">
         <View style={{ gap: space.sm }}>
           {rulesInWords(r).map((l) => (
@@ -304,6 +356,14 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
       </Pressable>
     </Screen>
   );
+}
+
+/** "You", the member's name from the roster, or a short address for someone outside the circle. */
+function personName(who: Address | null, snap: Snapshot, names: string[], me: Address): string {
+  if (!who) return "Someone";
+  if (who.toLowerCase() === me.toLowerCase()) return "You";
+  const m = snap.members.find((x) => x.address?.toLowerCase() === who.toLowerCase());
+  return m ? nameAt(names, m.seat) : shortAddress(who);
 }
 
 function MemberRow({ m, snap, name, me, now, last }: { m: Member; snap: Snapshot; name: string; me: boolean; now: number; last: boolean }) {

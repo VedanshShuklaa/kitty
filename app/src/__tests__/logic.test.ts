@@ -57,9 +57,10 @@ describe("invite links", () => {
     key: `0x${"ab".repeat(32)}` as Hex,
     title: "Àdùké's susu & friends",
     names: ["Ama", "Kofi", "Ẹniọlá", "Wanjiru"],
+    roster: `0x${"cd".repeat(32)}` as Hex,
   };
 
-  it("round-trips the circle, seat, key and names", () => {
+  it("round-trips the circle, seat, key, names and roster key", () => {
     const link = inviteLink(invite);
     expect(link.startsWith("https://kitty-circle.vercel.app/j/0x1111111111111111111111111111111111111111/3#k=0x")).toBe(true);
     expect(parseInvite(link)).toEqual(invite);
@@ -69,6 +70,7 @@ describe("invite links", () => {
     const [path] = inviteLink(invite).split("#");
     expect(path).not.toContain("ab".repeat(32));
     expect(path).not.toContain("Kofi");
+    expect(path).not.toContain("cd".repeat(32));
   });
 
   it("rejects links that are not invites", () => {

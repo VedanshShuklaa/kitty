@@ -9,6 +9,10 @@ export type Routes = {
   Join: { link: string };
   Paste: undefined;
   Me: undefined;
+  Send: { to?: Address; name?: string } | undefined;
+  Scan: undefined;
+  Receive: undefined;
+  Claim: { link: string };
 };
 
 export type ScreenProps<K extends keyof Routes> = NativeStackScreenProps<Routes, K>;

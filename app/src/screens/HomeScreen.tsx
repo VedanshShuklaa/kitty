@@ -1,17 +1,22 @@
 import { useFocusEffect } from "@react-navigation/native";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Pressable, StyleSheet, View } from "react-native";
+import type { Address } from "viem";
 
 import { BottomNav, KittyLogo } from "../Brand";
 import { explain } from "../errors";
-import { countdown, initials, money } from "../format";
-import { balanceOf, getTestDollars, loadSnapshot, type Snapshot } from "../kitty";
+import { moneyLine } from "../feed";
+import { countdown, initials, money, shortAddress } from "../format";
+import { loadRates, localEstimate, type Rates } from "../fx";
+import { transfersOf, type Transfer } from "../indexer";
+import { getTestDollars, loadSnapshot, type Snapshot } from "../kitty";
+import { balances, type Balances } from "../money";
 import type { ScreenProps } from "../nav";
-import { plan } from "../phase";
-import { useSession, useSigner } from "../session";
+import { nameAt, plan } from "../phase";
+import { useMe, useSession } from "../session";
 import { listCircles, type CircleRef } from "../store";
 import { color, font, radius, space } from "../theme";
-import { Amount, Bead, Body, Button, Heading, Notice, Screen, Small, Tag, Title } from "../ui";
+import { Amount, Bead, Body, Button, Heading, List, Notice, Row, Screen, Small, Tag, Title } from "../ui";
 
 type Item = { ref: CircleRef; snap: Snapshot | null };
 
@@ -23,10 +28,12 @@ function summary(snap: Snapshot): string {
 }
 
 export function HomeScreen({ navigation }: ScreenProps<"Home">) {
-  const signer = useSigner();
-  const { profile } = useSession();
+  const { address, need } = useMe();
+  const { profile, onboarding, restored, restore } = useSession();
   const [items, setItems] = useState<Item[]>([]);
-  const [balance, setBalance] = useState<bigint | null>(null);
+  const [bal, setBal] = useState<Balances | null>(null);
+  const [rates, setRates] = useState<Rates | null>(null);
+  const [recent, setRecent] = useState<Transfer[] | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -38,32 +45,49 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
     if (loading.current) return;
     loading.current = true;
     try {
-      const refs = await listCircles(signer.address);
-      const [bal, snaps] = await Promise.all([
-        balanceOf(signer.address).catch(() => null),
-        Promise.all(refs.map((r) => loadSnapshot(r.address, signer.address).catch(() => null))),
+      const refs = await listCircles(address);
+      const [b, snaps] = await Promise.all([
+        balances(address).catch(() => null),
+        Promise.all(refs.map((r) => loadSnapshot(r.address, address).catch(() => null))),
       ]);
       // Unknown amounts never become zero; a failed refresh is explicitly labelled.
-      setBalance(bal);
+      setBal(b);
       setItems(refs.map((ref, i) => ({ ref, snap: snaps[i] })));
       setLoaded(true);
-      setLoadError(bal === null || snaps.some((s) => s === null));
+      setLoadError(b === null || snaps.some((s) => s === null));
+      transfersOf(address, 6).then(setRecent).catch(() => setRecent(null));
     } catch {
       setLoadError(true);
     } finally {
       loading.current = false;
     }
-  }, [signer.address]);
+  }, [address]);
 
-  useFocusEffect(useCallback(() => {
-    void load();
-    const id = setInterval(() => { if (AppState.currentState === "active") void load(); }, 12_000);
-    const listener = AppState.addEventListener("change", (state) => { if (state === "active") void load(); });
-    return () => { clearInterval(id); listener.remove(); };
-  }, [load]));
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+      loadRates().then(setRates);
+      const id = setInterval(() => {
+        if (AppState.currentState === "active") void load();
+      }, 12_000);
+      const listener = AppState.addEventListener("change", (state) => {
+        if (state === "active") void load();
+      });
+      return () => {
+        clearInterval(id);
+        listener.remove();
+      };
+    }, [load]),
+  );
+
+  // circles restored from the indexer land in the cache; show them as they arrive
+  useEffect(() => {
+    if (restored) void load();
+  }, [restored, load]);
 
   async function refresh() {
     setRefreshing(true);
+    await restore().catch(() => {});
     await load().finally(() => setRefreshing(false));
   }
 
@@ -71,7 +95,7 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
     setFunding(true);
     setNotice(null);
     try {
-      await getTestDollars(signer);
+      await getTestDollars(await need());
       await load();
       setNotice({ tone: "good", text: "Test dollars added." });
     } catch (e) {
@@ -81,11 +105,22 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
     }
   }
 
+  // names for the money list, from everyone in this phone's circles
+  const names = new Map<string, string>();
+  for (const { ref, snap } of items) {
+    for (const m of snap?.members ?? []) if (m.address) names.set(m.address.toLowerCase(), nameAt(ref.names, m.seat));
+  }
+  const who = (a: Address | null) => (a ? (names.get(a.toLowerCase()) ?? shortAddress(a)) : "Someone");
+
   const needingAction = items.filter(({ snap }) => snap && plan(snap, snap.chainNow).actions.length > 0).length;
+  const local = bal ? localEstimate(bal.dollars + bal.cashOut, profile?.country, rates) : null;
 
   return (
-    <Screen refreshing={refreshing} onRefresh={refresh}
-      footer={<BottomNav active="Home" onHome={() => {}} onJoin={() => navigation.navigate("Paste")} onAccount={() => navigation.navigate("Me")} />}>
+    <Screen
+      refreshing={refreshing}
+      onRefresh={refresh}
+      footer={<BottomNav active="Home" onHome={() => {}} onJoin={() => navigation.navigate("Paste")} onAccount={() => navigation.navigate("Me")} />}
+    >
       <View style={styles.header}>
         <KittyLogo />
         <View style={{ flex: 1, gap: 2 }}>
@@ -97,17 +132,50 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
         </Pressable>
       </View>
 
+      {onboarding && "seconds" in onboarding && (
+        <Notice tone="good">Your account is ready. Its first transaction confirmed {onboarding.seconds.toFixed(1)} s after your fingerprint.</Notice>
+      )}
+      {onboarding && "error" in onboarding && <Notice tone="error">{onboarding.error}</Notice>}
+
       <View style={styles.balance}>
-        <View style={styles.between}><Body>Available to use</Body><Tag label="Test dollars" tone="marigold" /></View>
-        <Amount selectable>{balance === null ? "—" : money(balance)}</Amount>
+        <View style={styles.between}>
+          <Body>Your money</Body>
+          <Tag label="Test dollars" tone="marigold" />
+        </View>
+        <Amount selectable>{bal === null ? "—" : money(bal.dollars)}</Amount>
+        {bal && bal.cashOut > 0n && <Small>plus {money(bal.cashOut)} ready to cash out</Small>}
+        {local && <Small>{local} in all (approximate)</Small>}
         <Small>This is practice money, not real savings.</Small>
-        <Button label="Add test dollars" tone="quiet" busy={funding} onPress={fund} style={{ alignSelf: "flex-start", marginTop: 4, borderColor: color.pinkBright }} />
+        <View style={styles.actions}>
+          <Button label="Send" onPress={() => navigation.navigate("Send")} style={{ flex: 1 }} />
+          <Button label="Receive" tone="quiet" onPress={() => navigation.navigate("Receive")} style={{ flex: 1, borderColor: color.pinkBright }} />
+        </View>
+        <Button label="Add test dollars" tone="quiet" busy={funding} onPress={fund} style={{ alignSelf: "flex-start", borderColor: color.pinkBright }} />
       </View>
       {notice && <Notice tone={notice.tone}>{notice.text}</Notice>}
-      {loadError && <View style={{ gap: 8 }}>
-        <Notice tone="error">We couldn't update your balance or circles. Check your connection and try again.</Notice>
-        <Button label="Try again" tone="quiet" busy={refreshing} onPress={refresh} />
-      </View>}
+      {loadError && (
+        <View style={{ gap: 8 }}>
+          <Notice tone="error">We couldn't update your balance or circles. Check your connection and try again.</Notice>
+          <Button label="Try again" tone="quiet" busy={refreshing} onPress={refresh} />
+        </View>
+      )}
+
+      {recent && recent.length > 0 && (
+        <>
+          <Heading style={{ marginTop: 8 }}>Recent money</Heading>
+          <List>
+            {recent.map((t, i) => {
+              const line = moneyLine(t, address, who);
+              return (
+                <Row key={t.id} last={i === recent.length - 1}>
+                  <Body style={{ flex: 1 }}>{line.text}</Body>
+                  {line.sign !== "none" && <Tag label={line.sign === "in" ? "In" : "Out"} tone={line.sign === "in" ? "leaf" : "slate"} />}
+                </Row>
+              );
+            })}
+          </List>
+        </>
+      )}
 
       <View style={styles.actions}>
         <Button label="Start a circle" onPress={() => navigation.navigate("Create")} style={{ flex: 1 }} />
@@ -116,46 +184,73 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
 
       <View style={[styles.between, { marginTop: 8 }]}>
         <Heading>Your circles{loaded ? ` (${items.length})` : ""}</Heading>
-        {needingAction > 0 && <Small style={{ color: color.pink }}>{needingAction} {needingAction === 1 ? "needs" : "need"} attention</Small>}
+        {needingAction > 0 && (
+          <Small style={{ color: color.pink }}>
+            {needingAction} {needingAction === 1 ? "needs" : "need"} attention
+          </Small>
+        )}
       </View>
+      {restored?.indexerDown && <Small>Showing the circles saved on this phone. Kitty's records are out of reach right now.</Small>}
       {!loaded ? (
         <Small>{loadError ? "Your circles will appear when you reconnect." : "Checking your circles…"}</Small>
       ) : items.length === 0 ? (
         <View style={styles.empty}>
           <KittyLogo size={72} />
-          <Heading>Your first circle starts here</Heading>
+          <Heading>{restored ? "Your first circle starts here" : "Looking for your circles…"}</Heading>
           <Body style={{ textAlign: "center", color: color.slate }}>Save with people you know. Start a circle, or join one using their invite link.</Body>
         </View>
-      ) : items.map(({ ref, snap }) => {
-        const paid = snap?.members.filter((m) => m.paid).length ?? 0;
-        const joined = snap?.members.filter((m) => m.address).length ?? 0;
-        const total = snap?.rules.memberCount ?? ref.names.length;
-        const forming = snap?.state === "forming";
-        const count = forming ? joined : paid;
-        const active = snap?.state === "active";
-        return <Pressable key={ref.address} accessibilityRole="button" accessibilityLabel={`Open ${ref.title}. ${snap ? summary(snap) : "Could not update"}`}
-          onPress={() => navigation.navigate("Circle", { address: ref.address })}
-          style={({ pressed }) => [styles.circle, pressed && { backgroundColor: color.pinkSoft }]}>
-          <View style={styles.header}>
-            <Bead label={initials(ref.title)} tone="mist" size={44} />
-            <View style={{ flex: 1, gap: 2 }}>
-              <Heading>{ref.title}</Heading>
-              <Small>{snap ? (active ? `Round ${snap.round} of ${total}` : forming ? "Getting everyone together" : snap.state === "completed" ? "Circle complete" : "Circle called off") : "Could not update"}</Small>
-            </View>
-            <Body style={{ color: color.slate }}>›</Body>
-          </View>
-          <Body style={{ fontFamily: font.bodyMedium, color: color.pink }}>{snap ? summary(snap) : "Open circle to try again"}</Body>
-          {(active || forming) && <>
-            <View style={styles.track} accessible accessibilityLabel={`${count} of ${total} ${forming ? "joined" : "paid"}`}>
-              <View style={[styles.fill, { width: `${total ? count / total * 100 : 0}%` }]} />
-            </View>
-            <View style={styles.between}>
-              <Small>{count} of {total} {forming ? "joined" : "paid"}</Small>
-              {snap && <Small>{money(snap.rules.contribution)} each round</Small>}
-            </View>
-          </>}
-        </Pressable>;
-      })}
+      ) : (
+        items.map(({ ref, snap }) => {
+          const paid = snap?.members.filter((m) => m.paid).length ?? 0;
+          const joined = snap?.members.filter((m) => m.address).length ?? 0;
+          const total = snap?.rules.memberCount ?? ref.names.length;
+          const forming = snap?.state === "forming";
+          const count = forming ? joined : paid;
+          const active = snap?.state === "active";
+          return (
+            <Pressable
+              key={ref.address}
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${ref.title}. ${snap ? summary(snap) : "Could not update"}`}
+              onPress={() => navigation.navigate("Circle", { address: ref.address })}
+              style={({ pressed }) => [styles.circle, pressed && { backgroundColor: color.pinkSoft }]}
+            >
+              <View style={styles.header}>
+                <Bead label={initials(ref.title)} tone="mist" size={44} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Heading>{ref.title}</Heading>
+                  <Small>
+                    {snap
+                      ? active
+                        ? `Round ${snap.round} of ${total}`
+                        : forming
+                          ? "Getting everyone together"
+                          : snap.state === "completed"
+                            ? "Circle complete"
+                            : "Circle called off"
+                      : "Could not update"}
+                  </Small>
+                </View>
+                <Body style={{ color: color.slate }}>›</Body>
+              </View>
+              <Body style={{ fontFamily: font.bodyMedium, color: color.pink }}>{snap ? summary(snap) : "Open circle to try again"}</Body>
+              {(active || forming) && (
+                <>
+                  <View style={styles.track} accessible accessibilityLabel={`${count} of ${total} ${forming ? "joined" : "paid"}`}>
+                    <View style={[styles.fill, { width: `${total ? (count / total) * 100 : 0}%` }]} />
+                  </View>
+                  <View style={styles.between}>
+                    <Small>
+                      {count} of {total} {forming ? "joined" : "paid"}
+                    </Small>
+                    {snap && <Small>{money(snap.rules.contribution)} each round</Small>}
+                  </View>
+                </>
+              )}
+            </Pressable>
+          );
+        })
+      )}
       <View style={styles.help}>
         <Heading>Save together. Take turns.</Heading>
         <Small>Everyone pays into the circle. Each round, one person receives the pot. Check the rules before you join.</Small>

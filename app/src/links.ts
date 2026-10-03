@@ -2,13 +2,16 @@ import { isAddress, isHex, type Address, type Hex } from "viem";
 import { siteUrl } from "./config";
 
 // SRS 8.3. Everything secret sits after the `#`, which browsers never send
-// to a server: the seat's invite key, and the circle's title and member
-// names (which never go onchain, FR-ROS-01).
-export type Invite = { circle: Address; seat: number; key: Hex; title: string; names: string[] };
+// to a server: the seat's invite key, the circle's roster key, and its title
+// and member names (which never go onchain, FR-ROS-01). The names ride along
+// so the invite page can greet the invitee and the app has them even when
+// Kitty's storage is down; the roster key opens the stored roster for good.
+export type Invite = { circle: Address; seat: number; key: Hex; title: string; names: string[]; roster: Hex | null };
 
 export function inviteLink(i: Invite): string {
   const meta = encodeURIComponent(JSON.stringify({ t: i.title, n: i.names }));
-  return `${siteUrl}/j/${i.circle}/${i.seat}#k=${i.key}&m=${meta}`;
+  const roster = i.roster ? `&r=${i.roster}` : "";
+  return `${siteUrl}/j/${i.circle}/${i.seat}#k=${i.key}${roster}&m=${meta}`;
 }
 
 export function parseInvite(url: string): Invite | null {
@@ -33,5 +36,7 @@ export function parseInvite(url: string): Invite | null {
   }
   const seat = Number(seatStr);
   if (seat < 1 || seat > 11) return null;
-  return { circle, seat, key, title, names };
+  const r = params.r;
+  const roster = r && isHex(r) && r.length === 66 ? (r as Hex) : null;
+  return { circle, seat, key, title, names, roster };
 }

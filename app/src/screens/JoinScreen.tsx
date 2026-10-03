@@ -8,13 +8,14 @@ import { parseInvite } from "../links";
 import type { ScreenProps } from "../nav";
 import { nameAt, rulesInWords } from "../phase";
 import { KittyLogo } from "../Brand";
-import { useSigner } from "../session";
+import { syncCircle } from "../restore";
+import { useMe } from "../session";
 import { getCircle, saveCircle } from "../store";
 import { color, font, radius, space } from "../theme";
 import { Body, Button, Heading, Notice, Screen, Section, Small, Steps, Title, type StepState } from "../ui";
 
 export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
-  const signer = useSigner();
+  const { address: me, signer, confirm } = useMe();
   const invite = useMemo(() => parseInvite(route.params.link), [route.params.link]);
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -23,30 +24,33 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
   const load = useCallback(async () => {
     if (!invite) return;
     setLoadError(null);
-    try { setSnap(await loadSnapshot(invite.circle, signer.address)); }
+    try { setSnap(await loadSnapshot(invite.circle, me)); }
     catch (e) { setLoadError(explain(e)); }
-  }, [invite, signer.address]);
+  }, [invite, me]);
 
   useEffect(() => { void load(); }, [load]);
 
-  // A member who reinstalled comes back through their invite link: the chain
-  // says they're in, but this phone has forgotten the circle. Put it back on
-  // Home, with the names from the link (FR-ROS-02 stand-in).
+  // A member who reinstalled can come back through their invite link: the
+  // chain says they're in, but this phone has forgotten the circle. Put it
+  // back on Home with the names from the link, and keep the roster key in
+  // Kitty's storage if it isn't there yet. Restore after sign-in does the
+  // same from the passkey alone (FR-RST-01).
   useEffect(() => {
     if (!invite || !snap?.me) return;
-    const me = snap.me;
-    getCircle(signer.address, invite.circle).then((known) => {
-      if (known) return;
-      return saveCircle(signer.address, {
+    const mine = snap.me;
+    getCircle(me, invite.circle).then(async (known) => {
+      const ref = known ?? {
         address: invite.circle,
         title: invite.title,
         names: invite.names,
-        seat: me.seat,
-        organizer: snap.organizer.toLowerCase() === signer.address.toLowerCase(),
+        seat: mine.seat,
+        organizer: snap.organizer.toLowerCase() === me.toLowerCase(),
         addedAt: Date.now(),
-      });
+      };
+      if (!known) await saveCircle(me, ref);
+      if (signer && invite.roster) await syncCircle(signer, ref, invite.roster).catch(() => {});
     });
-  }, [invite, snap, signer.address]);
+  }, [invite, snap, me, signer]);
 
   if (!invite) {
     return (
@@ -65,18 +69,16 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
     if (!invite) return;
     let current = JOIN_STEPS[0].id;
     try {
-      await joinCircle(signer, invite, (id) => {
+      // joining commits a deposit and every round's payment: a fresh fingerprint (SRS 15.4)
+      const s = await confirm();
+      await joinCircle(s, invite, (id) => {
         current = id;
         setRun({ active: id, failed: false });
       });
-      await saveCircle(signer.address, {
-        address: invite.circle,
-        title: invite.title,
-        names,
-        seat: invite.seat,
-        organizer: false,
-        addedAt: Date.now(),
-      });
+      const ref = { address: invite.circle, title: invite.title, names, seat: invite.seat, organizer: false, addedAt: Date.now() };
+      await saveCircle(s.address, ref);
+      // FR-KEY-03: keep a copy of the roster key, wrapped under this member's passkey
+      await syncCircle(s, ref, invite.roster).catch(() => {});
       navigation.replace("Circle", { address: invite.circle });
     } catch (e) {
       setRun({ active: current, failed: true, error: explain(e) });

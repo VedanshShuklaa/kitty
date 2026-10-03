@@ -4,10 +4,11 @@ import { Linking, View } from "react-native";
 
 import { BottomNav } from "../Brand";
 import { explorerAddress } from "../chain";
-import { initials, shortAddress } from "../format";
+import { initials, money, shortAddress } from "../format";
+import { recordOf, type Passbook } from "../indexer";
 import { loadSnapshot, type Snapshot } from "../kitty";
 import type { ScreenProps } from "../nav";
-import { useSession, useSigner } from "../session";
+import { useMe, useSession } from "../session";
 import { listCircles, type CircleRef } from "../store";
 import { space } from "../theme";
 import { Bead, Body, Button, List, Notice, Row, Screen, Section, Small, Tag, Title } from "../ui";
@@ -27,9 +28,33 @@ function standingWords(s: Snapshot | null): Words {
   return { label: "Up to date", tone: "leaf", clean: true };
 }
 
+// SRS 15.5: what the one passkey secret turns into, in words
+const KEYS: [string, string][] = [
+  ["Your account", "Signs payments and joins"],
+  ["Sealed bids", "Keeps your bid secret until the reveal"],
+  ["Circle names", "Locks each circle's member names"],
+  ["Invite links", "One key per seat, so links can be made again"],
+  ["Your profile", "Your name and country, locked"],
+  ["Send links", "Money sent by link, which you can take back"],
+];
+
+function passbookLines(b: Passbook): string[] {
+  const n = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
+  const lines = [
+    `${n(b.circlesJoined, "circle", "circles")} joined, ${b.circlesCompleted} finished`,
+    `Paid on time ${n(b.paidOnTime, "time", "times")}${b.paidLate ? `, late ${n(b.paidLate, "time", "times")}` : ""}`,
+    `${money(b.totalContributed)} paid into circles`,
+  ];
+  if (b.potsReceived) lines.push(`Received the pot ${n(b.potsReceived, "time", "times")}`);
+  if (b.counterparties) lines.push(`Saved with ${n(b.counterparties, "person", "people")}`);
+  if (b.sends || b.receives) lines.push(`Sent money ${n(b.sends, "time", "times")}, received ${n(b.receives, "time", "times")}`);
+  return lines;
+}
+
 export function MeScreen({ navigation }: ScreenProps<"Me">) {
-  const signer = useSigner();
+  const { address, signer } = useMe();
   const { profile, lock, forget } = useSession();
+  const [book, setBook] = useState<Passbook | null>(null);
   const [items, setItems] = useState<{ ref: CircleRef; snap: Snapshot | null }[]>([]);
   const [copied, setCopied] = useState(false);
 
@@ -39,14 +64,15 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
   const load = useCallback(async () => {
     setRefreshing(true);
     try {
-      const refs = await listCircles(signer.address);
-      const snaps = await Promise.all(refs.map((r) => loadSnapshot(r.address, signer.address).catch(() => null)));
+      recordOf(address).then(setBook).catch(() => {});
+      const refs = await listCircles(address);
+      const snaps = await Promise.all(refs.map((r) => loadSnapshot(r.address, address).catch(() => null)));
       setItems(refs.map((ref, i) => ({ ref, snap: snaps[i] })));
       setLoaded(true);
       setLoadError(snaps.some((s) => !s));
     } catch { setLoadError(true); }
     finally { setRefreshing(false); }
-  }, [signer.address]);
+  }, [address]);
   useEffect(() => { void load(); }, [load]);
 
   const clean = items.filter((i) => standingWords(i.snap).clean).length;
@@ -85,24 +111,55 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
         </Section>
       )}
 
+      {book && (
+        <Section title="Across every circle">
+          <List>
+            {passbookLines(book).map((line, i, all) => (
+              <Row key={line} last={i === all.length - 1}>
+                <Body style={{ flex: 1 }}>{line}</Body>
+              </Row>
+            ))}
+          </List>
+          <Small>Read from the public record, so it follows your account to any phone.</Small>
+        </Section>
+      )}
+
+      <Section title="One passkey, many keys">
+        <Small>
+          Your fingerprint unlocks one secret on this phone. Kitty works out every other key from it when you need it and never stores
+          them, so a new phone and the same passkey bring everything back.
+        </Small>
+        <List>
+          {KEYS.map(([what, why], i) => (
+            <Row key={what} last={i === KEYS.length - 1}>
+              <View style={{ flex: 1 }}>
+                <Body>{what}</Body>
+                <Small>{why}</Small>
+              </View>
+            </Row>
+          ))}
+        </List>
+        <Small>{signer ? "Unlocked now." : "Locked. Kitty asks for your fingerprint when it next needs a key."}</Small>
+      </Section>
+
       <Section title="Account details">
         <Small>For support, or to look your account up on the public record.</Small>
         <List>
           <Row>
             <Body style={{ flex: 1 }} selectable>
-              {shortAddress(signer.address)}
+              {shortAddress(address)}
             </Body>
             <Button
               label={copied ? "Copied" : "Copy"}
               tone="quiet"
               style={{ minHeight: 48, paddingHorizontal: space.md }}
               onPress={async () => {
-                await Clipboard.setStringAsync(signer.address);
+                await Clipboard.setStringAsync(address);
                 setCopied(true);
               }}
             />
           </Row>
-          <Row last onPress={() => Linking.openURL(explorerAddress(signer.address))}>
+          <Row last onPress={() => Linking.openURL(explorerAddress(address))}>
             <Body style={{ flex: 1 }}>See it on the public record</Body>
             <Body>›</Body>
           </Row>

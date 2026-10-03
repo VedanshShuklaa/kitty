@@ -65,7 +65,25 @@ export const ausdAbi = parseAbi([
   "function balanceOf(address) view returns (uint256)",
   "function allowance(address owner, address spender) view returns (uint256)",
   "function approve(address spender, uint256 amount) returns (bool)",
+  "function transfer(address to, uint256 amount) returns (bool)",
+  "function transferFrom(address from, address to, uint256 amount) returns (bool)",
+  "function nonces(address owner) view returns (uint256)",
+  "function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)",
 ]);
+
+// Agora Instant Settlement (SRS 15.3). On testnet the pair is CTK/AUSD at a
+// fixed 1:1 price; CTK stands in for the USDC the mainnet pair settles to.
+export const pairAbi = parseAbi([
+  "function getAmountsOut(uint256 amountIn, address[] path) view returns (uint256[])",
+  "function swapExactTokensForTokens(uint256 amountIn, uint256 amountOutMin, address[] path, address to, uint256 deadline) returns (uint256[])",
+  "function hasRole(string role, address account) view returns (bool)",
+  "function isPaused() view returns (bool)",
+  "error Expired()",
+  "error InsufficientOutputAmount()",
+  "error PairIsPaused()",
+]);
+
+export const whitelisterAbi = parseAbi(["function setApprovedSwapper(address swapper)"]);
 
 // Agora's testnet faucet: 10,000 AUSD per request, behind a short cooldown.
 export const faucetAbi = parseAbi(["function requestFunds(address to)", "error MaxFrequencyExceeded()"]);

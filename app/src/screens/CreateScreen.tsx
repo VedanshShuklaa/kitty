@@ -6,8 +6,9 @@ import { explain } from "../errors";
 import { money, parseMoney, span } from "../format";
 import { CADENCES, CREATE_STEPS, createCircle, joinAsOrganizer, type Cadence, type CircleDraft } from "../kitty";
 import type { ScreenProps } from "../nav";
-import { useSession, useSigner } from "../session";
-import { saveCircle, saveInviteKeys, type CircleRef } from "../store";
+import { syncCircle } from "../restore";
+import { useMe, useSession } from "../session";
+import { saveCircle, type CircleRef } from "../store";
 import { color, font, radius, space } from "../theme";
 import { Body, Button, Check, Choice, Field, Heading, Notice, Screen, Section, Small, Steps, Title, type StepState } from "../ui";
 
@@ -22,7 +23,7 @@ const BIDDING = [
 type Run = { active: string; failed: boolean; error?: string; circle?: Address };
 
 export function CreateScreen({ navigation }: ScreenProps<"Create">) {
-  const signer = useSigner();
+  const { address: me, confirm } = useMe();
   const { profile } = useSession();
   const [title, setTitle] = useState("");
   const [others, setOthers] = useState<string[]>(["", ""]);
@@ -33,8 +34,8 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
   const [earn, setEarn] = useState(true);
   const [run, setRun] = useState<Run | null>(null);
 
-  const me = profile?.name ?? "You";
-  const names = [me, ...others.map((s) => s.trim())];
+  const myName = profile?.name ?? "You";
+  const names = [myName, ...others.map((s) => s.trim())];
   const contribution = parseMoney(amount);
   const n = names.length;
   const problem = !title.trim()
@@ -50,10 +51,8 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
   async function submit() {
     let current = CREATE_STEPS[0].id;
     let circle: Address | undefined = run?.circle;
-    const remember = (c: Address) => {
-      const ref: CircleRef = { address: c, title: draft.title, names, seat: 0, organizer: true, addedAt: Date.now() };
-      return saveCircle(signer.address, ref);
-    };
+    const refFor = (c: Address): CircleRef => ({ address: c, title: draft.title, names, seat: 0, organizer: true, addedAt: Date.now() });
+    const remember = (c: Address) => saveCircle(me, refFor(c));
     const step = (id: string) => {
       current = id;
       // past "create", the circle exists: list it, and never create it twice
@@ -61,15 +60,19 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
       setRun({ active: id, failed: false, circle: id === "approve" || id === "deposit" ? circle : undefined });
     };
     try {
+      // creating a circle commits money and sets up obligations for other
+      // people, so it takes a fresh fingerprint (SRS 15.4)
+      const s = await confirm();
       if (circle) {
-        await joinAsOrganizer(signer, circle, step);
+        await joinAsOrganizer(s, circle, step);
       } else {
-        circle = await createCircle(signer, draft, step, async (predicted, keys) => {
+        circle = await createCircle(s, draft, step, (predicted) => {
           circle = predicted;
-          await saveInviteKeys(predicted, keys);
         });
       }
       await remember(circle);
+      // FR-KEY-03: the names go to Kitty's storage sealed; retried from the circle screen if this fails
+      await syncCircle(s, refFor(circle)).catch(() => {});
       navigation.replace("Circle", { address: circle });
     } catch (e) {
       const created = current === "approve" || current === "deposit";
@@ -123,7 +126,7 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
       <Section title="Who's in?" right={<Small>{n} people, {n} rounds</Small>}>
         <View style={{ gap: space.sm }}>
           <View style={nameRow}>
-            <Body style={{ flex: 1, fontFamily: font.bodyMedium }}>{me}</Body>
+            <Body style={{ flex: 1, fontFamily: font.bodyMedium }}>{myName}</Body>
             <Small>You go first</Small>
           </View>
           {others.map((o, i) => (

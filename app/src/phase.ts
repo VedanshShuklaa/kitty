@@ -3,7 +3,8 @@ import { zeroHash } from "viem";
 import { countdown, money, span, when } from "./format";
 import { CADENCES, cadenceOf, depositOf, potOf, type Member, type Rules, type Snapshot } from "./kitty";
 
-export const nameAt = (names: string[], seat: number) => names[seat]?.trim() || `Seat ${seat + 1}`;
+// FR-RST-03: until a roster is back, people are "Member 2" and so on
+export const nameAt = (names: string[], seat: number) => names[seat]?.trim() || `Member ${seat + 1}`;
 
 /** FR-CIR-03: the rules in plain words, before anyone joins. */
 export function rulesInWords(r: Rules): { lead: string; text: string }[] {
