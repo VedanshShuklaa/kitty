@@ -611,3 +611,16 @@ Committed as four commits (contracts, redesign, cleanup, app). New preview APK b
 Next: indexer (SRS 15.6), session policy + derived invites + encrypted roster (15.5),
 Agora send (FR-SND), event pushes once Firebase exists; republish SRS artifact (still says
 StakeVault has no adapter).
+
+**2026-10-04 — Agora send, indexer and one-passkey-many-keys built (SRS 15.3–15.6).**
+Indexer (`indexer/`): circles, money (Agora pair swaps + AUSD/CTK transfers between Kitty accounts), yield
+(earn vault + mainnet earnAUSD), standing tiers; 14 vitest tests. Not synced live: the Envio token has no
+HyperSync access (403), so it needs Envio Cloud (install the Envio GitHub app on the repo) or a new token;
+then set `INDEXER_URL` on Vercel — the app reads it through `/api/graphql`, no rebuild needed.
+App: Send/Receive/Scan/Claim, cash-out via Instant Settlement, conversion, send links (permit claim, take
+back), derived invite/roster/profile/send-link keys, sealed roster + profile in Upstash (`site/api/*`),
+session policy with lock bar, feed and record from the indexer, local-currency estimates. 48 unit tests;
+live e2e `money.live.ts` (send 1.6 s to safe block) and `circle.live.ts` (derived invite join, roster
+round trip) pass; forge 87/87. Site redeployed with `/p/` `/s/` pages.
+New APK (EAS f64900d5) live at /download.
+Next: Envio Cloud deploy (user: GitHub app), phone test of the new APK, UX polish, push, trust attestations.
