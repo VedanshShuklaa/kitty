@@ -193,7 +193,10 @@ export async function ensureTopUp(address: Address): Promise<void> {
     throw new Error("Couldn't reach Kitty to set up your account. Check your connection and try again.");
   }
   const body = (await res.json().catch(() => ({}))) as { hash?: Hex; error?: string };
-  if (!res.ok) throw new Error(body.error ?? "Kitty couldn't set up your account right now. Try again in a minute.");
+  if (!res.ok) {
+    // the sponsor's own errors are written for members; anything else means the server itself is down
+    throw new Error(body.error ?? `Kitty's server isn't answering (${res.status}). Your account is safe; try again in a minute.`);
+  }
   if (body.hash) {
     await client.waitForTransactionReceipt({ hash: body.hash });
     recentTopUps.set(address.toLowerCase(), Date.now());

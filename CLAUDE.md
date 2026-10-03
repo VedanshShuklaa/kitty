@@ -624,3 +624,7 @@ live e2e `money.live.ts` (send 1.6 s to safe block) and `circle.live.ts` (derive
 round trip) pass; forge 87/87. Site redeployed with `/p/` `/s/` pages.
 New APK (EAS f64900d5) live at /download.
 Next: Envio Cloud deploy (user: GitHub app), phone test of the new APK, UX polish, push, trust attestations.
+
+**2026-10-04 — Site outage fixed.** Pushing to GitHub made Vercel deploy the repo root (no `site/`) to production,
+so every page and `/api/*` returned 404 — which also broke new-account setup (sponsor unreachable). Promoted the last
+good deploy; root `vercel.json` now disables Git deploys. Deploy the site only with `cd site && vercel --prod`.
