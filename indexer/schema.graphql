@@ -1,25 +1,121 @@
+# Kitty's data layer (SRS 8.1 and 15.6). Monad's public RPC serves 100 blocks
+# of logs per call and no old state, so everything the app knows about the
+# past comes from here: which circles an account belongs to, each circle's
+# activity, the record across circles, and sends and receives.
+#
+# Ids are lowercase addresses. Kitty entities live on testnet 10143; mainnet
+# 143 only feeds the earnAUSD share price (YieldPoint, EarnRate).
+
 type Circle {
-  id: ID! # circle contract address
-  organizer: String!
+  id: ID! # circle address
+  factory: String!
+  organizer: String! @index
+  memberCount: Int!
+  contribution: BigInt!
+  stakeBps: Int!
+  maxBidBps: Int!
+  poolShareBps: Int!
+  holdbackBps: Int!
+  yieldOn: Boolean!
+  period: Int!
+  firstDue: BigInt!
+  joinDeadline: BigInt!
+  state: String! # Forming | Active | Completed | Cancelled
+  joined: Int!
+  currentRound: Int! # 0 while forming
   createdAt: BigInt!
-  completedAt: BigInt
+  activatedAt: BigInt
+  endedAt: BigInt
+  totalContributed: BigInt!
+  totalPaidOut: BigInt! # pots handed out, net of discount and holdback
+  totalCovered: BigInt! # missed payments covered from deposits and the pool
+  yieldEarned: BigInt # assets above principal at settlement, when deposits earned
+  members: [Member!]! @derivedFrom(field: "circle")
+  rounds: [Round!]! @derivedFrom(field: "circle")
+  activity: [Activity!]! @derivedFrom(field: "circle")
+}
+
+type Account {
+  id: ID! # address: one record across every circle
+  firstSeenAt: BigInt!
+  approvedSwapper: Boolean! # whitelisted for Agora Instant Settlement
+  circlesJoined: Int!
+  circlesOrganized: Int!
+  circlesCompleted: Int!
+  paidOnTime: Int!
+  paidLate: Int!
+  timesCovered: Int!
+  defaults: Int!
+  openDefaults: Int! # defaults with a shortfall not yet filled
+  lastDefaultClearedAt: BigInt
+  potsReceived: Int!
+  totalContributed: BigInt!
+  totalReceived: BigInt! # pots, plus deposits and credits collected at the end
+  totalSent: BigInt!
+  totalReceivedDirect: BigInt! # money other people sent this account
+  sends: Int!
+  receives: Int!
+  counterparties: Int! # distinct people met in a finished circle
+  cycleWeight: Int! # x1000; SRS 8.4
+  tier: String! # Newcomer | Steady | Trusted | Anchor
+  memberships: [Member!]! @derivedFrom(field: "account")
+}
+
+# Each pair of accounts that finished a circle together, counted once: a
+# circle only adds weight for the people who were new to you (FR-TRU-06).
+type Counterparty {
+  id: ID! # `${account}-${other}`
+  account: String! @index
+  other: String!
+  firstCircle: String!
+  at: BigInt!
 }
 
 type Member {
-  id: ID! # `${circle}-${address}`
-  circle_id: String!
-  address: String!
+  id: ID! # `${circle}-${account}`
+  circle: Circle!
+  account: Account!
+  address: String! @index
   seat: Int!
+  standing: String! # Good | Behind | Defaulted
+  received: Boolean!
+  receivedRound: Int
   stake: BigInt!
-  paidOnTime: BigInt!
-  paidLate: BigInt!
-  lastPaymentAt: BigInt
+  arrears: BigInt!
+  paidOnTime: Int!
+  paidLate: Int!
+  timesCovered: Int!
+  contributed: BigInt!
+  potReceived: BigInt!
+  collected: BigInt!
+  joinedAt: BigInt!
+}
+
+type Round {
+  id: ID! # `${circle}-${index}`
+  circle: Circle!
+  index: Int!
+  dueAt: BigInt!
+  closedAt: BigInt
+  closer: String
+  recipient: String
+  gross: BigInt
+  paid: BigInt
+  discount: BigInt
+  discountBps: Int
+  holdback: BigInt
+  arrearsRepaid: BigInt
+  covered: BigInt! # sum of covers this round
+  shortfall: BigInt! # what neither deposits nor the pool could cover
+  creditPerMember: BigInt
+  payments: Int!
+  bids: Int!
 }
 
 type Payment {
-  id: ID! # `${txHash}-${logIndex}`
-  circle_id: String!
-  member_id: String!
+  id: ID! # `${tx}-${logIndex}`
+  circle: Circle!
+  member: Member!
   round: Int!
   amount: BigInt!
   creditUsed: BigInt!
@@ -27,15 +123,112 @@ type Payment {
   late: Boolean!
   autopay: Boolean!
   at: BigInt!
+  txHash: String!
 }
 
-type Round {
-  id: ID! # `${circle}-${round}`
-  circle_id: String!
-  closedAt: BigInt
-  recipient: String
-  gross: BigInt
-  paid: BigInt
-  discount: BigInt
-  holdback: BigInt
+type Bid {
+  id: ID! # `${circle}-${round}-${member}`
+  circle: Circle!
+  member: Member!
+  round: Int!
+  committedAt: BigInt
+  revealedAt: BigInt
+  discountBps: Int
+  won: Boolean!
+}
+
+type Cover {
+  id: ID! # `${tx}-${logIndex}`
+  circle: Circle!
+  member: Member!
+  round: Int!
+  kind: String! # Missed | Defaulted
+  fromStake: BigInt!
+  fromHoldback: BigInt!
+  fromPool: BigInt!
+  shortfall: BigInt!
+  at: BigInt!
+}
+
+type Payout {
+  id: ID! # `${tx}-${logIndex}`
+  circle: Circle!
+  member: Member!
+  round: Int # null for the end-of-circle collection
+  kind: String! # Pot | Collected
+  amount: BigInt!
+  at: BigInt!
+  txHash: String!
+}
+
+# One line of a circle's feed, turned into words on the phone. `kind` names
+# the event it came from; amounts are AUSD units (6 decimals).
+type Activity {
+  id: ID! # `${tx}-${logIndex}`
+  circle: Circle!
+  kind: String! # Created | Joined | Started | Paid | BidSealed | BidOpened | Covered | Defaulted | DefaultFilled | CaughtUp | PotPaid | Completed | Cancelled | Collected | Settled
+  actor: String # the member it is about, if any
+  round: Int
+  amount: BigInt
+  fromStake: BigInt
+  fromPool: BigInt
+  shortfall: BigInt
+  bps: Int # a bid's discount, in basis points
+  at: BigInt! @index
+  block: Int!
+  txHash: String!
+}
+
+# A person-to-person movement of money (FR-SND-06). Payments into circles and
+# pots out of them are not transfers; they are Payments and Payouts.
+type Transfer {
+  id: ID! # `${tx}-${logIndex}`
+  from: String! @index
+  to: String! @index
+  token: String! # AUSD | CTK
+  amount: BigInt! # in the token's units
+  amountUsd: BigInt! # 6 decimals
+  route: String! # Dollars | CashOut | Convert | Faucet
+  at: BigInt! @index
+  block: Int!
+  txHash: String!
+}
+
+type YieldPoint {
+  id: ID! # `${chainId}-${tx}-${logIndex}`
+  chainId: Int!
+  source: String! # earnAUSD (mainnet) | KittyEarnVault (testnet, simulated)
+  sharePrice: BigInt! # assets per share, 6 decimals (1_000000 = 1.0)
+  at: BigInt! @index
+  block: Int!
+}
+
+# The latest share price per source, and the trailing annual rate from it.
+type EarnRate {
+  id: ID! # source
+  chainId: Int!
+  sharePrice: BigInt!
+  at: BigInt!
+  # The rate is measured over a window of seven to fourteen days: the anchor
+  # moves up to the pending point once that point is a week old.
+  anchorPrice: BigInt!
+  anchorAt: BigInt!
+  pendingPrice: BigInt!
+  pendingAt: BigInt!
+  aprBps: Int! # annualised from the anchor to the latest point
+  points: Int!
+}
+
+type DailyStats {
+  id: ID! # UTC day number since the epoch
+  day: Int!
+  circlesCreated: Int!
+  joins: Int!
+  payments: Int!
+  contributed: BigInt!
+  paidOut: BigInt!
+  covered: BigInt!
+  sends: Int!
+  sent: BigInt!
+  swaps: Int!
 }

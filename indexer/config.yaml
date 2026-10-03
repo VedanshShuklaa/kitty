@@ -1,39 +1,77 @@
 # yaml-language-server: $schema=./node_modules/envio/evm.schema.json
 name: kitty
-description: Circles, rounds, payments and member records on Monad testnet
+description: Savings circles, sends through Agora Instant Settlement, and the earnAUSD rate, on Monad
+handlers: ./src/handlers
+address_format: lowercase
+
+field_selection:
+  transaction_fields:
+    - hash
 
 contracts:
   - name: CircleFactory
-    handler: ./src/handlers.ts
     events:
       - event: "CircleCreated(address indexed circle, address indexed organizer, (uint8,uint16,uint16,uint16,uint16,bool,uint64,uint64,uint32,uint32,uint32,uint32,uint64) rules, address[] inviteSigners)"
-  - name: Circle
-    handler: ./src/handlers.ts
+  - name: Circle # every clone, registered from CircleCreated
     events:
       - event: "Joined(address indexed member, uint8 indexed seat, uint256 stake)"
+      - event: "Activated(uint64 firstDue)"
+      - event: "Cancelled(uint64 at)"
       - event: "Contributed(address indexed member, uint32 indexed round, uint256 paid, uint256 creditUsed, uint256 holdbackReleased, bool late, bool autopay)"
+      - event: "ArrearsPaid(address indexed member, uint256 amount)"
       - event: "BidCommitted(address indexed member, uint32 indexed round, bytes32 commitment)"
       - event: "BidRevealed(address indexed member, uint32 indexed round, uint16 discountBps)"
       - event: "Covered(address indexed member, uint32 indexed round, uint256 fromStake, uint256 fromPool, uint256 shortfall)"
       - event: "Defaulted(address indexed member, uint32 indexed round, uint256 obligation, uint256 fromStake, uint256 fromHoldback, uint256 fromPool, uint256 shortfall)"
+      - event: "DefaultFilled(address indexed member, uint32 indexed round, uint256 filled, uint256 shortfall)"
       - event: "PotPaid(address indexed recipient, uint32 indexed round, uint256 gross, uint256 paid, uint256 discount, uint256 holdback, uint256 arrearsRepaid)"
+      - event: "CreditsIssued(uint32 indexed round, uint256 perMember, uint8 members, uint256 toPool)"
       - event: "RoundClosed(uint32 indexed round, address indexed closer)"
       - event: "Completed(uint64 at)"
+      - event: "Withdrawn(address indexed member, uint256 amount)"
   - name: StakeVault
-    handler: ./src/handlers.ts
     events:
       - event: "Settled(address indexed circle, uint256 principal, uint256 assets, uint256 fees)"
+  - name: KittyEarnVault # testnet stand-in for earnAUSD; simulated yield
+    events:
+      - event: "Accrued(uint256 amount, uint256 totalAssets, uint256 totalShares)"
+  - name: AgoraPair # Instant Settlement pair, CTK/AUSD on testnet
+    events:
+      - event: "Swap(address indexed sender, uint256 amount0In, uint256 amount1In, uint256 amount0Out, uint256 amount1Out, address indexed to)"
+      - event: "SetApprovedSwapper(address indexed approvedSwapper, bool isApproved)"
+  # Not a contract: every Kitty account is registered here (from a join or an
+  # Instant Settlement whitelisting), so AUSD and CTK transfers can be
+  # filtered down to the ones that touch a Kitty account.
+  - name: KittyAccount
+    events:
+      - event: "Transfer(address indexed from, address indexed to, uint256 value)"
+  - name: EarnAUSD # Upshift tokenized vault on mainnet
+    events:
+      - event: "Deposit(address assetIn, uint256 amountIn, uint256 shares, address indexed senderAddr, address indexed receiverAddr)"
 
 chains:
-  - id: 10143
-    start_block: 0 # replaced with the real deploy block once contracts/deployments/10143.json exists
+  - id: 10143 # Monad testnet
+    start_block: 67067288 # the 1 Oct factory; deployments/10143.json has the current one
     contracts:
       - name: CircleFactory
         address:
-          - "0x0000000000000000000000000000000000000000" # placeholder, replaced at C0/C1 deploy
+          - "0x24502F1218c3638E1BB34A2F0174a6A2C33e4B9D" # 1 Oct
+          - "0x99a7C36046d6aE7835942fc48B6AfEEfECf6B846" # 2 Oct, with yield
+      - name: Circle
       - name: StakeVault
         address:
-          - "0x0000000000000000000000000000000000000000" # placeholder
-      - name: Circle # no address: registered dynamically when the factory creates one
+          - "0x9dcEB8856d9c5FA71E83688d4050c8d9fCbcFc3F"
+          - "0x3f2A036B4F5838AA2944aA8Bc0FF18AF955040e8"
+      - name: KittyEarnVault
+        address: "0x8fd0e8EB4dB03AeD08c14Fe686d10d59d9D5a31f"
+        start_block: 67476151
+      - name: AgoraPair
+        address: "0x1Aa8958Aa34cEC8096EF4381cb335effe977b0ae"
+      - name: KittyAccount
+  - id: 143 # Monad mainnet
+    start_block: 32439119 # earnAUSD deployment
+    contracts:
+      - name: EarnAUSD
+        address: "0x36eDbF0C834591BFdfCaC0Ef9605528c75c406aA"
 
 rollback_on_reorg: true
