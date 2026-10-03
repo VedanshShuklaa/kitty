@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Money on Kitty</title>
+<link rel="icon" href="/favicon.png" />
+<meta property="og:title" content="Money on Kitty" />
+<meta property="og:description" content="Send and receive dollars with people you save with." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;700&display=swap" rel="stylesheet" />
+<style>
+  :root { --paper:#F8F6F7; --ink:#32232D; --pink:#AD245F; --soft:#FCE5EF; --slate:#6E5F69; --line:#EADDE3; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.5 Figtree, system-ui, sans-serif; }
+  .hero { background:var(--soft); padding:28px 20px 32px; border-radius:0 0 32px 32px; }
+  .marker { font-size:13px; color:var(--slate); }
+  h1 { font:800 36px/1.08 "Bricolage Grotesque", sans-serif; letter-spacing:-0.5px; margin:14px 0 0; }
+  .lead { color:var(--slate); font-size:18px; margin:10px 0 0; max-width:32ch; }
+  main { padding:24px 20px; max-width:480px; }
+  .btn { display:block; text-align:center; text-decoration:none; font:700 17px Figtree, sans-serif; padding:17px; border-radius:14px; margin:12px 0; }
+  .btn:focus-visible { outline:3px solid var(--ink); outline-offset:2px; }
+  .primary { background:var(--pink); color:#fff; }
+  .quiet { border:1.5px solid var(--line); color:var(--ink); }
+  ol { padding-left:20px; color:var(--slate); }
+  li { margin:6px 0; }
+  .warn { background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px 16px; color:var(--slate); font-size:15px; }
+</style>
+</head>
+<body>
+  <div class="hero">
+    <div class="marker">Test dollars on Monad testnet</div>
+    <h1 id="title">Money on Kitty</h1>
+    <p class="lead" id="lead">Open this link in the Kitty app.</p>
+  </div>
+  <main>
+    <a class="btn primary" id="open" href="#">Open in Kitty</a>
+    <a class="btn quiet" href="/download">Get Kitty for Android</a>
+    <ol>
+      <li>Install Kitty from the link above.</li>
+      <li>Come back to the message and tap the link again.</li>
+      <li>If it still opens here, tap Open in Kitty.</li>
+    </ol>
+    <p class="warn" id="warn" hidden>Anyone with this link can collect the money. Don't forward it.</p>
+  </main>
+<script>
+  // Pay links (/p/) and send links (/s/). Everything after the # stays in this
+  // browser: a send link's key is never sent to a server.
+  (function () {
+    var kind = location.pathname.split("/")[1];
+    var params = {};
+    location.hash.slice(1).split("&").forEach(function (p) { var i = p.indexOf("="); if (i > 0) params[p.slice(0, i)] = p.slice(i + 1); });
+    var name = "";
+    try { name = decodeURIComponent(params.n || "").slice(0, 40); } catch (e) {}
+    var title = document.getElementById("title"), lead = document.getElementById("lead");
+    if (kind === "s") {
+      title.textContent = (name || "Someone") + " sent you money";
+      lead.textContent = "Collect it in the Kitty app. Until you do, the sender can take it back.";
+      document.getElementById("warn").hidden = false;
+    } else if (kind === "p") {
+      title.textContent = "Send money to " + (name || "a Kitty member");
+      lead.textContent = "Open Kitty to choose an amount. Your phone asks for your fingerprint before anything leaves your account.";
+    }
+    document.title = title.textContent;
+    document.getElementById("open").href = "kitty:/" + location.pathname + location.hash;
+  })();
+</script>
+</body>
+</html>

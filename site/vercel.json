@@ -5,6 +5,14 @@
     {
       "source": "/j/:path*",
       "destination": "/j/index.html"
+    },
+    {
+      "source": "/p/:path*",
+      "destination": "/m/index.html"
+    },
+    {
+      "source": "/s/:path*",
+      "destination": "/m/index.html"
     }
   ],
   "headers": [
