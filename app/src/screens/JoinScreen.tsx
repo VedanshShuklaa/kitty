@@ -3,16 +3,18 @@ import { StyleSheet, View } from "react-native";
 
 import { explain } from "../errors";
 import { money } from "../format";
-import { depositOf, JOIN_STEPS, joinCircle, loadSnapshot, type Snapshot } from "../kitty";
+import { tiersOf } from "../indexer";
+import { depositOf, JOIN_STEPS, joinCircle, loadSnapshot, stakeBpsWithTier, type Snapshot } from "../kitty";
 import { parseInvite } from "../links";
 import type { ScreenProps } from "../nav";
 import { nameAt, rulesInWords } from "../phase";
 import { KittyLogo } from "../Brand";
 import { syncCircle } from "../restore";
 import { useMe } from "../session";
+import { standingOf, usable, type Standing } from "../standing";
 import { getCircle, saveCircle } from "../store";
 import { color, font, radius, space } from "../theme";
-import { Body, Button, Heading, Notice, Screen, Section, Small, Steps, Title, type StepState } from "../ui";
+import { Body, Button, Heading, List, Notice, Row, Screen, Section, Small, Steps, Tag, Title, type StepState } from "../ui";
 
 export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
   const { address: me, signer, confirm } = useMe();
@@ -29,6 +31,25 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
   }, [invite, me]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // SRS 7.11: in a circle that allows it, a member with standing puts down
+  // less. If the check fails, or the attestation is refused once, they join
+  // with the full deposit, never blocked.
+  const [standing, setStanding] = useState<Standing | null>(null);
+  const [fullOnly, setFullOnly] = useState(false);
+  const [tiers, setTiers] = useState<Map<string, string>>(new Map());
+  const discounts = !!snap?.rules.tierDiscountOn;
+  const seated = useMemo(() => (snap?.members ?? []).flatMap((m) => (m.address ? [m.address] : [])), [snap]);
+  useEffect(() => {
+    if (!discounts) return;
+    standingOf(me).then(setStanding).catch(() => setStanding(null));
+    tiersOf(seated).then(setTiers).catch(() => {});
+  }, [discounts, me, seated]);
+  const nowSec = Math.floor(Date.now() / 1000);
+  const discounted = discounts && !fullOnly && standing !== null && standing.tierBps < 10_000;
+  const deposit = snap
+    ? depositOf({ contribution: snap.rules.contribution, stakeBps: discounted ? stakeBpsWithTier(snap.rules, standing!.tierBps) : snap.rules.stakeBps })
+    : 0n;
 
   // A member who reinstalled can come back through their invite link: the
   // chain says they're in, but this phone has forgotten the circle. Put it
@@ -71,17 +92,31 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
     try {
       // joining commits a deposit and every round's payment: a fresh fingerprint (SRS 15.4)
       const s = await confirm();
-      await joinCircle(s, invite, (id) => {
-        current = id;
-        setRun({ active: id, failed: false });
-      });
+      let attestation: `0x${string}` | null = null;
+      if (discounted) {
+        // an attestation lasts an hour; fetch a fresh one if this one is close to running out
+        const fresh = usable(standing, Math.floor(Date.now() / 1000)) ? standing : await standingOf(s.address).catch(() => null);
+        attestation = usable(fresh, Math.floor(Date.now() / 1000));
+      }
+      await joinCircle(
+        s,
+        invite,
+        (id) => {
+          current = id;
+          setRun({ active: id, failed: false });
+        },
+        attestation,
+      );
       const ref = { address: invite.circle, title: invite.title, names, seat: invite.seat, organizer: false, addedAt: Date.now() };
       await saveCircle(s.address, ref);
       // FR-KEY-03: keep a copy of the roster key, wrapped under this member's passkey
       await syncCircle(s, ref, invite.roster).catch(() => {});
       navigation.replace("Circle", { address: invite.circle });
     } catch (e) {
-      setRun({ active: current, failed: true, error: explain(e) });
+      const error = explain(e);
+      // a refused attestation: the retry joins with the full deposit, and says so
+      if (/smaller deposit/.test(error)) setFullOnly(true);
+      setRun({ active: current, failed: true, error });
     }
   }
 
@@ -103,7 +138,7 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
     );
   }
 
-  const now = Date.now() / 1000;
+  const now = nowSec;
   let blocker: string | null = null;
   let already = false;
   if (snap) {
@@ -123,7 +158,7 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
         already ? (
           <Button label="Open the circle" onPress={() => navigation.replace("Circle", { address: invite.circle })} />
         ) : snap && !blocker ? (
-          <Button label={`Join and put down ${money(depositOf(snap.rules))}`} onPress={join} />
+          <Button label={`Join and put down ${money(deposit)}`} onPress={join} />
         ) : undefined
       }
     >
@@ -135,7 +170,12 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
         {snap && <View style={{ marginTop: space.sm, gap: space.sm }}>
           <Heading>{money(snap.rules.contribution)} each round</Heading>
           <Small>{snap.rules.memberCount} people · {snap.rules.memberCount} rounds</Small>
-          <Small>Deposit to join: {money(depositOf(snap.rules))}. Read the rules below before you confirm.</Small>
+          <Small>Deposit to join: {money(deposit)}. Read the rules below before you confirm.</Small>
+          {discounted && (
+            <Small>
+              Your standing is {standing!.tier}, so you put down {money(deposit)} instead of {money(depositOf(snap.rules))}.
+            </Small>
+          )}
         </View>}
       </View>
 
@@ -143,6 +183,20 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
       {!snap && !loadError && <Small>Loading the circle…</Small>}
       {already && <Notice tone="good">You're already in this circle.</Notice>}
       {blocker && <Notice tone="error">{blocker}</Notice>}
+
+      {snap && discounts && seated.length > 0 && (
+        <Section title="Who's in so far">
+          <List>
+            {snap.members.filter((m) => m.address).map((m, i, all) => (
+              <Row key={m.seat} last={i === all.length - 1}>
+                <Body style={{ flex: 1 }}>{nameAt(names, m.seat)}</Body>
+                <Tag label={tiers.get(m.address!.toLowerCase()) ?? "Newcomer"} tone={(tiers.get(m.address!.toLowerCase()) ?? "Newcomer") === "Newcomer" ? "slate" : "leaf"} />
+              </Row>
+            ))}
+          </List>
+          <Small>Standing comes from earlier circles. People with more of it may have put down a smaller deposit.</Small>
+        </Section>
+      )}
 
       {snap && (
         <Section title="Before you join">

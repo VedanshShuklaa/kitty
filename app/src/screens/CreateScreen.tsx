@@ -32,6 +32,7 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
   const [startIn, setStartIn] = useState(CADENCES.demo.starts[0].seconds);
   const [maxBid, setMaxBid] = useState(3_000);
   const [earn, setEarn] = useState(true);
+  const [tierDiscount, setTierDiscount] = useState(false);
   const [run, setRun] = useState<Run | null>(null);
 
   const myName = profile?.name ?? "You";
@@ -46,7 +47,7 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
         ? "Each round needs to be at least $1."
         : null;
 
-  const draft: CircleDraft = { title: title.trim(), names, contribution: contribution ?? 0n, cadence, startIn, maxBidBps: maxBid, yieldOn: earn };
+  const draft: CircleDraft = { title: title.trim(), names, contribution: contribution ?? 0n, cadence, startIn, maxBidBps: maxBid, yieldOn: earn, tierDiscountOn: tierDiscount };
 
   async function submit() {
     let current = CREATE_STEPS[0].id;
@@ -198,6 +199,12 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
             ? "Most of the deposits go into a test version of earnAUSD. Any earnings are simulated testnet yield, shared out by deposit when the circle ends."
             : "Deposits sit untouched until the circle ends."}
         </Small>
+        <Check label="Let people with a good record put down a smaller deposit" value={tierDiscount} onChange={setTierDiscount} />
+        <Small>
+          {tierDiscount
+            ? "People who have finished earlier circles on time may put down as little as half. Everyone sees who did before they join. If one of them misses, the shared pool covers more of it."
+            : "Everyone puts down the same deposit."}
+        </Small>
       </Section>
 
       {contribution && contribution > 0n ? (
@@ -205,8 +212,9 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
           <Heading>Check your circle</Heading>
           <Body>
             Each round, all {n} of you put in {money(contribution)}, {c.every}. One person takes the{" "}
-            {money(contribution * BigInt(n))} pot. Everyone also puts down a {money(contribution)} deposit when they join, and gets it
-            back at the end, less any missed payments covered by that deposit.
+            {money(contribution * BigInt(n))} pot. Everyone also puts down a {money(contribution)} deposit when they join
+            {tierDiscount ? " (less for people with a good record)" : ""}, and gets it back at the end, less any missed payments
+            covered by that deposit.
           </Body>
         </View>
       ) : null}
