@@ -14,4 +14,6 @@ export const VAULTS = new Set([
   "0x3f2a036b4f5838aa2944aa8bc0ff18af955040e8",
   "0xdf4065a2b21cccd060063f21b8864d0c6896714b",
   "0x8fd0e8eb4db03aed08c14fe686d10d59d9d5a31f",
+  "0x4d681f775adb2e09eeaf5316a04a082b0182ed26", // 4 Oct
+  "0x825b90eba7778cc554813b1f1e790a881d4190d0",
 ]);

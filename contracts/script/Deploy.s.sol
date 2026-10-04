@@ -21,7 +21,7 @@ import { KittyEarnVault } from "../src/KittyEarnVault.sol";
 contract Deploy is Script {
     // Agora's testnet AUSD, verified live on 18 Sep 2026 (SRS section 4.2).
     address constant AUSD_TESTNET = 0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC;
-    uint32 constant MIN_PERIOD_TESTNET = 300; // 5 minutes; a mainnet factory uses 86_400
+    uint32 constant MIN_PERIOD_TESTNET = 60; // 1-minute practice rounds; a mainnet factory uses 86_400
     // earnAUSD's trailing rate on mainnet, and a month of it every ten
     // minutes so a demo circle shows yield; a script retunes it daily
     uint32 constant APR_BPS = 450;
