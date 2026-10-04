@@ -7,7 +7,8 @@ import type { Address, Hex } from "viem";
 // passkey's PRF output and every key derived from it are never stored
 // (FR-ACC-04, SRS 15.5).
 
-export type Profile = { name: string; address: Address; country: string };
+/** `credentialId` is the passkey's public id (not a secret): it limits later prompts to this account's passkey. */
+export type Profile = { name: string; address: Address; country: string; credentialId?: string };
 
 export type CircleRef = {
   address: Address;
@@ -18,6 +19,8 @@ export type CircleRef = {
   addedAt: number; // unix ms
   /** The roster (organizer) or this member's wrapped roster key is in Kitty's storage. */
   synced?: boolean;
+  /** Called off and fully collected: kept for the record, hidden from Home. */
+  archived?: boolean;
 };
 
 const PROFILE = "kitty:profile";

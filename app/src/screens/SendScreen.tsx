@@ -229,7 +229,7 @@ export function SendScreen({ route, navigation }: ScreenProps<"Send">) {
         </Small>
       </Section>
 
-      {error && <Notice tone="error">{error}</Notice>}
+      {error && <Notice tone="error" onClose={() => setError(null)}>{error}</Notice>}
 
       <View style={styles.link}>
         <Heading>No Kitty code?</Heading>

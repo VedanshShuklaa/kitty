@@ -104,7 +104,7 @@ export function BidScreen({ route, navigation }: ScreenProps<"Bid">) {
         Your offer stays sealed until {when(snap.due)}. After that you have {span(r.revealWindow)} to open it here, or it won't count.
         You also need to have paid this round.
       </Notice>
-      {error && <Notice tone="error">{error}</Notice>}
+      {error && <Notice tone="error" onClose={() => setError(null)}>{error}</Notice>}
     </Screen>
   );
 }

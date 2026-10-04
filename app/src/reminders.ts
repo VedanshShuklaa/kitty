@@ -17,6 +17,7 @@ const HOUR = 60 * MIN;
 /** Seconds before each due time, per cadence (SRS 15.8). */
 function payOffsets(s: Snapshot): number[] {
   const cad = cadenceOf(s.rules);
+  if (cad === "practice1" || cad === "practice2") return [20];
   if (cad === "demo") return [2 * MIN];
   if (cad === "daily") return [2 * HOUR, 15 * MIN];
   return [24 * HOUR, 2 * HOUR];

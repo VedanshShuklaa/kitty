@@ -53,7 +53,7 @@ const MIN = 60;
 const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
 
-export type Cadence = "monthly" | "weekly" | "daily" | "demo";
+export type Cadence = "monthly" | "weekly" | "daily" | "demo" | "practice2" | "practice1";
 
 // Windows per cadence. Each satisfies the factory's checks (SRS 7.2):
 // grace >= reveal, commit + grace <= period, and joining closes
@@ -112,6 +112,34 @@ export const CADENCES: Record<
       { label: "In 1 hour", seconds: HOUR },
     ],
   },
+  // practice rounds for trying the whole flow in a few minutes; the factory
+  // allows rounds down to 60 s on testnet. Joining closes `commit` seconds
+  // before the first due time, so "In 3 min" leaves about 2 minutes to join.
+  practice2: {
+    label: "Every 2 min",
+    every: "every 2 minutes",
+    period: 2 * MIN,
+    commit: 50,
+    reveal: 20,
+    grace: 30,
+    starts: [
+      { label: "In 3 min", seconds: 3 * MIN },
+      { label: "In 5 min", seconds: 5 * MIN },
+      { label: "In 10 min", seconds: 10 * MIN },
+    ],
+  },
+  practice1: {
+    label: "Every 1 min",
+    every: "every minute",
+    period: MIN,
+    commit: 25,
+    reveal: 15,
+    grace: 20,
+    starts: [
+      { label: "In 3 min", seconds: 3 * MIN },
+      { label: "In 5 min", seconds: 5 * MIN },
+    ],
+  },
 };
 
 export type CircleDraft = {
@@ -163,7 +191,17 @@ export async function send(s: Signer, call: Call): Promise<Hex> {
   // surfaces a revert (and its custom error) before anything is signed.
   const gas = await client.estimateContractGas({ ...call, account: s.account } as never);
   const wallet = createWalletClient({ account: s.account, chain: monadTestnet, transport: http() });
-  const hash = await wallet.writeContract({ ...call, gas: (gas * 12n) / 10n, account: s.account, chain: monadTestnet } as never);
+  const write = () => wallet.writeContract({ ...call, gas: (gas * 12n) / 10n, account: s.account, chain: monadTestnet } as never);
+  let hash: Hex;
+  try {
+    hash = await write();
+  } catch (e) {
+    // straight after a gas grant, the load-balanced RPC can answer from a node
+    // that hasn't seen it yet; nothing was sent, so one retry is safe
+    if (!/insufficient balance/i.test(String((e as Error).message))) throw e;
+    await sleep(3_000);
+    hash = await write();
+  }
   const receipt = await client.waitForTransactionReceipt({ hash });
   if (receipt.status !== "success") throw new Error("That step didn't go through. Pull down to refresh and try again.");
   return hash;
@@ -284,9 +322,12 @@ export async function createCircle(
   onStep("topup");
   await ensureTopUp(s.address);
 
-  const rules = buildRules(draft, await nowOnChain());
   onStep("dollars");
-  await ensureDollars(s, depositOf(rules) + rules.contribution);
+  const amounts = buildRules(draft, 0);
+  await ensureDollars(s, depositOf(amounts) + amounts.contribution);
+  // the times are fixed only now: the faucet can take a minute when it's busy,
+  // which would otherwise eat a short round's joining window
+  const rules = buildRules(draft, await nowOnChain());
 
   const circle = await client.readContract({
     address: contracts.circleFactory,

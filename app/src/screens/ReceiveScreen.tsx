@@ -129,7 +129,7 @@ export function ReceiveScreen({ navigation }: ScreenProps<"Receive">) {
         <Button label={usd && !problem ? `Move ${money(usd)}` : "Move"} busy={busy === "convert"} disabled={!!problem || !!busy} onPress={move} />
       </Section>
 
-      {notice && <Notice tone={notice.tone}>{notice.text}</Notice>}
+      {notice && <Notice tone={notice.tone} onClose={() => setNotice(null)}>{notice.text}</Notice>}
 
       {pending && pending.length > 0 && (
         <Section title="Links nobody has collected">

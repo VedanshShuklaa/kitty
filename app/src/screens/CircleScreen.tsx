@@ -29,6 +29,7 @@ import { remindersFor, syncReminders } from "../reminders";
 import { rosterKeyHex, syncCircle } from "../restore";
 import { useMe } from "../session";
 import { getCircle, getInviteKeys, type CircleRef } from "../store";
+import { tidyCircle, tidyStep } from "../tidy";
 import { color, font, radius, space } from "../theme";
 import { Amount, Bead, Body, Button, Heading, List, Notice, Row, Screen, Section, Small, Tag, Title } from "../ui";
 
@@ -173,6 +174,29 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
     // guard keeps this to one call
   }, [snap, closable, busy, loadError, signer]);
 
+  // a circle that can't start any more is called off and the deposit collected, without a prompt
+  const tidying = useRef(false);
+  useEffect(() => {
+    const step = snap ? tidyStep(snap) : null;
+    if (!snap || !signer || busy || tidying.current || (step !== "cancel" && step !== "withdraw")) return;
+    tidying.current = true;
+    setBusy(step);
+    tidyCircle(signer, snap)
+      .then((done) => {
+        if (done) {
+          setNotice({
+            tone: "good",
+            text: `Not everyone joined in time, so the circle is called off.${done.returned > 0n ? ` Your ${money(done.returned)} deposit is back in your dollars.` : ""}`,
+          });
+        }
+      })
+      .catch((e) => setNotice({ tone: "error", text: explain(e) }))
+      .finally(() => {
+        setBusy(null);
+        void load();
+      });
+  }, [snap, signer, busy, load]);
+
   if (!snap) {
     return (
       <Screen onBack={() => navigation.goBack()}>
@@ -248,7 +272,7 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
         )}
       </View>
 
-      {notice && <Notice tone={notice.tone}>{notice.text}</Notice>}
+      {notice && <Notice tone={notice.tone} onClose={() => setNotice(null)}>{notice.text}</Notice>}
       {secondary.map((a) => (
         <Button key={a.kind} label={a.label} tone="quiet" busy={busy === a.kind} disabled={!!busy || !!loadError} onPress={() => act(a)} />
       ))}

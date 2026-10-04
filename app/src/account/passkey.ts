@@ -25,12 +25,19 @@ export async function createAccount(displayName: string) {
   return fromPrf(prfOutput, credentialId);
 }
 
-export async function signIn() {
-  const { prfOutput, credentialId } = await getPasskeyPrfOutput({
+/**
+ * With a credential id, the phone offers only that account's passkey; without
+ * one (signing in on a new phone, or choosing an account) it offers them all.
+ */
+export async function signIn(credentialId?: string) {
+  const result = await getPasskeyPrfOutput({
     rpId,
     webAuthnClient: reactNativeWebAuthnClient,
+    ...(credentialId ? { credential: { credentialId } } : {}),
   });
-  return fromPrf(prfOutput, credentialId);
+  const { prfOutput } = result;
+  const credentialIdOut = result.credentialId;
+  return fromPrf(prfOutput, credentialIdOut);
 }
 
 function fromPrf(prfOutput: Uint8Array, credentialId: string) {

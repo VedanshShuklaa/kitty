@@ -78,7 +78,7 @@ export function ClaimScreen({ route, navigation }: ScreenProps<"Claim">) {
         <Body>Test dollars on Kitty. Collect them into your account.</Body>
       </View>
       {amount === 0n && <Notice tone="info">This money has already been collected, or the sender took it back.</Notice>}
-      {error && <Notice tone="error">{error}</Notice>}
+      {error && <Notice tone="error" onClose={() => setError(null)}>{error}</Notice>}
     </Screen>
   );
 }

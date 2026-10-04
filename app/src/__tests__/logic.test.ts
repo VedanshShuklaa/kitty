@@ -15,8 +15,9 @@ jest.mock("../config", () => ({
   },
 }));
 
-// only the pure remindersFor is under test here
+// only the pure remindersFor and tidyStep are under test here
 jest.mock("expo-notifications", () => ({}));
+jest.mock("@react-native-async-storage/async-storage", () => ({ getItem: async () => null, setItem: async () => {} }));
 
 import { bidSalt } from "../account/keys";
 import { countdown, money, parseMoney, span } from "../format";
@@ -24,6 +25,7 @@ import { buildRules, CADENCES, commitmentFor, joinDigest, recoverBid, type Membe
 import { inviteLink, parseInvite } from "../links";
 import { plan, rulesInWords } from "../phase";
 import { remindersFor } from "../reminders";
+import { tidyStep } from "../tidy";
 
 describe("format", () => {
   it("shows dollars, dropping .00 and grouping thousands", () => {
@@ -121,7 +123,7 @@ describe("rules", () => {
         expect(r.commitWindow + r.grace).toBeLessThanOrEqual(r.period);
         expect(Number(r.joinDeadline)).toBeGreaterThan(now);
         expect(r.joinDeadline + BigInt(r.commitWindow)).toBeLessThanOrEqual(r.firstDue);
-        expect(r.period).toBeGreaterThanOrEqual(300);
+        expect(r.period).toBeGreaterThanOrEqual(60); // the testnet factory's minPeriod
       }
     }
   });
@@ -163,6 +165,18 @@ describe("plan", () => {
     ...over,
   });
   const kinds = (s: Snapshot, now: number) => plan(s, now).actions.map((a) => a.kind);
+
+  it("calls off a circle that can't fill, collects the deposit, then leaves Home (tidy)", () => {
+    const deadline = Number(rules.joinDeadline);
+    const forming = { state: "forming" as const, members: [member(0, me), member(1, null as unknown as Address), member(2, null as unknown as Address)] };
+    expect(tidyStep(snap({ ...forming, chainNow: deadline - 1 }))).toBeNull();
+    expect(tidyStep(snap({ ...forming, chainNow: deadline }))).toBe("cancel");
+    expect(tidyStep(snap({ ...forming, chainNow: deadline, me: null }))).toBeNull();
+    expect(tidyStep(snap({ state: "cancelled" }, { withdrawable: 10_000000n }))).toBe("withdraw");
+    expect(tidyStep(snap({ state: "cancelled" }))).toBe("archive");
+    expect(tidyStep(snap({ state: "completed" }))).toBeNull();
+    expect(tidyStep(snap())).toBeNull();
+  });
 
   it("before the commit window: only pay", () => {
     expect(kinds(snap(), due - rules.commitWindow - 1)).toEqual(["pay"]);

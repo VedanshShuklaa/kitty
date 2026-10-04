@@ -15,6 +15,7 @@ import type { ScreenProps } from "../nav";
 import { nameAt, plan } from "../phase";
 import { useMe, useSession } from "../session";
 import { listCircles, type CircleRef } from "../store";
+import { tidyCircle, tidyStep } from "../tidy";
 import { color, font, radius, space } from "../theme";
 import { Amount, Bead, Body, Button, Heading, List, Notice, Row, Screen, Small, Tag, Title } from "../ui";
 
@@ -28,7 +29,7 @@ function summary(snap: Snapshot): string {
 }
 
 export function HomeScreen({ navigation }: ScreenProps<"Home">) {
-  const { address, need } = useMe();
+  const { address, signer, need } = useMe();
   const { profile, onboarding, restored, restore } = useSession();
   const [items, setItems] = useState<Item[]>([]);
   const [bal, setBal] = useState<Balances | null>(null);
@@ -40,12 +41,13 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
   const [funding, setFunding] = useState(false);
   const [notice, setNotice] = useState<{ tone: "error" | "good"; text: string } | null>(null);
   const loading = useRef(false);
+  const tidied = useRef(new Set<string>());
 
   const load = useCallback(async () => {
     if (loading.current) return;
     loading.current = true;
     try {
-      const refs = await listCircles(address);
+      const refs = (await listCircles(address)).filter((r) => !r.archived);
       const [b, snaps] = await Promise.all([
         balances(address).catch(() => null),
         Promise.all(refs.map((r) => loadSnapshot(r.address, address).catch(() => null))),
@@ -79,6 +81,25 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
       };
     }, [load]),
   );
+
+  // a circle that can never start is called off and its deposit collected, once per visit
+  useEffect(() => {
+    if (!signer) return;
+    const due = items.filter(({ ref, snap }) => snap && tidyStep(snap) && !tidied.current.has(ref.address));
+    if (due.length === 0) return;
+    for (const { ref } of due) tidied.current.add(ref.address);
+    void (async () => {
+      const lines: string[] = [];
+      for (const { ref, snap } of due) {
+        const done = await tidyCircle(signer, snap!).catch(() => null);
+        if (done?.calledOff || (done && done.returned > 0n)) {
+          lines.push(`${ref.title} didn't fill up in time, so it was called off${done.returned > 0n ? ` and your ${money(done.returned)} deposit is back` : ""}.`);
+        }
+      }
+      if (lines.length) setNotice({ tone: "good", text: lines.join(" ") });
+      await load();
+    })();
+  }, [items, signer, load]);
 
   // circles restored from the indexer land in the cache; show them as they arrive
   useEffect(() => {
@@ -152,7 +173,11 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
         </View>
         <Button label="Add test dollars" tone="quiet" busy={funding} onPress={fund} style={{ alignSelf: "flex-start", borderColor: color.pinkBright }} />
       </View>
-      {notice && <Notice tone={notice.tone}>{notice.text}</Notice>}
+      {notice && (
+        <Notice tone={notice.tone} onClose={() => setNotice(null)}>
+          {notice.text}
+        </Notice>
+      )}
       {loadError && (
         <View style={{ gap: 8 }}>
           <Notice tone="error">We couldn't update your balance or circles. Check your connection and try again.</Notice>

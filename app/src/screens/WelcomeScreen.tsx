@@ -64,7 +64,7 @@ More, together.</Display>
             <>
               <Title>Welcome back, {profile.name}</Title>
               <Body style={{ color: color.slate }}>Unlock with your fingerprint or screen lock.</Body>
-              {error && <Notice tone="error">{error}</Notice>}
+              {error && <Notice tone="error" onClose={() => setError(null)}>{error}</Notice>}
               <Button label="Unlock" busy={busy === "unlock"} onPress={() => run("unlock", () => unlock())} />
               <Button label="Use a different account" tone="quiet" disabled={!!busy} onPress={forget} />
             </>
@@ -86,7 +86,7 @@ More, together.</Display>
                 <Choice options={COUNTRIES} value={country} onChange={setCountry} />
               </View>
               <Check label="I'm 18 or older" value={adult} onChange={setAdult} />
-              {error && <Notice tone="error">{error}</Notice>}
+              {error && <Notice tone="error" onClose={() => setError(null)}>{error}</Notice>}
               <Button
                 label="Create my account"
                 busy={busy === "create"}

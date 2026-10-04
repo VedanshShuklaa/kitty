@@ -49,7 +49,7 @@ export function PasteScreen({ navigation }: ScreenProps<"Paste">) {
         autoCorrect={false}
         multiline
       />
-      {error && <Notice tone="error">{error}</Notice>}
+      {error && <Notice tone="error" onClose={() => setError(null)}>{error}</Notice>}
     </Screen>
   );
 }

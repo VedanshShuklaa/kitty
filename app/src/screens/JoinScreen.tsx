@@ -110,7 +110,9 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
     const seat = snap.members[invite.seat];
     if (snap.me) already = true;
     else if (seat?.address) blocker = `${who} already took this place. If that wasn't you, ask ${organizer} for a new link.`;
-    else if (snap.state !== "forming" || now >= Number(snap.rules.joinDeadline)) blocker = "Joining has closed for this circle.";
+    else if (snap.state === "cancelled" || (snap.state === "forming" && now >= Number(snap.rules.joinDeadline)))
+      blocker = `This circle no longer exists: not everyone joined in time, so it was called off and deposits went back. Ask ${organizer} to start a new one.`;
+    else if (snap.state !== "forming") blocker = "This circle has already started, so it can't take new members.";
   }
 
 

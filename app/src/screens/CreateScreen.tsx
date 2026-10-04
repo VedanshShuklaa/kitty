@@ -173,7 +173,12 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
             setStartIn(CADENCES[k].starts[0].seconds);
           }}
         />
-        {cadence === "demo" && <Small>Ten-minute rounds are for trying Kitty out on the test network.</Small>}
+        {(cadence === "demo" || cadence === "practice2" || cadence === "practice1") && (
+          <Small>
+            Short rounds are for trying Kitty out on the test network. Joining closes {CADENCES[cadence].commit} seconds before the first
+            payment is due; your phone hands out each pot when the round ends.
+          </Small>
+        )}
       </Section>
 
       <Section title="First payment">

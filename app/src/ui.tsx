@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import { useState, type ReactNode } from "react";
+import { Children, useEffect, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -239,14 +239,37 @@ const k = StyleSheet.create({
 
 // ---------------------------------------------------------------- notices
 
-export function Notice({ tone, children }: { tone: "error" | "good" | "info"; children: ReactNode }) {
+/**
+ * Every notice can be closed. A closed notice comes back only when its text
+ * changes, so a new error after a dismissed one still shows.
+ */
+export function Notice({ tone, children, onClose }: { tone: "error" | "good" | "info"; children: ReactNode; onClose?: () => void }) {
   const bg = tone === "error" ? color.claySoft : tone === "good" ? color.leafSoft : color.indigoMist;
   const fg = tone === "error" ? color.clay : tone === "good" ? color.leaf : color.indigo;
+  const text = Children.toArray(children).join("");
+  const [closed, setClosed] = useState(false);
+  useEffect(() => setClosed(false), [text]);
+  if (closed) return null;
   return (
-    <View style={{ backgroundColor: bg, borderRadius: radius.control, padding: space.md }} accessibilityLiveRegion="polite">
-      <Text style={{ fontFamily: font.bodyMedium, fontSize: 15, lineHeight: 22, color: fg }} selectable>
+    <View
+      style={{ backgroundColor: bg, borderRadius: radius.control, paddingVertical: space.md, paddingLeft: space.md, flexDirection: "row", alignItems: "flex-start" }}
+      accessibilityLiveRegion="polite"
+    >
+      <Text style={{ flex: 1, fontFamily: font.bodyMedium, fontSize: 15, lineHeight: 22, color: fg }} selectable>
         {children}
       </Text>
+      <Pressable
+        onPress={() => {
+          setClosed(true);
+          onClose?.();
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Close this message"
+        hitSlop={8}
+        style={{ minWidth: 44, minHeight: 44, marginTop: -11, alignItems: "center", justifyContent: "center" }}
+      >
+        <Text style={{ fontFamily: font.bodyBold, fontSize: 20, lineHeight: 22, color: fg }}>×</Text>
+      </Pressable>
     </View>
   );
 }

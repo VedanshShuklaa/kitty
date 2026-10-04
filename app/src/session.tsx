@@ -113,7 +113,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     async (name: string, country: string) => {
       const acct = await createAccount(name);
       const prompted = Date.now();
-      const s = await adopt(acct, { name, address: acct.address, country });
+      const s = await adopt(acct, { name, address: acct.address, country, credentialId: acct.credentialId });
       putProfile(s.prf, { name, country }).catch(() => {});
       // FR-SES-03: the first confirmed transaction is part of onboarding
       void (async () => {
@@ -133,7 +133,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const unlock = useCallback(
     async (name?: string, country?: string) => {
-      const acct = await signIn();
+      // "Welcome back" offers only the known account's passkey; a fresh sign-in offers them all
+      const acct = await signIn(profileRef.current?.credentialId);
       // FR-RST-01: the profile comes back from the passkey, not from this phone
       const stored = await getProfileData(acct.prfOutput).catch(() => null);
       const cached = profileRef.current?.address === acct.address ? profileRef.current : null;
@@ -141,6 +142,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         name: stored?.name ?? name ?? cached?.name ?? "Friend",
         country: stored?.country ?? country ?? cached?.country ?? "",
         address: acct.address,
+        credentialId: acct.credentialId,
       };
       const s = await adopt(acct, p);
       if (!stored) putProfile(s.prf, { name: p.name, country: p.country }).catch(() => {});
@@ -151,13 +153,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   /** A ceremony for an account already known here: it must be the same account. */
   const ceremony = useCallback(async () => {
-    const acct = await signIn();
     const p = profileRef.current;
+    // only this account's passkey is offered, once the phone knows which one it is
+    const acct = await signIn(p?.credentialId);
     if (p && acct.address !== p.address) {
       acct.end();
       throw new Error("That passkey belongs to a different Kitty account. Nothing was signed.");
     }
-    return adopt(acct, p ?? { name: "Friend", country: "", address: acct.address });
+    return adopt(acct, p ? { ...p, credentialId: acct.credentialId } : { name: "Friend", country: "", address: acct.address, credentialId: acct.credentialId });
   }, [adopt]);
 
   const need = useCallback(async () => signerRef.current ?? ceremony(), [ceremony]);
