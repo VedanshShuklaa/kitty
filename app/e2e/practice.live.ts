@@ -53,7 +53,7 @@ it("runs a two-member circle on 1-minute rounds, start to finish", async () => {
   const names = ["Ama", "Kofi"];
   const circle = await createCircle(
     org,
-    { title: "Practice", names, contribution: ONE, cadence: "practice1", startIn: 100, maxBidBps: 3_000, yieldOn: true },
+    { title: "Practice", names, contribution: ONE, cadence: "practice1", startIn: 180, maxBidBps: 3_000, yieldOn: true },
     () => {},
   );
   await joinCircle(mem, { circle, seat: 1, key: inviteKeyFor(org, circle, 1), title: "Practice", names, roster: null }, () => {});
