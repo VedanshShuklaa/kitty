@@ -202,6 +202,10 @@ export async function send(s: Signer, call: Call): Promise<Hex> {
   // FR-GAS-03: explicit limit, estimate + 20%. Estimating first also
   // surfaces a revert (and its custom error) before anything is signed.
   const gas = await client.estimateContractGas({ ...call, account: s.account } as never);
+  // Monad holds back gas limit x max fee up front, so a balance can be above
+  // the top-up line and still too small for this one call
+  const { maxFeePerGas } = await client.estimateFeesPerGas();
+  if ((await client.getBalance({ address: s.address })) < ((gas * 12n) / 10n) * maxFeePerGas) await ensureTopUp(s.address, true);
   const wallet = createWalletClient({ account: s.account, chain: monadTestnet, transport: http() });
   const write = () => wallet.writeContract({ ...call, gas: (gas * 12n) / 10n, account: s.account, chain: monadTestnet } as never);
   let hash: Hex;
@@ -221,16 +225,17 @@ export async function send(s: Signer, call: Call): Promise<Hex> {
 
 // ----------------------------------------------------------------- funding
 
-const LOW_BALANCE = parseEther("0.05");
+// matches site/api/sponsor.ts: a createCircle alone can hold back 0.1 MON
+const LOW_BALANCE = parseEther("0.2");
 // The public RPC is load-balanced, so a balance read straight after a grant
 // can come from a node that hasn't seen it yet. Trust a recent grant instead
 // of asking the sponsor twice.
 const recentTopUps = new Map<string, number>();
 
 /** FR-GAS-01: a member never has to find MON; the sponsor tops them up. */
-export async function ensureTopUp(address: Address): Promise<void> {
+export async function ensureTopUp(address: Address, force = false): Promise<void> {
   const last = recentTopUps.get(address.toLowerCase());
-  if (last && Date.now() - last < 120_000) return;
+  if (!force && last && Date.now() - last < 120_000) return;
   if ((await client.getBalance({ address })) >= LOW_BALANCE) return;
   let res: Response;
   try {

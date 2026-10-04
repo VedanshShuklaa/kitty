@@ -17,8 +17,10 @@ const chain = defineChain({
   rpcUrls: { default: { http: [process.env.MONAD_RPC_URL ?? "https://testnet-rpc.monad.xyz"] } },
 });
 
-const GRANT = parseEther(process.env.SPONSOR_GRANT_MON ?? "0.3");
-const LOW = parseEther("0.05");
+// Monad holds back gas limit x max fee before a call runs: about 0.1 MON for
+// a createCircle at testnet prices, so the line sits above that
+const GRANT = parseEther(process.env.SPONSOR_GRANT_MON ?? "0.5");
+const LOW = parseEther("0.2");
 const FLOOR = parseEther("0.5");
 
 const json = (body: unknown, status = 200) =>
