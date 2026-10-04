@@ -116,7 +116,7 @@ describe("rules", () => {
       for (const start of c.starts) {
         const now = 1_800_000_000;
         const r = buildRules(
-          { title: "t", names: ["a", "b", "c"], contribution: 10_000000n, cadence: k as keyof typeof CADENCES, startIn: start.seconds, maxBidBps: 3_000, yieldOn: false, tierDiscountOn: false },
+          { title: "t", names: ["a", "b", "c"], contribution: 10_000000n, cadence: k as keyof typeof CADENCES, startIn: start.seconds, maxBidBps: 3_000, yieldOn: false },
           now,
         );
         expect(r.grace).toBeGreaterThanOrEqual(r.revealWindow);
@@ -135,7 +135,7 @@ describe("plan", () => {
   const third = "0x4444444444444444444444444444444444444444" as Address;
   const due = 10_000;
   const rules = buildRules(
-    { title: "t", names: ["a", "b", "c"], contribution: 10_000000n, cadence: "demo", startIn: 900, maxBidBps: 3_000, yieldOn: true, tierDiscountOn: false },
+    { title: "t", names: ["a", "b", "c"], contribution: 10_000000n, cadence: "demo", startIn: 900, maxBidBps: 3_000, yieldOn: true },
     due - 900,
   );
   const member = (seat: number, address: Address, over: Partial<Member> = {}): Member => ({

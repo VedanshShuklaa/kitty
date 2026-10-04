@@ -97,7 +97,6 @@ contract FullInvariantHandler is Test {
             poolShareBps: 1_000,
             holdbackBps: 2_000,
             yieldOn: false,
-            tierDiscountOn: false,
             contribution: CONTRIBUTION,
             firstDue: uint64(block.timestamp) + 1 days,
             period: 600,

@@ -1,10 +1,9 @@
 {
   "ausd": "0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC",
   "chainId": 10143,
-  "circleFactory": "0x3C9B05B45572D1C421d9beEB033F2Aea2b30AfDD",
-  "circleImplementation": "0x30C8594bfC9eeF1747B929C25759AB0618107696",
-  "deployBlock": 67996175,
-  "kittyEarnVault": "0xFa0866e6d11f65A6F30beAaa5d4f24133eA4ac2E",
-  "stakeVault": "0xd31244805b5Bc141b69Bb88b4E510a399ceA0CE0",
-  "tierAttestor": "0x72219263CFab93bAbFb57AC532082Ff24583e3Fc"
+  "circleFactory": "0x455c7cad7F5e65f2BA1235485557BD1c0186c50A",
+  "circleImplementation": "0x0922c8ccf43467247a930F3136354d4cd21Ee65f",
+  "deployBlock": 68018323,
+  "kittyEarnVault": "0x62cf4ec7FDB95443622494adC8fA58C47f87D136",
+  "stakeVault": "0xc91af00c71eb71eb0fa4bB58E41D7a9C66bEcBfb"
 }

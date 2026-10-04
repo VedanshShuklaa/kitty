@@ -7,7 +7,7 @@ import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { ICircle } from "./interfaces/ICircle.sol";
-import { ICircleFactory, Rules } from "./interfaces/ICircleFactory.sol";
+import { Rules } from "./interfaces/ICircleFactory.sol";
 import { IStakeVault } from "./interfaces/IStakeVault.sol";
 
 /// @notice One rotating-savings circle, deployed as an EIP-1167 clone by
@@ -18,8 +18,6 @@ contract Circle is ICircle, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     bytes32 private constant JOIN_TYPEHASH = keccak256("kitty.join.v1");
-    bytes32 private constant TIER_TYPEHASH = keccak256("kitty.tier.v1");
-    uint16 private constant STAKE_FLOOR_BPS = 5_000; // the factory's own lower bound
 
     bool private _initialized;
     // Every clone of a given CircleFactory shares the same factory, AUSD and
@@ -89,35 +87,6 @@ contract Circle is ICircle, ReentrancyGuard {
     // ---------------------------------------------------------------- join
 
     function join(uint8 seat, bytes calldata inviteSig) external nonReentrant {
-        _join(seat, inviteSig, _rules.stakeBps);
-    }
-
-    function join(uint8 seat, bytes calldata inviteSig, bytes calldata tierAttestation) external nonReentrant {
-        if (tierAttestation.length == 0) return _join(seat, inviteSig, _rules.stakeBps);
-        uint16 stakeBps = _attestedStakeBps(tierAttestation);
-        _join(seat, inviteSig, stakeBps);
-        emit StakeDiscounted(msg.sender, stakeBps);
-    }
-
-    /// SRS 7.11: the attestation carries a share of this circle's own stake.
-    /// It can never raise a stake or take it below the factory's floor.
-    function _attestedStakeBps(bytes calldata a) internal view returns (uint16) {
-        if (!_rules.tierDiscountOn) revert BadAttestation();
-        (uint16 tierBps, uint64 expiry, bytes memory sig) = abi.decode(a, (uint16, uint64, bytes));
-        if (expiry <= block.timestamp) revert BadAttestation();
-        if (tierBps < STAKE_FLOOR_BPS || tierBps > 10_000) revert BadAttestation();
-        bytes32 digest = keccak256(abi.encode(TIER_TYPEHASH, block.chainid, factory, msg.sender, tierBps, expiry));
-        (address signer, ECDSA.RecoverError err,) =
-            ECDSA.tryRecover(MessageHashUtils.toEthSignedMessageHash(digest), sig);
-        address attestor = ICircleFactory(factory).tierAttestor();
-        if (err != ECDSA.RecoverError.NoError || attestor == address(0) || signer != attestor) {
-            revert BadAttestation();
-        }
-        uint256 bps = (uint256(_rules.stakeBps) * tierBps) / 10_000;
-        return bps < STAKE_FLOOR_BPS ? STAKE_FLOOR_BPS : uint16(bps);
-    }
-
-    function _join(uint8 seat, bytes calldata inviteSig, uint16 stakeBps) internal {
         if (_state != State.Forming) revert WrongState();
         if (block.timestamp >= _rules.joinDeadline) revert JoinClosed();
         if (seat >= _rules.memberCount) revert BadInvite();
@@ -134,7 +103,7 @@ contract Circle is ICircle, ReentrancyGuard {
             if (signer != _inviteSignerAt[seat]) revert BadInvite();
         }
 
-        uint256 stake = (uint256(_rules.contribution) * stakeBps) / 10_000;
+        uint256 stake = (uint256(_rules.contribution) * _rules.stakeBps) / 10_000;
         _memberAt[seat] = msg.sender;
         _seatIndexPlusOne[msg.sender] = seat + 1;
         filledSeats += 1;

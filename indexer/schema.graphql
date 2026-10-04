@@ -17,7 +17,6 @@ type Circle {
   poolShareBps: Int!
   holdbackBps: Int!
   yieldOn: Boolean!
-  tierDiscountOn: Boolean! # members may post a reduced stake with a tier attestation (SRS 7.11)
   period: Int!
   firstDue: BigInt!
   joinDeadline: BigInt!
@@ -57,13 +56,11 @@ type Account {
   sends: Int!
   receives: Int!
   counterparties: Int! # distinct people met in a finished circle
-  cycleWeight: Int! # x1000; SRS 8.4
-  tier: String! # Newcomer | Steady | Trusted | Anchor
   memberships: [Member!]! @derivedFrom(field: "account")
 }
 
-# Each pair of accounts that finished a circle together, counted once: a
-# circle only adds weight for the people who were new to you (FR-TRU-06).
+# Each pair of accounts that finished a circle together, counted once, so
+# counterparties counts people rather than circles.
 type Counterparty {
   id: ID! # `${account}-${other}`
   account: String! @index
@@ -82,7 +79,6 @@ type Member {
   received: Boolean!
   receivedRound: Int
   stake: BigInt!
-  tierStakeBps: Int # the stake share a tier attestation set at join; unset means the circle's rule
   arrears: BigInt!
   paidOnTime: Int!
   paidLate: Int!

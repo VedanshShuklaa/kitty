@@ -9,7 +9,6 @@ import { recordOf, type Passbook } from "../indexer";
 import { loadSnapshot, type Snapshot } from "../kitty";
 import type { ScreenProps } from "../nav";
 import { useMe, useSession } from "../session";
-import { nextWords, standingOf, TIER_LINE, type Standing } from "../standing";
 import { listCircles, type CircleRef } from "../store";
 import { color, space } from "../theme";
 import { Bead, Body, Button, List, Notice, Row, Screen, Section, Small, Tag, Title } from "../ui";
@@ -56,7 +55,6 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
   const { address, signer } = useMe();
   const { profile, lock, forget } = useSession();
   const [book, setBook] = useState<Passbook | null>(null);
-  const [standing, setStanding] = useState<Standing | null>(null);
   const [items, setItems] = useState<{ ref: CircleRef; snap: Snapshot | null }[]>([]);
   const [copied, setCopied] = useState(false);
 
@@ -67,7 +65,6 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
     setRefreshing(true);
     try {
       recordOf(address).then(setBook).catch(() => {});
-      standingOf(address).then(setStanding).catch(() => {});
       const refs = await listCircles(address);
       const snaps = await Promise.all(refs.map((r) => loadSnapshot(r.address, address).catch(() => null)));
       setItems(refs.map((ref, i) => ({ ref, snap: snaps[i] })));
@@ -95,14 +92,6 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
       </View>
 
       {loadError && <><Notice tone="error">Couldn’t update your record. Check your connection and try again.</Notice><Button label="Try again" busy={refreshing} onPress={load} /></>}
-      {standing && (
-        <Section title="Your standing" right={<Tag label={standing.tier} tone={standing.tier === "Newcomer" ? "slate" : "leaf"} />}>
-          <Body>{TIER_LINE[standing.tier]}</Body>
-          <Small>{nextWords(standing.next)}</Small>
-          <Small>Standing only ever helps. A missed round never puts you below where a newcomer starts.</Small>
-        </Section>
-      )}
-
       {items.length > 0 && (
         <Section title="Your record">
           <List>

@@ -15,7 +15,7 @@ The questions every circle screen must answer are: How much do I pay? When? Who 
 - `app/src/Brand.tsx`: bundled Kitty logo and labelled bottom navigation (Ionicons from `@expo/vector-icons`, outline when inactive, filled when active; the font ships in the bundle).
 - `app/src/phase.ts`: financial action availability and shared rules in words. Do not reproduce its logic in a decorative component.
 - `app/src/kitty.ts`: real amounts and actions. Never replace live data with preview values.
-- `app/qa/preview.mjs`: isolated browser preview of actual screens with sample data. Not a working web wallet, payment app, or production entry point. Its mocks predate the send, indexer and standing modules (4 Oct), so it needs new mocks before it renders Home, Me or Join again.
+- `app/qa/preview.mjs`: isolated browser preview of actual screens with sample data. Not a working web wallet, payment app, or production entry point. Its mocks predate the send and indexer modules (4 Oct), so it needs new mocks before it renders Home, Me or Join again.
 
 Legacy token names (`indigo`, `marigold`, etc.) remain as compatibility aliases. New styling should use `ink`, `pink`, `pinkSoft`, and semantic status colors. Do not bring the previous blue/gold theme back.
 
@@ -100,10 +100,6 @@ Keep the pot summary compact. The previous large decorative bead ring must not d
 - Do not rely on precision dragging: the bid slider also has “Give up less / more” buttons.
 - Preserve back navigation, keyboard access, VoiceOver/TalkBack labels, and visible focus. Test actual native focus order before release.
 - Keep motion optional. No continuous mascot animation, confetti, pulsing controls, or animated balances. Existing ring animation respects reduced motion if reused.
-
-## Standing (SRS 6.13, FR-TRU-11)
-
-Standing is a named tier (Newcomer, Steady, Trusted, Anchor) with the one plain next step that raises it, never a number out of a maximum, a bar or a percentage complete, and never the words credit, score, rating or collateral. It only ever helps: copy must not imply a penalty below where a newcomer starts. Before joining a circle that allows smaller deposits, show the deposit this member will put down, the usual one, and who is already in with their standing.
 
 ## Copy and financial trust
 

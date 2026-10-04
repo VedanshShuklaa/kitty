@@ -640,19 +640,15 @@ passkey (`Profile.credentialId`); circle times fixed after the faucet (a slow fa
 Live `practice.live.ts` passes (full 2-round 1-min circle; call-off refund).
 New APK (EAS 2f619a6d) live at /download.
 
-**2026-10-04 — Trust tiers live (SRS 7.11), Slither/Aderyn triaged, redeployed, UI pass.**
-Contracts: `join(seat, sig, tierAttestation)` overload; the attestation carries a share of the circle's own
-stake (8,500/7,000/5,000), floored at 50%, only where `Rules.tierDiscountOn`; bad ones revert `BadAttestation`.
-`CircleFactory.setTierAttestor`. 101/101 forge, viem↔Solidity vector in `test-vectors/crypto.json`. Slither +
-Aderyn: 4 fixes (withdraw reports what `take` paid, fee-setter event, factory CEI, modifier order), rest
-triaged in `contracts/audit/README.md`. Redeployed + verified: factory `0x3C9B05B4…AfDD`, vault `0xd3124480…0CE0`,
-earn vault `0xFa0866e6…ac2E`, attestor `0x72219263…e3Fc` (key only in Vercel env + gitignored `site/.env.local`),
-block 67996175. Site: `GET /api/tier` (reads the indexer, signs for 1 h). Indexer: `CircleCreatedV2`,
-`StakeDiscounted`, parity test against the site's copy of the tier rule; 18 tests. Each Envio deploy gets a
-new URL: `INDEXER_URL` now `…/e68664b/v1/graphql` (find the next with `npx envio-cloud indexer get kitty vedanshshuklaa`).
-Gas: Monad reserves gas limit x max fee, so `send()` now tops up when the balance can't cover the call; sponsor
-line 0.2 MON, grant 0.5. App: discount toggle on Create, smaller deposit + who's in with their standing on Join,
-standing + next step on Account; old circles' Rules read by size. UI pass: pink selected states, 48px row
-buttons (`size="row"`), `Progress`/`LinkText`/`Label`, Ionicons nav, 14px tags, spacing on the scale, screen-
-reader labels for steps, hidden initials. 56 app tests. Not built: FR-TRU-07 decay, FR-TRU-10 migration, FR-TRU-12.
+**2026-10-04 — Static analysis, gas top-up, UI pass on main; trust tiers moved to a branch.**
+Slither + Aderyn: 4 fixes (withdraw reports what `take` paid, fee-setter event, factory CEI, `nonReentrant`
+first); triage in `contracts/audit/README.md`. Redeployed + verified: factory `0x455c7cad…c50A`, vault
+`0xc91af00c…cBfb`, earn vault `0x62cf4ec7…D136`, block 68018323; 87/87 forge. Gas: Monad holds back gas
+limit x max fee, so `send()` tops up when the balance can't cover the call; sponsor line 0.2 MON, grant 0.5.
+UI pass: pink selected states, 48px row buttons (`size="row"`), `Progress`/`LinkText`/`Label`, Ionicons nav,
+14px tags, spacing on the scale, spoken step states, hidden initials. 49 app tests, indexer 10.
+Trust tiers (SRS 6.13/7.11/8.4) are experimental, per the user: kept off main entirely, including the
+indexer's tier fields. Branch `experimental/trust-tiers` = main + tiers: contract attestation join, opt-in per
+circle, `/api/tier`, standing on Account; its own deployment (factory `0x3C9B05B4…AfDD`) and live e2e.
+Each Envio deploy gets a new URL; repoint Vercel `INDEXER_URL` after pushes (`npx envio-cloud indexer get kitty vedanshshuklaa`).
 Next: push notifications (Firebase), new APK, phone test.

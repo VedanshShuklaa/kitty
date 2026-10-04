@@ -58,7 +58,6 @@ contract GasBudgetTest is Test {
             poolShareBps: 1_000,
             holdbackBps: 2_000,
             yieldOn: false,
-            tierDiscountOn: false,
             contribution: CONTRIBUTION,
             firstDue: uint64(block.timestamp) + 1 days,
             period: PERIOD,
@@ -149,35 +148,6 @@ contract GasBudgetTest is Test {
         uint256 gasUsed = vm.stopSnapshotGas();
         assertLe(gasUsed, BUDGET_JOIN);
         signers;
-    }
-
-    /// SRS 7.11: a tier attestation costs one extra ecrecover and a factory read.
-    function test_gas_joinWithTierAttestation_budget() public {
-        uint256 attestorKey = 0xA77E57;
-        vm.prank(owner);
-        factory.setTierAttestor(vm.addr(attestorKey));
-        Rules memory r = _rulesN(N);
-        r.tierDiscountOn = true;
-        (address[] memory signers, uint256[] memory keys) = _signers(N);
-        vm.prank(organizer);
-        address circle = factory.createCircle(r, signers);
-        _fund(circle, organizer);
-        vm.prank(organizer);
-        Circle(circle).join(0, "");
-
-        address m1 = vm.addr(keys[1]);
-        _fund(circle, m1);
-        bytes memory sig = _joinSig(keys[1], circle, 1, m1);
-        uint64 expiry = uint64(block.timestamp) + 1 hours;
-        bytes32 digest =
-            keccak256(abi.encode(keccak256("kitty.tier.v1"), block.chainid, address(factory), m1, uint16(8_500), expiry));
-        (uint8 v, bytes32 rr, bytes32 ss) = vm.sign(attestorKey, MessageHashUtils.toEthSignedMessageHash(digest));
-        bytes memory attestation = abi.encode(uint16(8_500), expiry, abi.encodePacked(rr, ss, v));
-        vm.prank(m1);
-        vm.startSnapshotGas("join_withTierAttestation");
-        Circle(circle).join(1, sig, attestation);
-        uint256 gasUsed = vm.stopSnapshotGas();
-        assertLe(gasUsed, BUDGET_JOIN);
     }
 
     // ---- contribute / collect ----

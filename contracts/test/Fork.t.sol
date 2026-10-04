@@ -73,7 +73,6 @@ contract ForkTest is Test {
             poolShareBps: 1_000,
             holdbackBps: 2_000,
             yieldOn: false,
-            tierDiscountOn: false,
             contribution: 1_000000, // 1 AUSD, real 6-decimal amount
             firstDue: uint64(block.timestamp) + 1 hours,
             period: 600,

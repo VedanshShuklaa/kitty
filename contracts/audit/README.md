@@ -2,7 +2,7 @@
 
 Slither 0.11 (`slither . --filter-paths "lib/|test/|script/" --exclude-informational --exclude-optimization`)
 and Aderyn 0.6.8 (`npx @cyfrin/aderyn@0.6.8 . -o audit/aderyn.md`), run on 4 Oct 2026 against
-`src/` before the tier-attestation redeploy. Raw output: [slither.txt](slither.txt), [aderyn.md](aderyn.md).
+`src/` before the 4 Oct redeploy. Raw output: [slither.txt](slither.txt), [aderyn.md](aderyn.md).
 
 ## Fixed
 
@@ -21,7 +21,6 @@ and Aderyn 0.6.8 (`npx @cyfrin/aderyn@0.6.8 . -o audit/aderyn.md`), run on 4 Oct
 | Strict equality on `totalShares == 0` (Slither incorrect-equality) | The first-deposit case of a share vault. Shares can't be donated, so the comparison can't be forced. |
 | `block.timestamp` comparisons (Slither timestamp) | Rounds are minutes to months long; a validator's few seconds of drift don't change an outcome. |
 | External calls in a loop (Slither calls-loop, Aderyn L-2) | Loops run over a circle's members, at most 12, against Kitty's own vault. `closeRound` with 12 members, bids, a miss and a default costs 623k gas against a 1.2M budget. |
-| `tryRecover`'s third return ignored (Slither unused-return) | It's the error argument; the error code itself is checked. |
-| Missing zero-address checks (Slither missing-zero-check, Aderyn L-8) | `setTierAttestor(0)` is how discounts are turned off. The other three are set by the factory or the deploy script, never by a user. |
-| Centralisation (Aderyn L-1) | The owner can pause new circles, set the attestor, and wire the vault once. None of it reaches an existing circle's money (SRS 7.1). A bad attestor can only lower stakes inside a circle's own rule, never below 50% (SRS 7.11). |
+| Missing zero-address checks (Slither missing-zero-check, Aderyn L-8) | All three are set by the factory or the deploy script, never by a user. |
+| Centralisation (Aderyn L-1) | The owner can pause new circles and wire the vault once. Neither reaches an existing circle's money (SRS 7.1). |
 | Literals, loops that revert, setters without events, public functions not called internally (Aderyn L-3, L-4, L-6, L-7, L-9) | Style. |

@@ -11,26 +11,14 @@ KittyEarnVault.sharePrice() (src/KittyEarnVault.sol#88-90) uses a dangerous stri
 Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#dangerous-strict-equalities
 INFO:Detectors:
 Detector: reentrancy-no-eth
-Reentrancy in Circle._join(uint8,bytes,uint16) (src/Circle.sol#120-154):
+Reentrancy in Circle._pay(address,uint32,bool) (src/Circle.sol#161-186):
 	External calls:
-	- vault.deposit(msg.sender,IStakeVault.Kind.Stake,stake) (src/Circle.sol#145)
+	- got = _take(member,IStakeVault.Kind.Holdback,holdbackReleased) (src/Circle.sol#177)
+		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#563)
 	State variables written after the call(s):
-	- _state = State.Active (src/Circle.sol#150)
-	Circle._state (src/Circle.sol#35) can be used in cross function reentrancies:
-	- Circle.cancel() (src/Circle.sol#165-170)
-	- Circle.commitBid(uint32,bytes32) (src/Circle.sol#266-276)
-	- Circle.reissueInvite(uint8,address) (src/Circle.sol#156-163)
-	- Circle.revealBid(uint32,uint16,bytes32) (src/Circle.sol#288-299)
-	- Circle.state() (src/Circle.sol#673-675)
-	- Circle.withdrawable(address) (src/Circle.sol#726-771)
-Reentrancy in Circle._pay(address,uint32,bool) (src/Circle.sol#192-217):
-	External calls:
-	- got = _take(member,IStakeVault.Kind.Holdback,holdbackReleased) (src/Circle.sol#208)
-		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#594)
-	State variables written after the call(s):
-	- _holdbackRemaining[member] -= holdbackReleased (src/Circle.sol#209)
-	Circle._holdbackRemaining (src/Circle.sol#53) can be used in cross function reentrancies:
-	- Circle._amountDue(address,bool) (src/Circle.sol#219-233)
+	- _holdbackRemaining[member] -= holdbackReleased (src/Circle.sol#178)
+	Circle._holdbackRemaining (src/Circle.sol#51) can be used in cross function reentrancies:
+	- Circle._amountDue(address,bool) (src/Circle.sol#188-202)
 Reentrancy in StakeVault._redeemFor(address,StakeVault.Position,uint256) (src/StakeVault.sol#128-142):
 	External calls:
 	- got = adapter.instantRedeem(s,address(this)) (src/StakeVault.sol#138)
@@ -51,153 +39,165 @@ Reentrancy in StakeVault._redeemFor(address,StakeVault.Position,uint256) (src/St
 	- StakeVault.previewSettle(address) (src/StakeVault.sol#222-226)
 	- StakeVault.topUp(uint256) (src/StakeVault.sol#183-188)
 	- StakeVault.writeDown(address,IStakeVault.Kind,uint256) (src/StakeVault.sol#192-202)
-Reentrancy in Circle.closeRound(uint32) (src/Circle.sol#303-491):
+Reentrancy in Circle.closeRound(uint32) (src/Circle.sol#272-460):
 	External calls:
-	- fromStake = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake) (src/Circle.sol#333)
-		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#594)
-	- fromStake_scope_3 = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake_scope_3) (src/Circle.sol#350)
-		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#594)
-	- fromHoldback = _take(m_scope_1,IStakeVault.Kind.Holdback,fromHoldback) (src/Circle.sol#357)
-		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#594)
+	- fromStake = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake) (src/Circle.sol#302)
+		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#563)
+	- fromStake_scope_3 = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake_scope_3) (src/Circle.sol#319)
+		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#563)
+	- fromHoldback = _take(m_scope_1,IStakeVault.Kind.Holdback,fromHoldback) (src/Circle.sol#326)
+		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#563)
 	State variables written after the call(s):
-	- _arrearsOf[m_scope_1] += fromStake + fromPool (src/Circle.sol#339)
-	Circle._arrearsOf (src/Circle.sol#49) can be used in cross function reentrancies:
-	- Circle.standingOf(address) (src/Circle.sol#694-700)
-	- _holdbackRemaining[m_scope_1] -= fromHoldback (src/Circle.sol#356)
-	Circle._holdbackRemaining (src/Circle.sol#53) can be used in cross function reentrancies:
-	- Circle._amountDue(address,bool) (src/Circle.sol#219-233)
-	- _holdbackRemaining[winner] = holdbackAmt (src/Circle.sol#451)
-	Circle._holdbackRemaining (src/Circle.sol#53) can be used in cross function reentrancies:
-	- Circle._amountDue(address,bool) (src/Circle.sol#219-233)
-	- _paidRound[round][m_scope_1] = true (src/Circle.sol#342)
-	Circle._paidRound (src/Circle.sol#57) can be used in cross function reentrancies:
-	- Circle.paidRound(uint32,address) (src/Circle.sol#714-716)
-	- _paidRound[round][m_scope_1] = true (src/Circle.sol#371)
-	Circle._paidRound (src/Circle.sol#57) can be used in cross function reentrancies:
-	- Circle.paidRound(uint32,address) (src/Circle.sol#714-716)
-	- _standingOf[m_scope_1] = Standing.Behind (src/Circle.sol#341)
-	Circle._standingOf (src/Circle.sol#47) can be used in cross function reentrancies:
-	- Circle._eligibleBidderCount() (src/Circle.sol#280-286)
-	- Circle._yieldSplit(uint256) (src/Circle.sol#605-630)
-	- Circle.commitBid(uint32,bytes32) (src/Circle.sol#266-276)
-	- Circle.standingOf(address) (src/Circle.sol#694-700)
-	- Circle.withdrawable(address) (src/Circle.sol#726-771)
-	- _standingOf[m_scope_1] = Standing.Defaulted (src/Circle.sol#370)
-	Circle._standingOf (src/Circle.sol#47) can be used in cross function reentrancies:
-	- Circle._eligibleBidderCount() (src/Circle.sol#280-286)
-	- Circle._yieldSplit(uint256) (src/Circle.sol#605-630)
-	- Circle.commitBid(uint32,bytes32) (src/Circle.sol#266-276)
-	- Circle.standingOf(address) (src/Circle.sol#694-700)
-	- Circle.withdrawable(address) (src/Circle.sol#726-771)
-	- defaultReserve += filled (src/Circle.sol#369)
-	Circle.defaultReserve (src/Circle.sol#39) can be used in cross function reentrancies:
-	- Circle.defaultReserve (src/Circle.sol#39)
-	- defaultReserve -= immediateFill (src/Circle.sol#377)
-	Circle.defaultReserve (src/Circle.sol#39) can be used in cross function reentrancies:
-	- Circle.defaultReserve (src/Circle.sol#39)
-	- fromStake = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake) (src/Circle.sol#333)
-		- pool -= fromPool (src/Circle.sol#597)
-	Circle.pool (src/Circle.sol#38) can be used in cross function reentrancies:
-	- Circle.pool (src/Circle.sol#38)
-	- Circle.withdrawable(address) (src/Circle.sol#726-771)
-	- pool -= fromPool (src/Circle.sol#336)
-	Circle.pool (src/Circle.sol#38) can be used in cross function reentrancies:
-	- Circle.pool (src/Circle.sol#38)
-	- Circle.withdrawable(address) (src/Circle.sol#726-771)
-	- fromStake_scope_3 = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake_scope_3) (src/Circle.sol#350)
-		- pool -= fromPool (src/Circle.sol#597)
-	Circle.pool (src/Circle.sol#38) can be used in cross function reentrancies:
-	- Circle.pool (src/Circle.sol#38)
-	- Circle.withdrawable(address) (src/Circle.sol#726-771)
-	- fromHoldback = _take(m_scope_1,IStakeVault.Kind.Holdback,fromHoldback) (src/Circle.sol#357)
-		- pool -= fromPool (src/Circle.sol#597)
-	Circle.pool (src/Circle.sol#38) can be used in cross function reentrancies:
-	- Circle.pool (src/Circle.sol#38)
-	- Circle.withdrawable(address) (src/Circle.sol#726-771)
-	- pool -= fromPool_scope_4 (src/Circle.sol#362)
-	Circle.pool (src/Circle.sol#38) can be used in cross function reentrancies:
-	- Circle.pool (src/Circle.sol#38)
-	- Circle.withdrawable(address) (src/Circle.sol#726-771)
-	- pool += toPool + dust (src/Circle.sol#439)
-	Circle.pool (src/Circle.sol#38) can be used in cross function reentrancies:
-	- Circle.pool (src/Circle.sol#38)
-	- Circle.withdrawable(address) (src/Circle.sol#726-771)
-	- pot += fromStake + fromPool (src/Circle.sol#338)
-	Circle.pot (src/Circle.sol#37) can be used in cross function reentrancies:
-	- Circle.pot (src/Circle.sol#37)
-	- pot += immediateFill (src/Circle.sol#378)
-	Circle.pot (src/Circle.sol#37) can be used in cross function reentrancies:
-	- Circle.pot (src/Circle.sol#37)
-	- pot = 0 (src/Circle.sol#421)
-	Circle.pot (src/Circle.sol#37) can be used in cross function reentrancies:
-	- Circle.pot (src/Circle.sol#37)
-Reentrancy in Circle.closeRound(uint32) (src/Circle.sol#303-491):
+	- _arrearsOf[m_scope_1] += fromStake + fromPool (src/Circle.sol#308)
+	Circle._arrearsOf (src/Circle.sol#47) can be used in cross function reentrancies:
+	- Circle.standingOf(address) (src/Circle.sol#663-669)
+	- _holdbackRemaining[m_scope_1] -= fromHoldback (src/Circle.sol#325)
+	Circle._holdbackRemaining (src/Circle.sol#51) can be used in cross function reentrancies:
+	- Circle._amountDue(address,bool) (src/Circle.sol#188-202)
+	- _holdbackRemaining[winner] = holdbackAmt (src/Circle.sol#420)
+	Circle._holdbackRemaining (src/Circle.sol#51) can be used in cross function reentrancies:
+	- Circle._amountDue(address,bool) (src/Circle.sol#188-202)
+	- _paidRound[round][m_scope_1] = true (src/Circle.sol#311)
+	Circle._paidRound (src/Circle.sol#55) can be used in cross function reentrancies:
+	- Circle.paidRound(uint32,address) (src/Circle.sol#683-685)
+	- _paidRound[round][m_scope_1] = true (src/Circle.sol#340)
+	Circle._paidRound (src/Circle.sol#55) can be used in cross function reentrancies:
+	- Circle.paidRound(uint32,address) (src/Circle.sol#683-685)
+	- _standingOf[m_scope_1] = Standing.Behind (src/Circle.sol#310)
+	Circle._standingOf (src/Circle.sol#45) can be used in cross function reentrancies:
+	- Circle._eligibleBidderCount() (src/Circle.sol#249-255)
+	- Circle._yieldSplit(uint256) (src/Circle.sol#574-599)
+	- Circle.commitBid(uint32,bytes32) (src/Circle.sol#235-245)
+	- Circle.standingOf(address) (src/Circle.sol#663-669)
+	- Circle.withdrawable(address) (src/Circle.sol#695-740)
+	- _standingOf[m_scope_1] = Standing.Defaulted (src/Circle.sol#339)
+	Circle._standingOf (src/Circle.sol#45) can be used in cross function reentrancies:
+	- Circle._eligibleBidderCount() (src/Circle.sol#249-255)
+	- Circle._yieldSplit(uint256) (src/Circle.sol#574-599)
+	- Circle.commitBid(uint32,bytes32) (src/Circle.sol#235-245)
+	- Circle.standingOf(address) (src/Circle.sol#663-669)
+	- Circle.withdrawable(address) (src/Circle.sol#695-740)
+	- defaultReserve += filled (src/Circle.sol#338)
+	Circle.defaultReserve (src/Circle.sol#37) can be used in cross function reentrancies:
+	- Circle.defaultReserve (src/Circle.sol#37)
+	- defaultReserve -= immediateFill (src/Circle.sol#346)
+	Circle.defaultReserve (src/Circle.sol#37) can be used in cross function reentrancies:
+	- Circle.defaultReserve (src/Circle.sol#37)
+	- fromStake = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake) (src/Circle.sol#302)
+		- pool -= fromPool (src/Circle.sol#566)
+	Circle.pool (src/Circle.sol#36) can be used in cross function reentrancies:
+	- Circle.pool (src/Circle.sol#36)
+	- Circle.withdrawable(address) (src/Circle.sol#695-740)
+	- pool -= fromPool (src/Circle.sol#305)
+	Circle.pool (src/Circle.sol#36) can be used in cross function reentrancies:
+	- Circle.pool (src/Circle.sol#36)
+	- Circle.withdrawable(address) (src/Circle.sol#695-740)
+	- fromStake_scope_3 = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake_scope_3) (src/Circle.sol#319)
+		- pool -= fromPool (src/Circle.sol#566)
+	Circle.pool (src/Circle.sol#36) can be used in cross function reentrancies:
+	- Circle.pool (src/Circle.sol#36)
+	- Circle.withdrawable(address) (src/Circle.sol#695-740)
+	- fromHoldback = _take(m_scope_1,IStakeVault.Kind.Holdback,fromHoldback) (src/Circle.sol#326)
+		- pool -= fromPool (src/Circle.sol#566)
+	Circle.pool (src/Circle.sol#36) can be used in cross function reentrancies:
+	- Circle.pool (src/Circle.sol#36)
+	- Circle.withdrawable(address) (src/Circle.sol#695-740)
+	- pool -= fromPool_scope_4 (src/Circle.sol#331)
+	Circle.pool (src/Circle.sol#36) can be used in cross function reentrancies:
+	- Circle.pool (src/Circle.sol#36)
+	- Circle.withdrawable(address) (src/Circle.sol#695-740)
+	- pool += toPool + dust (src/Circle.sol#408)
+	Circle.pool (src/Circle.sol#36) can be used in cross function reentrancies:
+	- Circle.pool (src/Circle.sol#36)
+	- Circle.withdrawable(address) (src/Circle.sol#695-740)
+	- pot += fromStake + fromPool (src/Circle.sol#307)
+	Circle.pot (src/Circle.sol#35) can be used in cross function reentrancies:
+	- Circle.pot (src/Circle.sol#35)
+	- pot += immediateFill (src/Circle.sol#347)
+	Circle.pot (src/Circle.sol#35) can be used in cross function reentrancies:
+	- Circle.pot (src/Circle.sol#35)
+	- pot = 0 (src/Circle.sol#390)
+	Circle.pot (src/Circle.sol#35) can be used in cross function reentrancies:
+	- Circle.pot (src/Circle.sol#35)
+Reentrancy in Circle.closeRound(uint32) (src/Circle.sol#272-460):
 	External calls:
-	- fromStake = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake) (src/Circle.sol#333)
-		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#594)
-	- fromStake_scope_3 = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake_scope_3) (src/Circle.sol#350)
-		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#594)
-	- fromHoldback = _take(m_scope_1,IStakeVault.Kind.Holdback,fromHoldback) (src/Circle.sol#357)
-		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#594)
-	- vault.deposit(winner,IStakeVault.Kind.Holdback,holdbackAmt) (src/Circle.sol#454)
+	- fromStake = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake) (src/Circle.sol#302)
+		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#563)
+	- fromStake_scope_3 = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake_scope_3) (src/Circle.sol#319)
+		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#563)
+	- fromHoldback = _take(m_scope_1,IStakeVault.Kind.Holdback,fromHoldback) (src/Circle.sol#326)
+		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#563)
+	- vault.deposit(winner,IStakeVault.Kind.Holdback,holdbackAmt) (src/Circle.sol#423)
 	State variables written after the call(s):
-	- (stakeRestore,poolRestore) = _restoreArrears(winner,arrearsRepaid) (src/Circle.sol#463)
-		- _arrearsOf[m] -= repayAmt (src/Circle.sol#260)
-	Circle._arrearsOf (src/Circle.sol#49) can be used in cross function reentrancies:
-	- Circle.standingOf(address) (src/Circle.sol#694-700)
-Reentrancy in Circle.closeRound(uint32) (src/Circle.sol#303-491):
+	- (stakeRestore,poolRestore) = _restoreArrears(winner,arrearsRepaid) (src/Circle.sol#432)
+		- _arrearsOf[m] -= repayAmt (src/Circle.sol#229)
+	Circle._arrearsOf (src/Circle.sol#47) can be used in cross function reentrancies:
+	- Circle.standingOf(address) (src/Circle.sol#663-669)
+Reentrancy in Circle.closeRound(uint32) (src/Circle.sol#272-460):
 	External calls:
-	- fromStake = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake) (src/Circle.sol#333)
-		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#594)
-	- fromStake_scope_3 = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake_scope_3) (src/Circle.sol#350)
-		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#594)
-	- fromHoldback = _take(m_scope_1,IStakeVault.Kind.Holdback,fromHoldback) (src/Circle.sol#357)
-		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#594)
-	- vault.deposit(winner,IStakeVault.Kind.Holdback,holdbackAmt) (src/Circle.sol#454)
-	- vault.deposit(winner,IStakeVault.Kind.Stake,stakeRestore) (src/Circle.sol#466)
+	- fromStake = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake) (src/Circle.sol#302)
+		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#563)
+	- fromStake_scope_3 = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake_scope_3) (src/Circle.sol#319)
+		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#563)
+	- fromHoldback = _take(m_scope_1,IStakeVault.Kind.Holdback,fromHoldback) (src/Circle.sol#326)
+		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#563)
+	- vault.deposit(winner,IStakeVault.Kind.Holdback,holdbackAmt) (src/Circle.sol#423)
+	- vault.deposit(winner,IStakeVault.Kind.Stake,stakeRestore) (src/Circle.sol#435)
 	State variables written after the call(s):
-	- _receivedOf[winner] = true (src/Circle.sol#475)
-	Circle._receivedOf (src/Circle.sol#48) can be used in cross function reentrancies:
-	- Circle._amountDue(address,bool) (src/Circle.sol#219-233)
-	- Circle._eligibleBidderCount() (src/Circle.sol#280-286)
-	- Circle.commitBid(uint32,bytes32) (src/Circle.sol#266-276)
-	- Circle.standingOf(address) (src/Circle.sol#694-700)
-	- _standingOf[winner] = Standing.Good (src/Circle.sol#469)
-	Circle._standingOf (src/Circle.sol#47) can be used in cross function reentrancies:
-	- Circle._eligibleBidderCount() (src/Circle.sol#280-286)
-	- Circle._yieldSplit(uint256) (src/Circle.sol#605-630)
-	- Circle.commitBid(uint32,bytes32) (src/Circle.sol#266-276)
-	- Circle.standingOf(address) (src/Circle.sol#694-700)
-	- Circle.withdrawable(address) (src/Circle.sol#726-771)
-	- pool += poolRestore (src/Circle.sol#468)
-	Circle.pool (src/Circle.sol#38) can be used in cross function reentrancies:
-	- Circle.pool (src/Circle.sol#38)
-	- Circle.withdrawable(address) (src/Circle.sol#726-771)
-Reentrancy in Circle.closeRound(uint32) (src/Circle.sol#303-491):
+	- _receivedOf[winner] = true (src/Circle.sol#444)
+	Circle._receivedOf (src/Circle.sol#46) can be used in cross function reentrancies:
+	- Circle._amountDue(address,bool) (src/Circle.sol#188-202)
+	- Circle._eligibleBidderCount() (src/Circle.sol#249-255)
+	- Circle.commitBid(uint32,bytes32) (src/Circle.sol#235-245)
+	- Circle.standingOf(address) (src/Circle.sol#663-669)
+	- _standingOf[winner] = Standing.Good (src/Circle.sol#438)
+	Circle._standingOf (src/Circle.sol#45) can be used in cross function reentrancies:
+	- Circle._eligibleBidderCount() (src/Circle.sol#249-255)
+	- Circle._yieldSplit(uint256) (src/Circle.sol#574-599)
+	- Circle.commitBid(uint32,bytes32) (src/Circle.sol#235-245)
+	- Circle.standingOf(address) (src/Circle.sol#663-669)
+	- Circle.withdrawable(address) (src/Circle.sol#695-740)
+	- pool += poolRestore (src/Circle.sol#437)
+	Circle.pool (src/Circle.sol#36) can be used in cross function reentrancies:
+	- Circle.pool (src/Circle.sol#36)
+	- Circle.withdrawable(address) (src/Circle.sol#695-740)
+Reentrancy in Circle.closeRound(uint32) (src/Circle.sol#272-460):
 	External calls:
-	- fromStake = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake) (src/Circle.sol#333)
-		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#594)
-	- fromStake_scope_3 = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake_scope_3) (src/Circle.sol#350)
-		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#594)
-	- fromHoldback = _take(m_scope_1,IStakeVault.Kind.Holdback,fromHoldback) (src/Circle.sol#357)
-		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#594)
-	- vault.deposit(winner,IStakeVault.Kind.Holdback,holdbackAmt) (src/Circle.sol#454)
-	- vault.deposit(winner,IStakeVault.Kind.Stake,stakeRestore) (src/Circle.sol#466)
-	- vault.rebalance() (src/Circle.sol#484)
+	- fromStake = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake) (src/Circle.sol#302)
+		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#563)
+	- fromStake_scope_3 = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake_scope_3) (src/Circle.sol#319)
+		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#563)
+	- fromHoldback = _take(m_scope_1,IStakeVault.Kind.Holdback,fromHoldback) (src/Circle.sol#326)
+		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#563)
+	- vault.deposit(winner,IStakeVault.Kind.Holdback,holdbackAmt) (src/Circle.sol#423)
+	- vault.deposit(winner,IStakeVault.Kind.Stake,stakeRestore) (src/Circle.sol#435)
+	- vault.rebalance() (src/Circle.sol#453)
 	State variables written after the call(s):
-	- _currentRound = round + 1 (src/Circle.sol#489)
-	Circle._currentRound (src/Circle.sol#36) can be used in cross function reentrancies:
-	- Circle.commitBid(uint32,bytes32) (src/Circle.sol#266-276)
-	- Circle.currentRound() (src/Circle.sol#677-679)
-	- Circle.revealBid(uint32,uint16,bytes32) (src/Circle.sol#288-299)
-	- _state = State.Completed (src/Circle.sol#486)
-	Circle._state (src/Circle.sol#35) can be used in cross function reentrancies:
-	- Circle.cancel() (src/Circle.sol#165-170)
-	- Circle.commitBid(uint32,bytes32) (src/Circle.sol#266-276)
-	- Circle.reissueInvite(uint8,address) (src/Circle.sol#156-163)
-	- Circle.revealBid(uint32,uint16,bytes32) (src/Circle.sol#288-299)
-	- Circle.state() (src/Circle.sol#673-675)
-	- Circle.withdrawable(address) (src/Circle.sol#726-771)
+	- _currentRound = round + 1 (src/Circle.sol#458)
+	Circle._currentRound (src/Circle.sol#34) can be used in cross function reentrancies:
+	- Circle.commitBid(uint32,bytes32) (src/Circle.sol#235-245)
+	- Circle.currentRound() (src/Circle.sol#646-648)
+	- Circle.revealBid(uint32,uint16,bytes32) (src/Circle.sol#257-268)
+	- _state = State.Completed (src/Circle.sol#455)
+	Circle._state (src/Circle.sol#33) can be used in cross function reentrancies:
+	- Circle.cancel() (src/Circle.sol#134-139)
+	- Circle.commitBid(uint32,bytes32) (src/Circle.sol#235-245)
+	- Circle.reissueInvite(uint8,address) (src/Circle.sol#125-132)
+	- Circle.revealBid(uint32,uint16,bytes32) (src/Circle.sol#257-268)
+	- Circle.state() (src/Circle.sol#642-644)
+	- Circle.withdrawable(address) (src/Circle.sol#695-740)
+Reentrancy in Circle.join(uint8,bytes) (src/Circle.sol#89-123):
+	External calls:
+	- vault.deposit(msg.sender,IStakeVault.Kind.Stake,stake) (src/Circle.sol#114)
+	State variables written after the call(s):
+	- _state = State.Active (src/Circle.sol#119)
+	Circle._state (src/Circle.sol#33) can be used in cross function reentrancies:
+	- Circle.cancel() (src/Circle.sol#134-139)
+	- Circle.commitBid(uint32,bytes32) (src/Circle.sol#235-245)
+	- Circle.reissueInvite(uint8,address) (src/Circle.sol#125-132)
+	- Circle.revealBid(uint32,uint16,bytes32) (src/Circle.sol#257-268)
+	- Circle.state() (src/Circle.sol#642-644)
+	- Circle.withdrawable(address) (src/Circle.sol#695-740)
 Reentrancy in StakeVault.rebalance() (src/StakeVault.sol#147-158):
 	External calls:
 	- shares = adapter.deposit(address(ausd),amount,address(this)) (src/StakeVault.sol#155)
@@ -235,211 +235,202 @@ Reentrancy in StakeVault.take(address,IStakeVault.Kind,uint256,address) (src/Sta
 	- StakeVault.previewSettle(address) (src/StakeVault.sol#222-226)
 	- StakeVault.topUp(uint256) (src/StakeVault.sol#183-188)
 	- StakeVault.writeDown(address,IStakeVault.Kind,uint256) (src/StakeVault.sol#192-202)
-Reentrancy in Circle.withdraw() (src/Circle.sol#495-587):
+Reentrancy in Circle.withdraw() (src/Circle.sol#464-556):
 	External calls:
-	- (assets,principal) = vault.settle() (src/Circle.sol#506)
-	- vault.topUp(fromPool) (src/Circle.sol#532)
-	- vault.writeDown(m_scope_2,IStakeVault.Kind.Stake,st[s_scope_1]) (src/Circle.sol#538)
-	- vault.writeDown(m_scope_2,IStakeVault.Kind.Holdback,hb[s_scope_1]) (src/Circle.sol#540)
+	- (assets,principal) = vault.settle() (src/Circle.sol#475)
+	- vault.topUp(fromPool) (src/Circle.sol#501)
+	- vault.writeDown(m_scope_2,IStakeVault.Kind.Stake,st[s_scope_1]) (src/Circle.sol#507)
+	- vault.writeDown(m_scope_2,IStakeVault.Kind.Holdback,hb[s_scope_1]) (src/Circle.sol#509)
 	State variables written after the call(s):
-	- _holdbackRemaining[m_scope_2] -= hb[s_scope_1] (src/Circle.sol#541)
-	Circle._holdbackRemaining (src/Circle.sol#53) can be used in cross function reentrancies:
-	- Circle._amountDue(address,bool) (src/Circle.sol#219-233)
-Reentrancy in Circle.withdraw() (src/Circle.sol#495-587):
+	- _holdbackRemaining[m_scope_2] -= hb[s_scope_1] (src/Circle.sol#510)
+	Circle._holdbackRemaining (src/Circle.sol#51) can be used in cross function reentrancies:
+	- Circle._amountDue(address,bool) (src/Circle.sol#188-202)
+Reentrancy in Circle.withdraw() (src/Circle.sol#464-556):
 	External calls:
-	- (assets,principal) = vault.settle() (src/Circle.sol#506)
-	- vault.allocate(_memberAt[s_scope_0],IStakeVault.Kind.Pool,y[s_scope_0]) (src/Circle.sol#522)
-	- vault.topUp(fromPool) (src/Circle.sol#532)
-	- vault.writeDown(m_scope_2,IStakeVault.Kind.Stake,st[s_scope_1]) (src/Circle.sol#538)
-	- vault.writeDown(m_scope_2,IStakeVault.Kind.Holdback,hb[s_scope_1]) (src/Circle.sol#540)
+	- (assets,principal) = vault.settle() (src/Circle.sol#475)
+	- vault.allocate(_memberAt[s_scope_0],IStakeVault.Kind.Pool,y[s_scope_0]) (src/Circle.sol#491)
+	- vault.topUp(fromPool) (src/Circle.sol#501)
+	- vault.writeDown(m_scope_2,IStakeVault.Kind.Stake,st[s_scope_1]) (src/Circle.sol#507)
+	- vault.writeDown(m_scope_2,IStakeVault.Kind.Holdback,hb[s_scope_1]) (src/Circle.sol#509)
 	State variables written after the call(s):
-	- _settled = true (src/Circle.sol#558)
-	Circle._settled (src/Circle.sol#40) can be used in cross function reentrancies:
-	- Circle.withdrawable(address) (src/Circle.sol#726-771)
-	- pool = 0 (src/Circle.sol#557)
-	Circle.pool (src/Circle.sol#38) can be used in cross function reentrancies:
-	- Circle.pool (src/Circle.sol#38)
-	- Circle.withdrawable(address) (src/Circle.sol#726-771)
-Reentrancy in Circle.withdraw() (src/Circle.sol#495-587):
+	- _settled = true (src/Circle.sol#527)
+	Circle._settled (src/Circle.sol#38) can be used in cross function reentrancies:
+	- Circle.withdrawable(address) (src/Circle.sol#695-740)
+	- pool = 0 (src/Circle.sol#526)
+	Circle.pool (src/Circle.sol#36) can be used in cross function reentrancies:
+	- Circle.pool (src/Circle.sol#36)
+	- Circle.withdrawable(address) (src/Circle.sol#695-740)
+Reentrancy in Circle.withdraw() (src/Circle.sol#464-556):
 	External calls:
-	- (assets,principal) = vault.settle() (src/Circle.sol#506)
-	- vault.allocate(_memberAt[s_scope_0],IStakeVault.Kind.Pool,y[s_scope_0]) (src/Circle.sol#522)
-	- vault.topUp(fromPool) (src/Circle.sol#532)
-	- vault.writeDown(m_scope_2,IStakeVault.Kind.Stake,st[s_scope_1]) (src/Circle.sol#538)
-	- vault.writeDown(m_scope_2,IStakeVault.Kind.Holdback,hb[s_scope_1]) (src/Circle.sol#540)
-	- total += vault.take(msg.sender,IStakeVault.Kind.Stake,stakeBal_,msg.sender) (src/Circle.sol#572)
-	- total += vault.take(msg.sender,IStakeVault.Kind.Pool,yieldBal,msg.sender) (src/Circle.sol#573)
-	- total += vault.take(msg.sender,IStakeVault.Kind.Holdback,hbBal,msg.sender) (src/Circle.sol#575)
+	- (assets,principal) = vault.settle() (src/Circle.sol#475)
+	- vault.allocate(_memberAt[s_scope_0],IStakeVault.Kind.Pool,y[s_scope_0]) (src/Circle.sol#491)
+	- vault.topUp(fromPool) (src/Circle.sol#501)
+	- vault.writeDown(m_scope_2,IStakeVault.Kind.Stake,st[s_scope_1]) (src/Circle.sol#507)
+	- vault.writeDown(m_scope_2,IStakeVault.Kind.Holdback,hb[s_scope_1]) (src/Circle.sol#509)
+	- total += vault.take(msg.sender,IStakeVault.Kind.Stake,stakeBal_,msg.sender) (src/Circle.sol#541)
+	- total += vault.take(msg.sender,IStakeVault.Kind.Pool,yieldBal,msg.sender) (src/Circle.sol#542)
+	- total += vault.take(msg.sender,IStakeVault.Kind.Holdback,hbBal,msg.sender) (src/Circle.sol#544)
 	State variables written after the call(s):
-	- _creditOf[msg.sender] = 0 (src/Circle.sol#579)
-	Circle._creditOf (src/Circle.sol#51) can be used in cross function reentrancies:
-	- Circle._amountDue(address,bool) (src/Circle.sol#219-233)
-	- Circle.standingOf(address) (src/Circle.sol#694-700)
-	- Circle.withdrawable(address) (src/Circle.sol#726-771)
-	- _finalPoolShare[msg.sender] = 0 (src/Circle.sol#583)
-	Circle._finalPoolShare (src/Circle.sol#55) can be used in cross function reentrancies:
-	- Circle.withdrawable(address) (src/Circle.sol#726-771)
-	- _holdbackRemaining[msg.sender] = 0 (src/Circle.sol#576)
-	Circle._holdbackRemaining (src/Circle.sol#53) can be used in cross function reentrancies:
-	- Circle._amountDue(address,bool) (src/Circle.sol#219-233)
+	- _creditOf[msg.sender] = 0 (src/Circle.sol#548)
+	Circle._creditOf (src/Circle.sol#49) can be used in cross function reentrancies:
+	- Circle._amountDue(address,bool) (src/Circle.sol#188-202)
+	- Circle.standingOf(address) (src/Circle.sol#663-669)
+	- Circle.withdrawable(address) (src/Circle.sol#695-740)
+	- _finalPoolShare[msg.sender] = 0 (src/Circle.sol#552)
+	Circle._finalPoolShare (src/Circle.sol#53) can be used in cross function reentrancies:
+	- Circle.withdrawable(address) (src/Circle.sol#695-740)
+	- _holdbackRemaining[msg.sender] = 0 (src/Circle.sol#545)
+	Circle._holdbackRemaining (src/Circle.sol#51) can be used in cross function reentrancies:
+	- Circle._amountDue(address,bool) (src/Circle.sol#188-202)
 Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-2
 INFO:Detectors:
-Detector: unused-return
-Circle._attestedStakeBps(bytes) (src/Circle.sol#104-118) ignores return value by (signer,err,None) = ECDSA.tryRecover(MessageHashUtils.toEthSignedMessageHash(digest),sig) (src/Circle.sol#110-111)
-Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#unused-return
-INFO:Detectors:
 Detector: missing-zero-check
-Circle.constructor(IERC20,IStakeVault,address).factory_ (src/Circle.sol#72) lacks a zero-check on :
-		- factory = factory_ (src/Circle.sol#75)
-Circle.initialize(Rules,address[],address).organizer_ (src/Circle.sol#78) lacks a zero-check on :
-		- organizer = organizer_ (src/Circle.sol#83)
-CircleFactory.setTierAttestor(address).attestor (src/CircleFactory.sol#40) lacks a zero-check on :
-		- tierAttestor = attestor (src/CircleFactory.sol#41)
+Circle.constructor(IERC20,IStakeVault,address).factory_ (src/Circle.sol#70) lacks a zero-check on :
+		- factory = factory_ (src/Circle.sol#73)
+Circle.initialize(Rules,address[],address).organizer_ (src/Circle.sol#76) lacks a zero-check on :
+		- organizer = organizer_ (src/Circle.sol#81)
 StakeVault.setFactory(address).factory_ (src/StakeVault.sol#71) lacks a zero-check on :
 		- factory = factory_ (src/StakeVault.sol#73)
 Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#missing-zero-address-validation
 INFO:Detectors:
 Detector: calls-loop
-Circle.closeRound(uint32) (src/Circle.sol#303-491) has external calls inside a loop: stakeBal = vault.balanceOf(address(this),m_scope_1,IStakeVault.Kind.Stake) (src/Circle.sol#331)
-Circle._take(address,IStakeVault.Kind,uint256) (src/Circle.sol#593-600) has external calls inside a loop: got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#594)
+Circle.closeRound(uint32) (src/Circle.sol#272-460) has external calls inside a loop: stakeBal = vault.balanceOf(address(this),m_scope_1,IStakeVault.Kind.Stake) (src/Circle.sol#300)
+Circle._take(address,IStakeVault.Kind,uint256) (src/Circle.sol#562-569) has external calls inside a loop: got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#563)
 	Calls stack containing the loop:
 		Circle.closeRound(uint32)
-Circle.closeRound(uint32) (src/Circle.sol#303-491) has external calls inside a loop: stakeBal_scope_2 = vault.balanceOf(address(this),m_scope_1,IStakeVault.Kind.Stake) (src/Circle.sol#348)
-Circle._yieldSplit(uint256) (src/Circle.sol#605-630) has external calls inside a loop: w[s] = vault.balanceOf(address(this),_memberAt[s],IStakeVault.Kind.Stake) (src/Circle.sol#611)
+Circle.closeRound(uint32) (src/Circle.sol#272-460) has external calls inside a loop: stakeBal_scope_2 = vault.balanceOf(address(this),m_scope_1,IStakeVault.Kind.Stake) (src/Circle.sol#317)
+Circle._yieldSplit(uint256) (src/Circle.sol#574-599) has external calls inside a loop: w[s] = vault.balanceOf(address(this),_memberAt[s],IStakeVault.Kind.Stake) (src/Circle.sol#580)
 	Calls stack containing the loop:
 		Circle.withdraw()
-Circle.withdraw() (src/Circle.sol#495-587) has external calls inside a loop: vault.allocate(_memberAt[s_scope_0],IStakeVault.Kind.Pool,y[s_scope_0]) (src/Circle.sol#522)
-Circle._writeDownSplit(uint256) (src/Circle.sol#635-665) has external calls inside a loop: bal[s] = vault.balanceOf(address(this),_memberAt[s],IStakeVault.Kind.Stake) (src/Circle.sol#642)
+Circle.withdraw() (src/Circle.sol#464-556) has external calls inside a loop: vault.allocate(_memberAt[s_scope_0],IStakeVault.Kind.Pool,y[s_scope_0]) (src/Circle.sol#491)
+Circle._writeDownSplit(uint256) (src/Circle.sol#604-634) has external calls inside a loop: bal[s] = vault.balanceOf(address(this),_memberAt[s],IStakeVault.Kind.Stake) (src/Circle.sol#611)
 	Calls stack containing the loop:
 		Circle.withdraw()
-Circle._writeDownSplit(uint256) (src/Circle.sol#635-665) has external calls inside a loop: room_scope_3 = vault.balanceOf(address(this),_memberAt[s_scope_2],IStakeVault.Kind.Holdback) (src/Circle.sol#660)
+Circle._writeDownSplit(uint256) (src/Circle.sol#604-634) has external calls inside a loop: room_scope_3 = vault.balanceOf(address(this),_memberAt[s_scope_2],IStakeVault.Kind.Holdback) (src/Circle.sol#629)
 	Calls stack containing the loop:
 		Circle.withdraw()
-Circle.withdraw() (src/Circle.sol#495-587) has external calls inside a loop: vault.writeDown(m_scope_2,IStakeVault.Kind.Stake,st[s_scope_1]) (src/Circle.sol#538)
-Circle.withdraw() (src/Circle.sol#495-587) has external calls inside a loop: vault.writeDown(m_scope_2,IStakeVault.Kind.Holdback,hb[s_scope_1]) (src/Circle.sol#540)
-Circle._yieldSplit(uint256) (src/Circle.sol#605-630) has external calls inside a loop: w[s] = vault.balanceOf(address(this),_memberAt[s],IStakeVault.Kind.Stake) (src/Circle.sol#611)
+Circle.withdraw() (src/Circle.sol#464-556) has external calls inside a loop: vault.writeDown(m_scope_2,IStakeVault.Kind.Stake,st[s_scope_1]) (src/Circle.sol#507)
+Circle.withdraw() (src/Circle.sol#464-556) has external calls inside a loop: vault.writeDown(m_scope_2,IStakeVault.Kind.Holdback,hb[s_scope_1]) (src/Circle.sol#509)
+Circle._yieldSplit(uint256) (src/Circle.sol#574-599) has external calls inside a loop: w[s] = vault.balanceOf(address(this),_memberAt[s],IStakeVault.Kind.Stake) (src/Circle.sol#580)
 	Calls stack containing the loop:
 		Circle.withdrawable(address)
-Circle._writeDownSplit(uint256) (src/Circle.sol#635-665) has external calls inside a loop: bal[s] = vault.balanceOf(address(this),_memberAt[s],IStakeVault.Kind.Stake) (src/Circle.sol#642)
+Circle._writeDownSplit(uint256) (src/Circle.sol#604-634) has external calls inside a loop: bal[s] = vault.balanceOf(address(this),_memberAt[s],IStakeVault.Kind.Stake) (src/Circle.sol#611)
 	Calls stack containing the loop:
 		Circle.withdrawable(address)
-Circle._writeDownSplit(uint256) (src/Circle.sol#635-665) has external calls inside a loop: room_scope_3 = vault.balanceOf(address(this),_memberAt[s_scope_2],IStakeVault.Kind.Holdback) (src/Circle.sol#660)
+Circle._writeDownSplit(uint256) (src/Circle.sol#604-634) has external calls inside a loop: room_scope_3 = vault.balanceOf(address(this),_memberAt[s_scope_2],IStakeVault.Kind.Holdback) (src/Circle.sol#629)
 	Calls stack containing the loop:
 		Circle.withdrawable(address)
 Reference: https://github.com/crytic/slither/wiki/Detector-Documentation/#calls-inside-a-loop
 INFO:Detectors:
 Detector: reentrancy-benign
-Reentrancy in Circle._join(uint8,bytes,uint16) (src/Circle.sol#120-154):
+Reentrancy in Circle._pay(address,uint32,bool) (src/Circle.sol#161-186):
 	External calls:
-	- vault.deposit(msg.sender,IStakeVault.Kind.Stake,stake) (src/Circle.sol#145)
+	- got = _take(member,IStakeVault.Kind.Holdback,holdbackReleased) (src/Circle.sol#177)
+		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#563)
 	State variables written after the call(s):
-	- _currentRound = 1 (src/Circle.sol#151)
-Reentrancy in Circle._pay(address,uint32,bool) (src/Circle.sol#192-217):
+	- pot += _rules.contribution (src/Circle.sol#183)
+Reentrancy in Circle._take(address,IStakeVault.Kind,uint256) (src/Circle.sol#562-569):
 	External calls:
-	- got = _take(member,IStakeVault.Kind.Holdback,holdbackReleased) (src/Circle.sol#208)
-		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#594)
+	- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#563)
 	State variables written after the call(s):
-	- pot += _rules.contribution (src/Circle.sol#214)
-Reentrancy in Circle._take(address,IStakeVault.Kind,uint256) (src/Circle.sol#593-600):
+	- pool -= fromPool (src/Circle.sol#566)
+Reentrancy in Circle.closeRound(uint32) (src/Circle.sol#272-460):
 	External calls:
-	- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#594)
+	- fromStake = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake) (src/Circle.sol#302)
+		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#563)
+	- fromStake_scope_3 = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake_scope_3) (src/Circle.sol#319)
+		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#563)
+	- fromHoldback = _take(m_scope_1,IStakeVault.Kind.Holdback,fromHoldback) (src/Circle.sol#326)
+		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#563)
 	State variables written after the call(s):
-	- pool -= fromPool (src/Circle.sol#597)
-Reentrancy in Circle.closeRound(uint32) (src/Circle.sol#303-491):
+	- _creditOf[m_scope_14] += perMember (src/Circle.sol#405)
+	- _holdbackPerPayment[winner] = (uint256(_rules.contribution) * _rules.holdbackBps) / 10_000 (src/Circle.sol#419)
+Reentrancy in Circle.closeRound(uint32) (src/Circle.sol#272-460):
 	External calls:
-	- fromStake = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake) (src/Circle.sol#333)
-		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#594)
-	- fromStake_scope_3 = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake_scope_3) (src/Circle.sol#350)
-		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#594)
-	- fromHoldback = _take(m_scope_1,IStakeVault.Kind.Holdback,fromHoldback) (src/Circle.sol#357)
-		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#594)
+	- fromStake = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake) (src/Circle.sol#302)
+		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#563)
+	- fromStake_scope_3 = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake_scope_3) (src/Circle.sol#319)
+		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#563)
+	- fromHoldback = _take(m_scope_1,IStakeVault.Kind.Holdback,fromHoldback) (src/Circle.sol#326)
+		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#563)
+	- vault.deposit(winner,IStakeVault.Kind.Holdback,holdbackAmt) (src/Circle.sol#423)
+	- vault.deposit(winner,IStakeVault.Kind.Stake,stakeRestore) (src/Circle.sol#435)
 	State variables written after the call(s):
-	- _creditOf[m_scope_14] += perMember (src/Circle.sol#436)
-	- _holdbackPerPayment[winner] = (uint256(_rules.contribution) * _rules.holdbackBps) / 10_000 (src/Circle.sol#450)
-Reentrancy in Circle.closeRound(uint32) (src/Circle.sol#303-491):
+	- _recipientOf[round] = winner (src/Circle.sol#445)
+Reentrancy in Circle.join(uint8,bytes) (src/Circle.sol#89-123):
 	External calls:
-	- fromStake = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake) (src/Circle.sol#333)
-		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#594)
-	- fromStake_scope_3 = _take(m_scope_1,IStakeVault.Kind.Stake,fromStake_scope_3) (src/Circle.sol#350)
-		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#594)
-	- fromHoldback = _take(m_scope_1,IStakeVault.Kind.Holdback,fromHoldback) (src/Circle.sol#357)
-		- got = vault.take(m,kind,amount,address(this)) (src/Circle.sol#594)
-	- vault.deposit(winner,IStakeVault.Kind.Holdback,holdbackAmt) (src/Circle.sol#454)
-	- vault.deposit(winner,IStakeVault.Kind.Stake,stakeRestore) (src/Circle.sol#466)
+	- vault.deposit(msg.sender,IStakeVault.Kind.Stake,stake) (src/Circle.sol#114)
 	State variables written after the call(s):
-	- _recipientOf[round] = winner (src/Circle.sol#476)
-Reentrancy in Circle.payArrears() (src/Circle.sol#235-250):
+	- _currentRound = 1 (src/Circle.sol#120)
+Reentrancy in Circle.payArrears() (src/Circle.sol#204-219):
 	External calls:
-	- vault.deposit(msg.sender,IStakeVault.Kind.Stake,stakeRestore) (src/Circle.sol#245)
+	- vault.deposit(msg.sender,IStakeVault.Kind.Stake,stakeRestore) (src/Circle.sol#214)
 	State variables written after the call(s):
-	- _standingOf[msg.sender] = Standing.Good (src/Circle.sol#248)
-	- pool += poolRestore (src/Circle.sol#247)
-Reentrancy in Circle.withdraw() (src/Circle.sol#495-587):
+	- _standingOf[msg.sender] = Standing.Good (src/Circle.sol#217)
+	- pool += poolRestore (src/Circle.sol#216)
+Reentrancy in Circle.withdraw() (src/Circle.sol#464-556):
 	External calls:
-	- (assets,principal) = vault.settle() (src/Circle.sol#506)
+	- (assets,principal) = vault.settle() (src/Circle.sol#475)
 	State variables written after the call(s):
-	- _creditOf[m] = 0 (src/Circle.sol#513)
-	- pool += _creditOf[m] (src/Circle.sol#512)
-	- pool -= fromPool (src/Circle.sol#530)
-Reentrancy in Circle.withdraw() (src/Circle.sol#495-587):
+	- _creditOf[m] = 0 (src/Circle.sol#482)
+	- pool += _creditOf[m] (src/Circle.sol#481)
+	- pool -= fromPool (src/Circle.sol#499)
+Reentrancy in Circle.withdraw() (src/Circle.sol#464-556):
 	External calls:
-	- (assets,principal) = vault.settle() (src/Circle.sol#506)
-	- vault.allocate(_memberAt[s_scope_0],IStakeVault.Kind.Pool,y[s_scope_0]) (src/Circle.sol#522)
-	- vault.topUp(fromPool) (src/Circle.sol#532)
-	- vault.writeDown(m_scope_2,IStakeVault.Kind.Stake,st[s_scope_1]) (src/Circle.sol#538)
-	- vault.writeDown(m_scope_2,IStakeVault.Kind.Holdback,hb[s_scope_1]) (src/Circle.sol#540)
+	- (assets,principal) = vault.settle() (src/Circle.sol#475)
+	- vault.allocate(_memberAt[s_scope_0],IStakeVault.Kind.Pool,y[s_scope_0]) (src/Circle.sol#491)
+	- vault.topUp(fromPool) (src/Circle.sol#501)
+	- vault.writeDown(m_scope_2,IStakeVault.Kind.Stake,st[s_scope_1]) (src/Circle.sol#507)
+	- vault.writeDown(m_scope_2,IStakeVault.Kind.Holdback,hb[s_scope_1]) (src/Circle.sol#509)
 	State variables written after the call(s):
-	- _finalPoolShare[m_scope_4] = per + rem (src/Circle.sol#553)
-	- _finalPoolShare[m_scope_4] = per + 0 (src/Circle.sol#553)
+	- _finalPoolShare[m_scope_4] = per + rem (src/Circle.sol#522)
+	- _finalPoolShare[m_scope_4] = per + 0 (src/Circle.sol#522)
 Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-3
 INFO:Detectors:
 Detector: reentrancy-events
-Reentrancy in CircleFactory.createCircle(Rules,address[]) (src/CircleFactory.sol#45-61):
+Reentrancy in CircleFactory.createCircle(Rules,address[]) (src/CircleFactory.sol#36-52):
 	External calls:
-	- Circle(circle).initialize(rules,inviteSigners,msg.sender) (src/CircleFactory.sol#57)
-	- vaultAddress.registerCircle(circle) (src/CircleFactory.sol#58)
+	- Circle(circle).initialize(rules,inviteSigners,msg.sender) (src/CircleFactory.sol#48)
+	- vaultAddress.registerCircle(circle) (src/CircleFactory.sol#49)
 	Event emitted after the call(s):
-	- CircleCreated(circle,msg.sender,rules,inviteSigners) (src/CircleFactory.sol#60)
+	- CircleCreated(circle,msg.sender,rules,inviteSigners) (src/CircleFactory.sol#51)
 Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#reentrancy-vulnerabilities-4
 INFO:Detectors:
 Detector: timestamp
-Circle._attestedStakeBps(bytes) (src/Circle.sol#104-118) uses timestamp for comparisons
+Circle.join(uint8,bytes) (src/Circle.sol#89-123) uses timestamp for comparisons
 	Dangerous comparisons:
-	- expiry <= block.timestamp (src/Circle.sol#107)
-Circle._join(uint8,bytes,uint16) (src/Circle.sol#120-154) uses timestamp for comparisons
+	- block.timestamp >= _rules.joinDeadline (src/Circle.sol#91)
+Circle.cancel() (src/Circle.sol#134-139) uses timestamp for comparisons
 	Dangerous comparisons:
-	- block.timestamp >= _rules.joinDeadline (src/Circle.sol#122)
-Circle.cancel() (src/Circle.sol#165-170) uses timestamp for comparisons
+	- msg.sender != organizer && block.timestamp < _rules.joinDeadline (src/Circle.sol#136)
+Circle.collect(address,uint32) (src/Circle.sol#152-159) uses timestamp for comparisons
 	Dangerous comparisons:
-	- msg.sender != organizer && block.timestamp < _rules.joinDeadline (src/Circle.sol#167)
-Circle.collect(address,uint32) (src/Circle.sol#183-190) uses timestamp for comparisons
+	- block.timestamp < due_ - window (src/Circle.sol#156)
+	- block.timestamp > due_ (src/Circle.sol#157)
+Circle._pay(address,uint32,bool) (src/Circle.sol#161-186) uses timestamp for comparisons
 	Dangerous comparisons:
-	- block.timestamp < due_ - window (src/Circle.sol#187)
-	- block.timestamp > due_ (src/Circle.sol#188)
-Circle._pay(address,uint32,bool) (src/Circle.sol#192-217) uses timestamp for comparisons
+	- block.timestamp > due_ + _rules.grace (src/Circle.sol#169)
+	- late = block.timestamp > due_ (src/Circle.sol#170)
+Circle._amountDue(address,bool) (src/Circle.sol#188-202) uses timestamp for comparisons
 	Dangerous comparisons:
-	- block.timestamp > due_ + _rules.grace (src/Circle.sol#200)
-	- late = block.timestamp > due_ (src/Circle.sol#201)
-Circle._amountDue(address,bool) (src/Circle.sol#219-233) uses timestamp for comparisons
+	- _receivedOf[member] && _holdbackRemaining[member] > 0 && ! late (src/Circle.sol#194)
+Circle.commitBid(uint32,bytes32) (src/Circle.sol#235-245) uses timestamp for comparisons
 	Dangerous comparisons:
-	- _receivedOf[member] && _holdbackRemaining[member] > 0 && ! late (src/Circle.sol#225)
-Circle.commitBid(uint32,bytes32) (src/Circle.sol#266-276) uses timestamp for comparisons
+	- block.timestamp < due_ - _rules.commitWindow (src/Circle.sol#241)
+	- block.timestamp >= due_ (src/Circle.sol#242)
+Circle.revealBid(uint32,uint16,bytes32) (src/Circle.sol#257-268) uses timestamp for comparisons
 	Dangerous comparisons:
-	- block.timestamp < due_ - _rules.commitWindow (src/Circle.sol#272)
-	- block.timestamp >= due_ (src/Circle.sol#273)
-Circle.revealBid(uint32,uint16,bytes32) (src/Circle.sol#288-299) uses timestamp for comparisons
+	- block.timestamp < due_ (src/Circle.sol#260)
+	- block.timestamp > due_ + _rules.revealWindow (src/Circle.sol#261)
+Circle.closeRound(uint32) (src/Circle.sol#272-460) uses timestamp for comparisons
 	Dangerous comparisons:
-	- block.timestamp < due_ (src/Circle.sol#291)
-	- block.timestamp > due_ + _rules.revealWindow (src/Circle.sol#292)
-Circle.closeRound(uint32) (src/Circle.sol#303-491) uses timestamp for comparisons
+	- block.timestamp < due_ + _rules.grace (src/Circle.sol#276)
+Circle.amountDue(address,uint32) (src/Circle.sol#654-661) uses timestamp for comparisons
 	Dangerous comparisons:
-	- block.timestamp < due_ + _rules.grace (src/Circle.sol#307)
-Circle.amountDue(address,uint32) (src/Circle.sol#685-692) uses timestamp for comparisons
+	- late = block.timestamp > dueTime(round) (src/Circle.sol#659)
+CircleFactory._validateRules(Rules,address[]) (src/CircleFactory.sol#80-100) uses timestamp for comparisons
 	Dangerous comparisons:
-	- late = block.timestamp > dueTime(round) (src/Circle.sol#690)
-CircleFactory._validateRules(Rules,address[]) (src/CircleFactory.sol#89-109) uses timestamp for comparisons
-	Dangerous comparisons:
-	- block.timestamp >= r.joinDeadline (src/CircleFactory.sol#99)
+	- block.timestamp >= r.joinDeadline (src/CircleFactory.sol#90)
 KittyEarnVault._pendingYield() (src/KittyEarnVault.sol#65-70) uses timestamp for comparisons
 	Dangerous comparisons:
 	- aprBps == 0 || totalShares == 0 || reserve == 0 || block.timestamp <= lastAccrual (src/KittyEarnVault.sol#67)
@@ -461,4 +452,4 @@ KittyEarnVault.claim(uint256,uint256,uint256,address) (src/KittyEarnVault.sol#16
 	Dangerous comparisons:
 	- require(bool,string)(block.timestamp >= c.claimableAt,still queued) (src/KittyEarnVault.sol#171)
 Reference: https://github.com/crytic/slither/wiki/Detector-Documentation#block-timestamp
-INFO:Slither:. analyzed (31 contracts with 76 detectors), 60 result(s) found
+INFO:Slither:. analyzed (31 contracts with 76 detectors), 57 result(s) found

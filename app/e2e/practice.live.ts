@@ -53,7 +53,7 @@ it("runs a two-member circle on 1-minute rounds, start to finish", async () => {
   const names = ["Ama", "Kofi"];
   const circle = await createCircle(
     org,
-    { title: "Practice", names, contribution: ONE, cadence: "practice1", startIn: 100, maxBidBps: 3_000, yieldOn: true, tierDiscountOn: false },
+    { title: "Practice", names, contribution: ONE, cadence: "practice1", startIn: 100, maxBidBps: 3_000, yieldOn: true },
     () => {},
   );
   await joinCircle(mem, { circle, seat: 1, key: inviteKeyFor(org, circle, 1), title: "Practice", names, roster: null }, () => {});
@@ -84,7 +84,7 @@ it("calls off a circle nobody joined and returns the organizer's deposit", async
   const org = signer();
   const circle = await createCircle(
     org,
-    { title: "Lonely", names: ["Ama", "Kofi"], contribution: ONE, cadence: "practice1", startIn: 60, maxBidBps: 3_000, yieldOn: false, tierDiscountOn: false },
+    { title: "Lonely", names: ["Ama", "Kofi"], contribution: ONE, cadence: "practice1", startIn: 60, maxBidBps: 3_000, yieldOn: false },
     () => {},
   );
   let s = await loadSnapshot(circle, org.address);
