@@ -12,9 +12,13 @@ contracts:
   - name: CircleFactory
     events:
       - event: "CircleCreated(address indexed circle, address indexed organizer, (uint8,uint16,uint16,uint16,uint16,bool,uint64,uint64,uint32,uint32,uint32,uint32,uint64) rules, address[] inviteSigners)"
+      # SRS 7.11 added Rules.tierDiscountOn after yieldOn, which changed the signature
+      - event: "CircleCreated(address indexed circle, address indexed organizer, (uint8,uint16,uint16,uint16,uint16,bool,bool,uint64,uint64,uint32,uint32,uint32,uint32,uint64) rules, address[] inviteSigners)"
+        name: CircleCreatedV2
   - name: Circle # every clone, registered from CircleCreated
     events:
       - event: "Joined(address indexed member, uint8 indexed seat, uint256 stake)"
+      - event: "StakeDiscounted(address indexed member, uint16 stakeBps)"
       - event: "Activated(uint64 firstDue)"
       - event: "Cancelled(uint64 at)"
       - event: "Contributed(address indexed member, uint32 indexed round, uint256 paid, uint256 creditUsed, uint256 holdbackReleased, bool late, bool autopay)"
@@ -58,16 +62,19 @@ chains:
           - "0x24502F1218c3638E1BB34A2F0174a6A2C33e4B9D" # 1 Oct
           - "0x99a7C36046d6aE7835942fc48B6AfEEfECf6B846" # 2 Oct, with yield
           - "0xC0B5F23454267F5AEe552ecF840008832412ace9" # 4 Oct, 1-minute practice rounds
+          - "0x3C9B05B45572D1C421d9beEB033F2Aea2b30AfDD" # 4 Oct, tier attestations (CircleCreatedV2)
       - name: Circle
       - name: StakeVault
         address:
           - "0x9dcEB8856d9c5FA71E83688d4050c8d9fCbcFc3F"
           - "0x3f2A036B4F5838AA2944aA8Bc0FF18AF955040e8"
           - "0x4D681F775aDb2E09eEaF5316a04a082B0182Ed26"
+          - "0xd31244805b5Bc141b69Bb88b4E510a399ceA0CE0"
       - name: KittyEarnVault
         address:
           - "0x8fd0e8EB4dB03AeD08c14Fe686d10d59d9D5a31f"
           - "0x825B90EBa7778CC554813b1f1e790a881d4190D0"
+          - "0xFa0866e6d11f65A6F30beAaa5d4f24133eA4ac2E"
         start_block: 67476151
       - name: AgoraPair
         address: "0x1Aa8958Aa34cEC8096EF4381cb335effe977b0ae"

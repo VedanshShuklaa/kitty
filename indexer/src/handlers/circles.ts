@@ -68,24 +68,44 @@ async function round(context: Ctx, circle: string, index: number): Promise<Round
 indexer.contractRegister({ contract: "CircleFactory", event: "CircleCreated" }, async ({ event, context }) => {
   context.chain.Circle.add(event.params.circle);
 });
+indexer.contractRegister({ contract: "CircleFactory", event: "CircleCreatedV2" }, async ({ event, context }) => {
+  context.chain.Circle.add(event.params.circle);
+});
 
-indexer.onEvent({ contract: "CircleFactory", event: "CircleCreated" }, async ({ event, context }) => {
-  const r = event.params.rules;
+/** The Rules fields the indexer keeps, whichever version of the struct emitted them. */
+type RulesRead = {
+  memberCount: bigint;
+  stakeBps: bigint;
+  maxBidBps: bigint;
+  poolShareBps: bigint;
+  holdbackBps: bigint;
+  yieldOn: boolean;
+  tierDiscountOn: boolean;
+  contribution: bigint;
+  firstDue: bigint;
+  period: bigint;
+  joinDeadline: bigint;
+};
+
+type Created = Ev & { params: { circle: string; organizer: string } };
+
+async function circleCreated(event: Created, context: Ctx, r: RulesRead): Promise<void> {
   const t = at(event);
   context.Circle.set({
     id: event.params.circle,
     factory: event.srcAddress,
     organizer: event.params.organizer,
-    memberCount: Number(r[0]),
-    stakeBps: Number(r[1]),
-    maxBidBps: Number(r[2]),
-    poolShareBps: Number(r[3]),
-    holdbackBps: Number(r[4]),
-    yieldOn: r[5],
-    contribution: r[6],
-    firstDue: r[7],
-    period: Number(r[8]),
-    joinDeadline: r[12],
+    memberCount: Number(r.memberCount),
+    stakeBps: Number(r.stakeBps),
+    maxBidBps: Number(r.maxBidBps),
+    poolShareBps: Number(r.poolShareBps),
+    holdbackBps: Number(r.holdbackBps),
+    yieldOn: r.yieldOn,
+    tierDiscountOn: r.tierDiscountOn,
+    contribution: r.contribution,
+    firstDue: r.firstDue,
+    period: Number(r.period),
+    joinDeadline: r.joinDeadline,
     state: "Forming",
     joined: 0,
     currentRound: 0,
@@ -100,7 +120,23 @@ indexer.onEvent({ contract: "CircleFactory", event: "CircleCreated" }, async ({ 
   const org = await account(context, event.params.organizer, t);
   saveAccount(context, { ...org, circlesOrganized: org.circlesOrganized + 1 }, t);
   await bumpDay(context, t, { circlesCreated: 1 });
-  feed(context, event, "Created", { actor: event.params.organizer, amount: r[6] }, event.params.circle);
+  feed(context, event, "Created", { actor: event.params.organizer, amount: r.contribution }, event.params.circle);
+}
+
+indexer.onEvent({ contract: "CircleFactory", event: "CircleCreated" }, async ({ event, context }) => {
+  const r = event.params.rules;
+  await circleCreated(event, context, {
+    memberCount: r[0], stakeBps: r[1], maxBidBps: r[2], poolShareBps: r[3], holdbackBps: r[4], yieldOn: r[5],
+    tierDiscountOn: false, contribution: r[6], firstDue: r[7], period: r[8], joinDeadline: r[12],
+  });
+});
+
+indexer.onEvent({ contract: "CircleFactory", event: "CircleCreatedV2" }, async ({ event, context }) => {
+  const r = event.params.rules;
+  await circleCreated(event, context, {
+    memberCount: r[0], stakeBps: r[1], maxBidBps: r[2], poolShareBps: r[3], holdbackBps: r[4], yieldOn: r[5],
+    tierDiscountOn: r[6], contribution: r[7], firstDue: r[8], period: r[9], joinDeadline: r[13],
+  });
 });
 
 // -------------------------------------------------------------- forming
@@ -125,6 +161,7 @@ indexer.onEvent({ contract: "Circle", event: "Joined" }, async ({ event, context
     received: false,
     receivedRound: undefined,
     stake: event.params.stake,
+    tierStakeBps: undefined,
     arrears: 0n,
     paidOnTime: 0,
     paidLate: 0,
@@ -140,6 +177,12 @@ indexer.onEvent({ contract: "Circle", event: "Joined" }, async ({ event, context
   saveAccount(context, { ...a, circlesJoined: a.circlesJoined + 1 }, t);
   await bumpDay(context, t, { joins: 1 });
   feed(context, event, "Joined", { actor: who, amount: event.params.stake });
+});
+
+// SRS 7.11: emitted right after Joined when a tier attestation lowered the stake.
+indexer.onEvent({ contract: "Circle", event: "StakeDiscounted" }, async ({ event, context }) => {
+  const m = await context.Member.getOrThrow(memberId(event.srcAddress, event.params.member));
+  context.Member.set({ ...m, tierStakeBps: Number(event.params.stakeBps) });
 });
 
 indexer.onEvent({ contract: "Circle", event: "Activated" }, async ({ event, context }) => {

@@ -17,6 +17,7 @@ type Circle {
   poolShareBps: Int!
   holdbackBps: Int!
   yieldOn: Boolean!
+  tierDiscountOn: Boolean! # members may post a reduced stake with a tier attestation (SRS 7.11)
   period: Int!
   firstDue: BigInt!
   joinDeadline: BigInt!
@@ -81,6 +82,7 @@ type Member {
   received: Boolean!
   receivedRound: Int
   stake: BigInt!
+  tierStakeBps: Int # the stake share a tier attestation set at join; unset means the circle's rule
   arrears: BigInt!
   paidOnTime: Int!
   paidLate: Int!

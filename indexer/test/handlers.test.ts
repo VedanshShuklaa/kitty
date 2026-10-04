@@ -166,6 +166,50 @@ describe("circles", () => {
   });
 });
 
+describe("tier discounts (SRS 7.11)", () => {
+  it("reads the new Rules layout and records a discounted stake", async () => {
+    const C3 = "0x1313131313131313131313131313131313131313";
+    const firstDue = BigInt(T0 + 2_000);
+    const v2 = {
+      contract: "CircleFactory" as const,
+      event: "CircleCreatedV2" as const,
+      srcAddress: FACTORY,
+      params: {
+        circle: C3,
+        organizer: ANA,
+        rules: { 0: 2n, 1: 12_000n, 2: 3_000n, 3: 1_000n, 4: 2_000n, 5: false, 6: true, 7: 10_000000n, 8: firstDue, 9: PERIOD, 10: 240n, 11: 60n, 12: 120n, 13: firstDue - 240n },
+        inviteSigners: [],
+      },
+      block: at(1),
+      transaction: tx(),
+    };
+    const indexer = createTestIndexer();
+    await indexer.process({
+      chains: {
+        10143: {
+          startBlock: B0,
+          simulate: [
+            v2,
+            joined(C3, ANA, 0, 2),
+            joined(C3, BEN, 1, 3),
+            ev(C3, "StakeDiscounted", { member: BEN, stakeBps: 10_200n }, 3),
+          ] as never,
+        },
+      },
+    });
+    const c = await indexer.Circle.getOrThrow(C3);
+    expect(c).toMatchObject({ stakeBps: 12_000, yieldOn: false, tierDiscountOn: true, contribution: 10_000000n, period: 600, joinDeadline: firstDue - 240n });
+    expect((await indexer.Member.getOrThrow(`${C3}-${BEN}`)).tierStakeBps).toBe(10_200);
+    expect((await indexer.Member.getOrThrow(`${C3}-${ANA}`)).tierStakeBps).toBeUndefined();
+  });
+
+  it("marks circles from the old factories as full-stake only", async () => {
+    const indexer = createTestIndexer();
+    await indexer.process({ chains: { 10143: { startBlock: B0, simulate: [created(C1, ANA, 2, 1)] as never } } });
+    expect((await indexer.Circle.getOrThrow(C1)).tierDiscountOn).toBe(false);
+  });
+});
+
 describe("tiers (SRS 8.4)", () => {
   const base: Track = { paidOnTime: 0, paidLate: 0, timesCovered: 0, defaults: 0, openDefaults: 0, lastDefaultClearedAt: undefined, counterparties: 0, cycleWeight: 0 };
   const now = 2_000_000_000n;
