@@ -26,6 +26,12 @@ export function rulesInWords(r: Rules): { lead: string; text: string }[] {
       text: `You have ${span(r.grace)} after each due time. Miss a round and your deposit covers you; you catch up later.`,
     },
   ];
+  if (r.tierDiscountOn) {
+    lines.push({
+      lead: "A trust circle (experimental).",
+      text: "People with a good record from earlier circles may put down less, never under half. If one of them misses a round, the shared pool covers more of it.",
+    });
+  }
   if (r.yieldOn) {
     lines.push({
       lead: "Deposits earn while they're locked.",

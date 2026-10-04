@@ -38,7 +38,7 @@ it("creates a circle, joins it by invite, and both members pay round 1", async (
   const steps: string[] = [];
   const circle = await createCircle(
     org,
-    { title: "E2E", names: ["Ama", "Kofi"], contribution: 1_000000n, cadence: "demo", startIn: 900, maxBidBps: 3_000, yieldOn: true },
+    { title: "E2E", names: ["Ama", "Kofi"], contribution: 1_000000n, cadence: "demo", startIn: 900, maxBidBps: 3_000, yieldOn: true, tierDiscountOn: false },
     (id) => steps.push(id),
   );
   console.log("circle", circle);

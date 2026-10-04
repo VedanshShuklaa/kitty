@@ -34,8 +34,12 @@ interface ICircle {
     error BadReveal();
     error AutopayOff();
     error NothingToWithdraw();
+    error BadAttestation();
 
     function join(uint8 seat, bytes calldata inviteSig) external; // seat 0: the organizer, empty signature
+    // SRS 7.11: tierAttestation = abi.encode(uint16 tierBps, uint64 expiry, bytes sig),
+    // or empty for the full stake
+    function join(uint8 seat, bytes calldata inviteSig, bytes calldata tierAttestation) external;
     function reissueInvite(uint8 seat, address signer) external; // organizer, while forming, seat empty
     function cancel() external;
     function contribute(uint32 round) external;
@@ -70,6 +74,7 @@ interface ICircle {
     function revealedBid(uint32 round, address member) external view returns (bool revealed, uint16 discountBps);
 
     event Joined(address indexed member, uint8 indexed seat, uint256 stake);
+    event StakeDiscounted(address indexed member, uint16 stakeBps);
     event InviteReissued(uint8 indexed seat, address signer);
     event Activated(uint64 firstDue);
     event Cancelled(uint64 at);

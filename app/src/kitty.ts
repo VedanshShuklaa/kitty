@@ -3,12 +3,15 @@ import {
   bytesToHex,
   createPublicClient,
   createWalletClient,
+  decodeFunctionResult,
   encodeAbiParameters,
+  encodeFunctionData,
   hexToBytes,
   http,
   keccak256,
   parseAbiParameters,
   parseEther,
+  size,
   toBytes,
   zeroAddress,
   zeroHash,
@@ -20,7 +23,7 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 import { keccak_256 } from "@noble/hashes/sha3";
 
-import { ausdAbi, circleAbi, factoryAbi, faucetAbi, vaultAbi } from "./abi";
+import { ausdAbi, circleAbi, factoryAbi, faucetAbi, legacyRulesAbi, vaultAbi } from "./abi";
 import { bidSalt, inviteKey } from "./account/keys";
 import { monadTestnet } from "./chain";
 import { apiUrl, contracts } from "./config";
@@ -40,6 +43,7 @@ export type Rules = {
   poolShareBps: number;
   holdbackBps: number;
   yieldOn: boolean;
+  tierDiscountOn: boolean; // members may post a reduced stake with a tier attestation (SRS 7.11)
   contribution: bigint;
   firstDue: bigint;
   period: number;
@@ -150,6 +154,7 @@ export type CircleDraft = {
   startIn: number; // seconds from now to the first due time
   maxBidBps: number; // 0 turns bidding off
   yieldOn: boolean; // deposits earn simulated testnet yield (SRS 15.7)
+  tierDiscountOn: boolean; // FR-TRU-05: members with standing may put down less
 };
 
 export function buildRules(d: CircleDraft, nowSec: number): Rules {
@@ -162,6 +167,7 @@ export function buildRules(d: CircleDraft, nowSec: number): Rules {
     poolShareBps: 1_000,
     holdbackBps: 2_000,
     yieldOn: d.yieldOn,
+    tierDiscountOn: d.tierDiscountOn,
     contribution: d.contribution,
     firstDue,
     period: c.period,
@@ -173,6 +179,12 @@ export function buildRules(d: CircleDraft, nowSec: number): Rules {
 }
 
 export const depositOf = (r: Pick<Rules, "contribution" | "stakeBps">) => (r.contribution * BigInt(r.stakeBps)) / 10_000n;
+
+/** SRS 7.11: a tier posts a share of the circle's own stake, never under the factory's 50% floor. */
+export function stakeBpsWithTier(r: Pick<Rules, "stakeBps" | "tierDiscountOn">, tierBps: number): number {
+  if (!r.tierDiscountOn || tierBps >= 10_000) return r.stakeBps;
+  return Math.max(5_000, Math.floor((r.stakeBps * tierBps) / 10_000));
+}
 export const potOf = (r: Pick<Rules, "contribution" | "memberCount">) => r.contribution * BigInt(r.memberCount);
 
 /** FR-JOIN-03: one approval covers the deposit, every round, and one catch-up. */
@@ -379,7 +391,16 @@ export function joinDigest(circle: Address, seat: number, joiner: Address): Hex 
   );
 }
 
-export async function joinCircle(s: Signer, invite: Invite, onStep: (id: string) => void): Promise<void> {
+/**
+ * `tierAttestation` comes from /api/tier (SRS 7.11) and lowers the deposit in
+ * a circle that allows it; without one, the member posts the full deposit.
+ */
+export async function joinCircle(
+  s: Signer,
+  invite: Invite,
+  onStep: (id: string) => void,
+  tierAttestation: Hex | null = null,
+): Promise<void> {
   const rules = await readRules(invite.circle);
   onStep("topup");
   await ensureTopUp(s.address);
@@ -393,7 +414,8 @@ export async function joinCircle(s: Signer, invite: Invite, onStep: (id: string)
   // copied signature is useless to anyone else (FR-INV-02)
   const digest = joinDigest(invite.circle, invite.seat, s.address);
   const sig = await privateKeyToAccount(invite.key).signMessage({ message: { raw: digest } });
-  await send(s, { address: invite.circle, abi: circleAbi, functionName: "join", args: [invite.seat, sig] });
+  const args = tierAttestation ? ([invite.seat, sig, tierAttestation] as const) : ([invite.seat, sig] as const);
+  await send(s, { address: invite.circle, abi: circleAbi, functionName: "join", args });
 }
 
 // ------------------------------------------------------------------ reads
@@ -439,8 +461,23 @@ export type Snapshot = {
   };
 };
 
+// Rules is all static fields, so its size says which version a circle has.
+// Decoding the newer 14-word layout with the old ABI would not fail, only
+// shift every field, so the length decides.
+const LEGACY_RULES_BYTES = 13 * 32;
+
+export function decodeRules(data: Hex): Rules {
+  if (size(data) === LEGACY_RULES_BYTES) {
+    const r = decodeFunctionResult({ abi: legacyRulesAbi, functionName: "rules", data });
+    return { ...r, tierDiscountOn: false };
+  }
+  return decodeFunctionResult({ abi: circleAbi, functionName: "rules", data }) as Rules;
+}
+
 export async function readRules(circle: Address): Promise<Rules> {
-  return (await client.readContract({ address: circle, abi: circleAbi, functionName: "rules" })) as Rules;
+  const { data } = await client.call({ to: circle, data: encodeFunctionData({ abi: circleAbi, functionName: "rules" }) });
+  if (!data) throw new Error("This circle couldn't be read. Pull down to refresh.");
+  return decodeRules(data);
 }
 
 export async function loadSnapshot(circle: Address, me: Address | null): Promise<Snapshot> {

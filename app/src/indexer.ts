@@ -162,6 +162,16 @@ export async function recordOf(me: Address): Promise<Passbook | null> {
   return a ? { ...a, totalContributed: BigInt(a.totalContributed) } : null;
 }
 
+/** SRS 6.13: each account's tier, for showing who a member would sit with. */
+export async function tiersOf(addresses: Address[]): Promise<Map<string, string>> {
+  if (addresses.length === 0) return new Map();
+  const d = await gql<{ Account: { id: string; tier: string }[] }>(
+    `query Tiers($ids: [String!]!) { Account(where: { id: { _in: $ids } }) { id tier } }`,
+    { ids: addresses.map(lower) },
+  );
+  return new Map(d.Account.map((a) => [a.id, a.tier]));
+}
+
 // ------------------------------------------------------------------ yield
 
 /** earnAUSD on Monad mainnet: the real rate Kitty's simulated yield follows. */

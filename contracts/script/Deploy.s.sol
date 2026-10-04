@@ -38,6 +38,9 @@ contract Deploy is Script {
         vault.setAdapter(earnVault); // before the factory: one-time wiring
         CircleFactory factory = new CircleFactory(IERC20(AUSD_TESTNET), vault, MIN_PERIOD_TESTNET, deployer);
         vault.setFactory(address(factory));
+        // SRS 7.11: the key behind site/api/tier.ts; zero leaves every stake at full
+        address tierAttestor = vm.envOr("TIER_ATTESTOR", address(0));
+        if (tierAttestor != address(0)) factory.setTierAttestor(tierAttestor);
         earnVault.setRate(APR_BPS, SPEED_UP);
         // half of whatever AUSD the deployer holds pays the simulated yield
         uint256 reserve = IERC20(AUSD_TESTNET).balanceOf(deployer) / 2;
@@ -54,6 +57,7 @@ contract Deploy is Script {
         console.log("circleFactory", address(factory));
         console.log("circleImplementation", factory.circleImplementation());
         console.log("kittyEarnVault", address(earnVault));
+        console.log("tierAttestor", factory.tierAttestor());
 
         string memory json = "deployment";
         vm.serializeUint(json, "chainId", chainId);
@@ -62,6 +66,7 @@ contract Deploy is Script {
         vm.serializeAddress(json, "circleFactory", address(factory));
         vm.serializeAddress(json, "circleImplementation", factory.circleImplementation());
         vm.serializeUint(json, "deployBlock", block.number);
+        vm.serializeAddress(json, "tierAttestor", factory.tierAttestor());
         string memory out = vm.serializeAddress(json, "kittyEarnVault", address(earnVault));
         vm.writeJson(out, "../deployments/10143.json");
     }

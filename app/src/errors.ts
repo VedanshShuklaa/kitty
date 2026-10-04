@@ -19,6 +19,7 @@ const CONTRACT: Record<string, string> = {
   BadReveal: "Your sealed offer couldn't be matched, so it won't count this round.",
   AutopayOff: "Autopay is off for this member.",
   NothingToWithdraw: "There's nothing left for you to collect.",
+  BadAttestation: "Kitty couldn't confirm your smaller deposit. Try again to join with the full deposit.",
   MaxFrequencyExceeded: "The test-dollar tap is busy. Try again in a minute.",
 };
 

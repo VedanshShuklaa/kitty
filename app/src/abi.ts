@@ -2,7 +2,12 @@ import { parseAbi } from "viem";
 
 // Only what the app calls. Signatures mirror contracts/src/interfaces.
 const RULES =
+  "struct Rules { uint8 memberCount; uint16 stakeBps; uint16 maxBidBps; uint16 poolShareBps; uint16 holdbackBps; bool yieldOn; bool tierDiscountOn; uint64 contribution; uint64 firstDue; uint32 period; uint32 commitWindow; uint32 revealWindow; uint32 grace; uint64 joinDeadline; }";
+// Circles from factories before SRS 7.11 return Rules without tierDiscountOn
+const LEGACY_RULES =
   "struct Rules { uint8 memberCount; uint16 stakeBps; uint16 maxBidBps; uint16 poolShareBps; uint16 holdbackBps; bool yieldOn; uint64 contribution; uint64 firstDue; uint32 period; uint32 commitWindow; uint32 revealWindow; uint32 grace; uint64 joinDeadline; }";
+
+export const legacyRulesAbi = parseAbi([LEGACY_RULES, "function rules() view returns (Rules)"]);
 
 export const factoryAbi = parseAbi([
   RULES,
@@ -15,6 +20,7 @@ export const factoryAbi = parseAbi([
 export const circleAbi = parseAbi([
   RULES,
   "function join(uint8 seat, bytes inviteSig)",
+  "function join(uint8 seat, bytes inviteSig, bytes tierAttestation)",
   "function cancel()",
   "function contribute(uint32 round)",
   "function payArrears()",
@@ -52,6 +58,7 @@ export const circleAbi = parseAbi([
   "error BadReveal()",
   "error AutopayOff()",
   "error NothingToWithdraw()",
+  "error BadAttestation()",
 ]);
 
 // SRS 15.7: how much of a circle's collateral is earning, and what it has

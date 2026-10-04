@@ -652,3 +652,9 @@ indexer's tier fields. Branch `experimental/trust-tiers` = main + tiers: contrac
 circle, `/api/tier`, standing on Account; its own deployment (factory `0x3C9B05B4…AfDD`) and live e2e.
 Each Envio deploy gets a new URL; repoint Vercel `INDEXER_URL` after pushes (`npx envio-cloud indexer get kitty vedanshshuklaa`).
 Next: push notifications (Firebase), new APK, phone test.
+
+**Branch `experimental/trust-tiers`** = main + trust tiers (SRS 6.13/7.11/8.4). Opt-in per circle: Create's
+"Make it a trust circle (experimental)" toggle, off by default; every account still sees its standing on
+Account. Own deployment: factory `0x3C9B05B4…AfDD`, attestor `0x72219263…e3Fc` (key in Vercel env
+`TIER_ATTESTOR_KEY`), `/api/tier` (site from this branch only). Live `e2e/tier.live.ts` passed: Steady after 3
+practice circles, joined with 85%. Envio deploys main only, so this branch's indexer isn't hosted.
