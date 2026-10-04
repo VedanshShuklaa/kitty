@@ -12,10 +12,10 @@ The questions every circle screen must answer are: How much do I pay? When? Who 
 
 - `app/src/theme.ts`: all color, type, spacing, and radius tokens.
 - `app/src/ui.tsx`: typography, buttons, fields, choices, notices, shared screen layout.
-- `app/src/Brand.tsx`: bundled Kitty logo and labelled bottom navigation.
+- `app/src/Brand.tsx`: bundled Kitty logo and labelled bottom navigation (Ionicons from `@expo/vector-icons`, outline when inactive, filled when active; the font ships in the bundle).
 - `app/src/phase.ts`: financial action availability and shared rules in words. Do not reproduce its logic in a decorative component.
 - `app/src/kitty.ts`: real amounts and actions. Never replace live data with preview values.
-- `app/qa/preview.mjs`: isolated browser preview of actual screens with sample data. Not a working web wallet, payment app, or production entry point.
+- `app/qa/preview.mjs`: isolated browser preview of actual screens with sample data. Not a working web wallet, payment app, or production entry point. Its mocks predate the send, indexer and standing modules (4 Oct), so it needs new mocks before it renders Home, Me or Join again.
 
 Legacy token names (`indigo`, `marigold`, etc.) remain as compatibility aliases. New styling should use `ink`, `pink`, `pinkSoft`, and semantic status colors. Do not bring the previous blue/gold theme back.
 
@@ -90,13 +90,20 @@ Keep the pot summary compact. The previous large decorative bead ring must not d
 ## Controls and accessibility
 
 - Touch targets are at least 48 × 48 logical pixels. Main buttons are at least 56px high, expanding with text.
-- Use `Button`, `Field`, `Choice`, `Check`, `Notice`, and `Tag` before adding another control style.
+- Use `Button`, `Field`, `Label`, `Choice`, `Check`, `Notice`, `Tag`, `Progress` and `LinkText` before adding another control style. A button inside a list row is `size="row"` (48px tall), never a one-off `minHeight`. Links out of the app (the public record) are `LinkText`, which keeps a 48px target.
+- Selected states are pink everywhere: choices, checkboxes, the active tab, the bid slider. Tags are 14px.
+- Progress is `Progress`: a written count beside it, an accessible label and value, 8px tall; `onSoft` on a pink summary.
+- Initials beads are decorative and hidden from screen readers; the written name beside them is what gets read. Each `Steps` row reads as "Step 2, Approving payments: in progress".
 - One clearly dominant action per task. Action labels describe the result: “Pay $10”, “Join and put down $10”, “Create circle”.
 - Persistent input labels; placeholders are examples, not labels. `Field` sets an accessible name and visible pink focus border.
 - Choices use radio semantics and checked state. Buttons expose disabled/busy state and remain labelled while waiting.
 - Do not rely on precision dragging: the bid slider also has “Give up less / more” buttons.
 - Preserve back navigation, keyboard access, VoiceOver/TalkBack labels, and visible focus. Test actual native focus order before release.
 - Keep motion optional. No continuous mascot animation, confetti, pulsing controls, or animated balances. Existing ring animation respects reduced motion if reused.
+
+## Standing (SRS 6.13, FR-TRU-11)
+
+Standing is a named tier (Newcomer, Steady, Trusted, Anchor) with the one plain next step that raises it, never a number out of a maximum, a bar or a percentage complete, and never the words credit, score, rating or collateral. It only ever helps: copy must not imply a penalty below where a newcomer starts. Before joining a circle that allows smaller deposits, show the deposit this member will put down, the usual one, and who is already in with their standing.
 
 ## Copy and financial trust
 

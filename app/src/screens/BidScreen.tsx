@@ -85,9 +85,9 @@ export function BidScreen({ route, navigation }: ScreenProps<"Bid">) {
           step={50}
           value={bps}
           onValueChange={(v) => setBps(Math.round(v))}
-          minimumTrackTintColor={color.marigold}
+          minimumTrackTintColor={color.pink}
           maximumTrackTintColor={color.line}
-          thumbTintColor={color.indigo}
+          thumbTintColor={color.pink}
           accessibilityLabel="How much of the pot to give up"
         />
         <Body>

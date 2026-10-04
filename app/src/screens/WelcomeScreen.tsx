@@ -6,7 +6,7 @@ import { explain } from "../errors";
 import { KittyLogo } from "../Brand";
 import { useSession } from "../session";
 import { color, font, radius, space } from "../theme";
-import { Body, Button, Check, Choice, Display, Field, Notice, Small, TestnetMarker, Title } from "../ui";
+import { Body, Button, Check, Choice, Display, Field, Label, Notice, Small, TestnetMarker, Title } from "../ui";
 
 const COUNTRIES = [
   { label: "Ghana", value: "GH" },
@@ -50,12 +50,12 @@ export function WelcomeScreen() {
           <Display style={styles.headline}>A little each round.
 More, together.</Display>
           <Body style={styles.tagline}>Save with people you trust. Everyone contributes, and you take turns receiving the pot.</Body>
-          <View style={styles.explainer}>
-            <Small style={{ color: color.pink }}>Start a circle</Small>
+          <View style={styles.explainer} accessible accessibilityLabel="Start a circle, save together, take turns">
+            <Small style={styles.step}>Start a circle</Small>
             <Small>→</Small>
-            <Small style={{ color: color.pink }}>Save together</Small>
+            <Small style={styles.step}>Save together</Small>
             <Small>→</Small>
-            <Small style={{ color: color.pink }}>Take turns</Small>
+            <Small style={styles.step}>Take turns</Small>
           </View>
         </View>
 
@@ -81,8 +81,8 @@ More, together.</Display>
                 autoComplete="given-name"
                 maxLength={24}
               />
-              <View style={{ gap: 6 }}>
-                <Small style={{ color: color.indigo, fontFamily: font.bodyMedium, fontSize: 15 }}>Where do you live?</Small>
+              <View style={{ gap: space.xs }}>
+                <Label>Where do you live?</Label>
                 <Choice options={COUNTRIES} value={country} onChange={setCountry} />
               </View>
               <Check label="I'm 18 or older" value={adult} onChange={setAdult} />
@@ -114,10 +114,11 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: color.paper },
   frame: { flex: 1, width: "100%", maxWidth: 600, alignSelf: "center" },
   hero: { paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.lg, backgroundColor: color.surface, borderBottomLeftRadius: radius.hero, borderBottomRightRadius: radius.hero },
-  brand: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 16, marginTop: space.lg, marginBottom: space.md },
+  brand: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: space.md, marginTop: space.lg, marginBottom: space.md },
   wordmark: { color: color.pink, fontSize: 52, lineHeight: 60 },
   headline: { fontSize: 34, lineHeight: 40, letterSpacing: -0.8 },
-  tagline: { color: color.slate, marginTop: 12 },
-  explainer: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 20 },
+  tagline: { color: color.slate, marginTop: space.sm },
+  explainer: { flexDirection: "row", flexWrap: "wrap", gap: space.sm, marginTop: space.lg },
+  step: { color: color.pink, fontFamily: font.bodyBold },
   body: { padding: space.lg, gap: space.md },
 });

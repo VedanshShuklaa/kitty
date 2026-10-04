@@ -47,12 +47,14 @@ type ButtonProps = {
   label: string;
   onPress: () => void;
   tone?: "primary" | "dark" | "quiet";
+  /** "row": a smaller button that sits inside a list row; still 48px tall */
+  size?: "full" | "row";
   busy?: boolean;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
-export function Button({ label, onPress, tone = "primary", busy, disabled, style }: ButtonProps) {
+export function Button({ label, onPress, tone = "primary", size = "full", busy, disabled, style }: ButtonProps) {
   const off = disabled || busy;
   return (
     <Pressable
@@ -64,7 +66,7 @@ export function Button({ label, onPress, tone = "primary", busy, disabled, style
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         onPress();
       }}
-      style={({ pressed }) => [b.base, b[tone], off && b.off, pressed && b.pressed, style]}
+      style={({ pressed }) => [b.base, b[tone], size === "row" && b.row, off && b.off, pressed && b.pressed, style]}
     >
       {busy && <ActivityIndicator color={tone === "quiet" ? color.pink : color.surface} />}
       <Text style={[b.label, tone !== "quiet" && { color: color.surface }]}>{busy ? "Please wait…" : label}</Text>
@@ -73,10 +75,11 @@ export function Button({ label, onPress, tone = "primary", busy, disabled, style
 }
 
 const b = StyleSheet.create({
-  base: { minHeight: 56, borderRadius: radius.control, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center", paddingHorizontal: space.md, paddingVertical: 14 },
+  base: { minHeight: 56, borderRadius: radius.control, flexDirection: "row", gap: space.sm, alignItems: "center", justifyContent: "center", paddingHorizontal: space.md, paddingVertical: space.md },
   primary: { backgroundColor: color.pink },
   dark: { backgroundColor: color.indigo },
-  quiet: { backgroundColor: color.surface, borderWidth: 1, borderColor: color.line, minHeight: 52 },
+  quiet: { backgroundColor: color.surface, borderWidth: 1, borderColor: color.line },
+  row: { minHeight: 48, paddingVertical: space.sm },
   off: { opacity: 0.45 },
   pressed: { transform: [{ scale: 0.985 }], opacity: 0.9 },
   label: { fontFamily: font.bodyBold, fontSize: 16, color: color.indigo, textAlign: "center", flexShrink: 1 },
@@ -154,11 +157,14 @@ const s = StyleSheet.create({
 
 // ------------------------------------------------------------------ input
 
+/** The visible label above a field or a group of choices. */
+export const Label = (p: TProps) => <Text {...p} style={[f.label, p.style]} />;
+
 export function Field({ label, hint, prefix, ...rest }: TextInputProps & { label: string; hint?: string; prefix?: string }) {
   const [focused, setFocused] = useState(false);
   return (
-    <View style={{ gap: 6 }}>
-      <Text style={f.label}>{label}</Text>
+    <View style={{ gap: space.xs }}>
+      <Label>{label}</Label>
       <View style={[f.box, focused && { borderColor: color.pink, borderWidth: 2 }]}>
         {prefix && <Text style={f.prefix}>{prefix}</Text>}
         <TextInput placeholderTextColor={color.slate} accessibilityLabel={label} accessibilityHint={hint} {...rest}
@@ -171,7 +177,7 @@ export function Field({ label, hint, prefix, ...rest }: TextInputProps & { label
 }
 
 const f = StyleSheet.create({
-  label: { fontFamily: font.bodyMedium, fontSize: 15, color: color.indigo },
+  label: { fontFamily: font.bodyMedium, fontSize: 15, lineHeight: 20, color: color.ink },
   box: { flexDirection: "row", alignItems: "center", backgroundColor: color.surface, borderRadius: radius.control, borderWidth: 1, borderColor: color.line, paddingHorizontal: space.md },
   prefix: { fontFamily: font.display, fontSize: 20, color: color.slate, marginRight: 4 },
   input: { flex: 1, minWidth: 0, minHeight: 54, paddingVertical: 12, fontFamily: font.body, fontSize: 17, color: color.indigo },
@@ -222,7 +228,10 @@ export function Check({ label, value, onChange }: { label: string; value: boolea
     <Pressable
       accessibilityRole="checkbox"
       accessibilityState={{ checked: value }}
-      onPress={() => onChange(!value)}
+      onPress={() => {
+        Haptics.selectionAsync().catch(() => {});
+        onChange(!value);
+      }}
       style={{ minHeight: 48, flexDirection: "row", alignItems: "center", gap: space.sm, paddingVertical: space.sm }}
     >
       <View style={[k.box, value && k.on]}>{value && <Text style={k.tick}>✓</Text>}</View>
@@ -233,8 +242,8 @@ export function Check({ label, value, onChange }: { label: string; value: boolea
 
 const k = StyleSheet.create({
   box: { width: 24, height: 24, borderRadius: 7, borderWidth: 1.5, borderColor: color.slate, alignItems: "center", justifyContent: "center", backgroundColor: color.surface },
-  on: { backgroundColor: color.indigo, borderColor: color.indigo },
-  tick: { color: color.onIndigo, fontFamily: font.bodyBold, fontSize: 14, lineHeight: 16 },
+  on: { backgroundColor: color.pink, borderColor: color.pink },
+  tick: { color: color.surface, fontFamily: font.bodyBold, fontSize: 14, lineHeight: 16 },
 });
 
 // ---------------------------------------------------------------- notices
@@ -266,7 +275,7 @@ export function Notice({ tone, children, onClose }: { tone: "error" | "good" | "
         accessibilityRole="button"
         accessibilityLabel="Close this message"
         hitSlop={8}
-        style={{ minWidth: 44, minHeight: 44, marginTop: -11, alignItems: "center", justifyContent: "center" }}
+        style={{ minWidth: 48, minHeight: 48, marginTop: -13, alignItems: "center", justifyContent: "center" }}
       >
         <Text style={{ fontFamily: font.bodyBold, fontSize: 20, lineHeight: 22, color: fg }}>×</Text>
       </Pressable>
@@ -281,17 +290,22 @@ export function Steps({ steps }: { steps: { label: string; state: StepState }[] 
   return (
     <View style={{ gap: space.md }}>
       {steps.map((st, i) => (
-        <View key={st.label} style={{ flexDirection: "row", alignItems: "center", gap: space.md }}>
+        <View
+          key={st.label}
+          accessible
+          accessibilityLabel={`Step ${i + 1}, ${st.label}: ${{ done: "done", active: "in progress", todo: "not started", failed: "didn't go through" }[st.state]}`}
+          style={{ flexDirection: "row", alignItems: "center", gap: space.md }}
+        >
           <View
             style={[
               p.dot,
               st.state === "done" && { backgroundColor: color.leaf, borderColor: color.leaf },
               st.state === "failed" && { backgroundColor: color.clay, borderColor: color.clay },
-              st.state === "active" && { borderColor: color.marigold },
+              st.state === "active" && { borderColor: color.pink },
             ]}
           >
             {st.state === "active" ? (
-              <ActivityIndicator size="small" color={color.indigo} />
+              <ActivityIndicator size="small" color={color.pink} />
             ) : (
               <Text style={[p.num, (st.state === "done" || st.state === "failed") && { color: color.surface }]}>
                 {st.state === "done" ? "✓" : st.state === "failed" ? "!" : i + 1}
@@ -346,7 +360,12 @@ export function Bead({ label, tone = "indigo", size = 36 }: { label: string; ton
   const bg = { indigo: color.indigo, leaf: color.leaf, marigold: color.marigold, clay: color.clay, mist: color.indigoMist }[tone];
   const fg = tone === "marigold" || tone === "mist" ? color.indigo : color.surface;
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: "center", justifyContent: "center" }}>
+    // initials beside a written name: decorative, so screen readers skip them
+    <View
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: "center", justifyContent: "center" }}
+    >
       <Text style={{ fontFamily: font.bodyBold, fontSize: size * 0.36, color: fg }}>{label}</Text>
     </View>
   );
@@ -356,8 +375,33 @@ export function Tag({ label, tone }: { label: string; tone: "leaf" | "clay" | "s
   const fg = { leaf: color.leaf, clay: color.clay, slate: color.slate, marigold: color.pink }[tone];
   const bg = { leaf: color.leafSoft, clay: color.claySoft, slate: color.paper, marigold: color.marigoldSoft }[tone];
   return (
-    <View style={{ maxWidth: "55%", flexShrink: 1, backgroundColor: bg, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5 }}>
-      <Text style={{ fontFamily: font.bodyBold, fontSize: 13, color: fg }}>{label}</Text>
+    <View style={{ maxWidth: "55%", flexShrink: 1, backgroundColor: bg, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: space.xs }}>
+      <Text style={{ fontFamily: font.bodyBold, fontSize: 14, lineHeight: 18, color: fg }}>{label}</Text>
     </View>
+  );
+}
+
+/** A written count with a bar under it; the bar supplements the words, never replaces them. */
+export function Progress({ value, total, label, onSoft }: { value: number; total: number; label: string; onSoft?: boolean }) {
+  const pct = total > 0 ? Math.min(100, (value / total) * 100) : 0;
+  return (
+    <View
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel={label}
+      accessibilityValue={{ min: 0, max: total, now: value }}
+      style={{ height: 8, borderRadius: 4, overflow: "hidden", backgroundColor: onSoft ? color.surface : color.line }}
+    >
+      <View style={{ height: 8, borderRadius: 4, width: `${pct}%`, backgroundColor: color.pink }} />
+    </View>
+  );
+}
+
+/** An underlined link out of the app (the public record), with a full-size touch target. */
+export function LinkText({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="link" accessibilityLabel={label} style={{ minHeight: 48, justifyContent: "center", alignSelf: "flex-start" }}>
+      <Text style={[t.small, { color: color.ink, textDecorationLine: "underline" }]}>{label}</Text>
+    </Pressable>
   );
 }

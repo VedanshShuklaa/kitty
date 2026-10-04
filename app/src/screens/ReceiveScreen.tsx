@@ -142,7 +142,7 @@ export function ReceiveScreen({ navigation }: ScreenProps<"Receive">) {
                   tone="quiet"
                   busy={busy === `link-${l.n}`}
                   disabled={!!busy}
-                  style={{ minHeight: 44, paddingHorizontal: space.md }}
+                  size="row"
                   onPress={() => takeBack(l.key, l.n)}
                 />
               </Row>

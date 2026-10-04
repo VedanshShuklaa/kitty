@@ -46,7 +46,7 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
     tiersOf(seated).then(setTiers).catch(() => {});
   }, [discounts, me, seated]);
   const nowSec = Math.floor(Date.now() / 1000);
-  const discounted = discounts && !fullOnly && standing !== null && standing.tierBps < 10_000;
+  const discounted = discounts && !fullOnly && !!standing?.attestation && standing.tierBps < 10_000;
   const deposit = snap
     ? depositOf({ contribution: snap.rules.contribution, stakeBps: discounted ? stakeBpsWithTier(snap.rules, standing!.tierBps) : snap.rules.stakeBps })
     : 0n;
@@ -97,6 +97,8 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
         // an attestation lasts an hour; fetch a fresh one if this one is close to running out
         const fresh = usable(standing, Math.floor(Date.now() / 1000)) ? standing : await standingOf(s.address).catch(() => null);
         attestation = usable(fresh, Math.floor(Date.now() / 1000));
+        // never charge more than the button said without saying so first
+        if (!attestation) throw new Error("Kitty couldn't confirm your smaller deposit. Try again to join with the full deposit.");
       }
       await joinCircle(
         s,

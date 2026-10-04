@@ -1,5 +1,6 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-import { color, font, radius } from "./theme";
+import { color, font, radius, space } from "./theme";
 
 export function KittyLogo({ size = 48 }: { size?: number }) {
   return <Image source={require("../assets/kitty-logo.png")} accessibilityLabel="Kitty" style={{ width: size, height: size, borderRadius: size * 0.28 }} />;
@@ -13,24 +14,27 @@ export function BottomNav({ active, onHome, onJoin, onAccount }: {
   onAccount: () => void;
 }) {
   const tabs = [
-    { label: "Home", symbol: "⌂", press: onHome },
-    { label: "Join circle", symbol: "+", press: onJoin },
-    { label: "Account", symbol: "○", press: onAccount },
-  ];
-  return <View style={styles.nav}>
-    {tabs.map((tab) => <Pressable key={tab.label} accessibilityRole="button" accessibilityLabel={tab.label}
-      accessibilityState={{ selected: active === tab.label }} onPress={tab.press}
-      style={({ pressed }) => [styles.tab, active === tab.label && styles.active, pressed && { opacity: 0.7 }]}>
-      <Text accessible={false} style={[styles.symbol, active === tab.label && { color: color.pink }]}>{tab.symbol}</Text>
-      <Text style={[styles.label, active === tab.label && { color: color.pink }]}>{tab.label}</Text>
-    </Pressable>)}
+    { label: "Home", icon: "home", press: onHome },
+    { label: "Join circle", icon: "add-circle", press: onJoin },
+    { label: "Account", icon: "person-circle", press: onAccount },
+  ] as const;
+  return <View style={styles.nav} accessibilityRole="tablist">
+    {tabs.map((tab) => {
+      const on = active === tab.label;
+      return <Pressable key={tab.label} accessibilityRole="tab" accessibilityLabel={tab.label}
+        accessibilityState={{ selected: on }} onPress={tab.press}
+        style={({ pressed }) => [styles.tab, on && styles.active, pressed && { opacity: 0.7 }]}>
+        <Ionicons name={on ? tab.icon : `${tab.icon}-outline`} size={24} color={on ? color.pink : color.slate}
+          accessibilityElementsHidden importantForAccessibility="no" />
+        <Text style={[styles.label, on && { color: color.pink }]}>{tab.label}</Text>
+      </Pressable>;
+    })}
   </View>;
 }
 
 const styles = StyleSheet.create({
-  nav: { flexDirection: "row", padding: 5, gap: 4, backgroundColor: color.surface, borderRadius: radius.card, borderWidth: 1, borderColor: color.line },
-  tab: { flex: 1, minHeight: 58, paddingVertical: 7, paddingHorizontal: 4, alignItems: "center", justifyContent: "center", gap: 2, borderRadius: 17 },
+  nav: { flexDirection: "row", padding: space.xs, gap: space.xs, backgroundColor: color.surface, borderRadius: radius.card, borderWidth: 1, borderColor: color.line },
+  tab: { flex: 1, minHeight: 56, paddingVertical: space.sm, paddingHorizontal: space.xs, alignItems: "center", justifyContent: "center", gap: 2, borderRadius: radius.control },
   active: { backgroundColor: color.pinkSoft },
-  symbol: { fontSize: 23, lineHeight: 25, color: color.slate, fontFamily: font.bodyMedium },
   label: { fontSize: 14, fontFamily: font.bodyBold, color: color.slate, textAlign: "center" },
 });

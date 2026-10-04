@@ -11,7 +11,7 @@ import type { ScreenProps } from "../nav";
 import { useMe, useSession } from "../session";
 import { nextWords, standingOf, TIER_LINE, type Standing } from "../standing";
 import { listCircles, type CircleRef } from "../store";
-import { space } from "../theme";
+import { color, space } from "../theme";
 import { Bead, Body, Button, List, Notice, Row, Screen, Section, Small, Tag, Title } from "../ui";
 
 type Words = { label: string; tone: "leaf" | "clay" | "slate" | "marigold"; clean: boolean };
@@ -163,7 +163,7 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
             <Button
               label={copied ? "Copied" : "Copy"}
               tone="quiet"
-              style={{ minHeight: 48, paddingHorizontal: space.md }}
+              size="row"
               onPress={async () => {
                 await Clipboard.setStringAsync(address);
                 setCopied(true);
@@ -172,7 +172,7 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
           </Row>
           <Row last onPress={() => Linking.openURL(explorerAddress(address))}>
             <Body style={{ flex: 1 }}>See it on the public record</Body>
-            <Body>›</Body>
+            <Body style={{ color: color.slate }}>›</Body>
           </Row>
         </List>
       </Section>

@@ -16,7 +16,7 @@ import { nameAt } from "../phase";
 import { useMe, useSession } from "../session";
 import { listCircles } from "../store";
 import { color, radius, space } from "../theme";
-import { Amount, Bead, Body, Button, Choice, Field, Heading, List, Notice, Row, Screen, Section, Small, Title } from "../ui";
+import { Amount, Bead, Body, Button, Choice, Field, Heading, LinkText, List, Notice, Row, Screen, Section, Small, Title } from "../ui";
 
 // FR-SND-01..04: pick a person, type an amount, choose how it arrives, confirm
 // with a fingerprint. One transaction, timed from the tap to a receipt at the
@@ -132,9 +132,7 @@ export function SendScreen({ route, navigation }: ScreenProps<"Send">) {
             />
           </>
         )}
-        <Pressable onPress={() => Linking.openURL(explorerTx(settled.hash))} accessibilityRole="link" style={{ paddingVertical: space.sm }}>
-          <Small style={{ textDecorationLine: "underline" }}>See it on the public record</Small>
-        </Pressable>
+        <LinkText label="See it on the public record" onPress={() => Linking.openURL(explorerTx(settled.hash))} />
       </Screen>
     );
   }
@@ -166,7 +164,7 @@ export function SendScreen({ route, navigation }: ScreenProps<"Send">) {
                 <Body>{to.name}</Body>
                 <Small>{shortAddress(to.address)}</Small>
               </View>
-              <Button label="Change" tone="quiet" style={{ minHeight: 44, paddingHorizontal: space.md }} onPress={() => setTo(null)} />
+              <Button label="Change" tone="quiet" size="row" onPress={() => setTo(null)} />
             </Row>
           </List>
         ) : (
@@ -182,7 +180,7 @@ export function SendScreen({ route, navigation }: ScreenProps<"Send">) {
                       <Body>{p.name}</Body>
                       {p.circle ? <Small>{p.circle}</Small> : null}
                     </View>
-                    <Body>›</Body>
+                    <Body style={{ color: color.slate }}>›</Body>
                   </Row>
                 ))}
               </List>
@@ -225,7 +223,7 @@ export function SendScreen({ route, navigation }: ScreenProps<"Send">) {
         <Small>
           {arrival === "dollars"
             ? "They get dollars they can save, send on, or pay into a circle."
-            : "It goes through Agora's Instant Settlement and lands in the form a local cash-out partner takes, at a fixed 1:1 price, in the same transaction."}
+            : "It goes through Agora's Instant Settlement and lands in the form a local cash-out partner takes, at a fixed 1:1 price, in one step."}
         </Small>
       </Section>
 

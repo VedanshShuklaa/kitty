@@ -31,7 +31,7 @@ import { useMe } from "../session";
 import { getCircle, getInviteKeys, type CircleRef } from "../store";
 import { tidyCircle, tidyStep } from "../tidy";
 import { color, font, radius, space } from "../theme";
-import { Amount, Bead, Body, Button, Heading, List, Notice, Row, Screen, Section, Small, Tag, Title } from "../ui";
+import { Amount, Bead, Body, Button, Heading, LinkText, List, Notice, Progress, Row, Screen, Section, Small, Tag, Title } from "../ui";
 
 export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
   const { address } = route.params;
@@ -247,9 +247,14 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
           <Amount selectable>{money(snap.pot)}</Amount>
           <Small>of {money(potOf(r))} expected · {paid} of {n} paid</Small>
         </> : <Heading>{snap.state === "completed" ? "Circle complete" : "Circle called off"}</Heading>}
-        {(snap.state === "forming" || snap.state === "active") && <View style={styles.track}>
-          <View style={[styles.fill, { width: `${(snap.state === "forming" ? joined : paid) / n * 100}%` }]} />
-        </View>}
+        {(snap.state === "forming" || snap.state === "active") && (
+          <Progress
+            onSoft
+            value={snap.state === "forming" ? joined : paid}
+            total={n}
+            label={snap.state === "forming" ? `${joined} of ${n} joined` : `${paid} of ${n} paid`}
+          />
+        )}
         <Body>{heroLine}</Body>
         {snap.yield && snap.yield.earned > 0n && (
           <Small>
@@ -261,7 +266,7 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
       {loadError && <><Notice tone="error">Couldn't refresh. These are the last loaded amounts. Refresh before making a payment.</Notice><Button label="Try again" tone="quiet" busy={refreshing} onPress={refresh} /></>}
 
       <View style={{ gap: space.xs }}>
-        <Title>{p.headline}</Title>
+        <Heading>{p.headline}</Heading>
         <Body style={{ color: color.slate }}>{p.detail}</Body>
         {primary?.kind === "pay" && snap.me && (snap.me.creditUsed > 0n || snap.me.holdbackReleased > 0n) && (
           <Small>
@@ -308,7 +313,7 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
                       <Button
                         label="Send"
                         tone="dark"
-                        style={{ minHeight: 48, paddingHorizontal: space.md }}
+                        size="row"
                         onPress={() =>
                           Share.share({ message: `${who}, join "${title}", our savings circle on Kitty: ${link}` }).catch(() => {})
                         }
@@ -332,7 +337,7 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
               const current = snap.state === "active" && round === snap.round;
               return (
                 <Row key={round} last={round === n}>
-                  <Body style={{ width: 76 }}>Round {round}</Body>
+                  <Body style={{ minWidth: 76 }}>Round {round}</Body>
                   <Small style={{ flex: 1 }}>{when(due)}</Small>
                   {seat !== undefined ? (
                     <Tag label={seat === mySeat ? "You took it" : `${nameAt(names, seat)} took it`} tone="marigold" />
@@ -375,9 +380,7 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
         </View>
       </Section>
 
-      <Pressable onPress={() => Linking.openURL(explorerAddress(address))} accessibilityRole="link" style={{ paddingVertical: space.sm }}>
-        <Small style={{ textDecorationLine: "underline" }}>See this circle's public record</Small>
-      </Pressable>
+      <LinkText label="See this circle's public record" onPress={() => Linking.openURL(explorerAddress(address))} />
     </Screen>
   );
 }
@@ -423,8 +426,6 @@ function MemberRow({ m, snap, name, me, now, last }: { m: Member; snap: Snapshot
 }
 
 const styles = StyleSheet.create({
-  hero: { backgroundColor: color.pinkSoft, borderRadius: radius.hero, padding: 20, gap: 10 },
-  track: { height: 7, backgroundColor: color.surface, borderRadius: 4, overflow: "hidden" },
-  fill: { height: 7, backgroundColor: color.pink, borderRadius: 4 },
+  hero: { backgroundColor: color.pinkSoft, borderRadius: radius.hero, padding: space.lg, gap: space.sm },
   heroTop: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: space.sm },
 });

@@ -17,7 +17,7 @@ import { useMe, useSession } from "../session";
 import { listCircles, type CircleRef } from "../store";
 import { tidyCircle, tidyStep } from "../tidy";
 import { color, font, radius, space } from "../theme";
-import { Amount, Bead, Body, Button, Heading, List, Notice, Row, Screen, Small, Tag, Title } from "../ui";
+import { Amount, Bead, Body, Button, Heading, List, Notice, Progress, Row, Screen, Section, Small, Tag, Title } from "../ui";
 
 type Item = { ref: CircleRef; snap: Snapshot | null };
 
@@ -154,7 +154,7 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
       </View>
 
       {onboarding && "seconds" in onboarding && (
-        <Notice tone="good">Your account is ready. Its first transaction confirmed {onboarding.seconds.toFixed(1)} s after your fingerprint.</Notice>
+        <Notice tone="good">Your account is ready. It was set up on the network {onboarding.seconds.toFixed(1)} s after your fingerprint.</Notice>
       )}
       {onboarding && "error" in onboarding && <Notice tone="error">{onboarding.error}</Notice>}
 
@@ -169,9 +169,9 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
         <Small>This is practice money, not real savings.</Small>
         <View style={styles.actions}>
           <Button label="Send" onPress={() => navigation.navigate("Send")} style={{ flex: 1 }} />
-          <Button label="Receive" tone="quiet" onPress={() => navigation.navigate("Receive")} style={{ flex: 1, borderColor: color.pinkBright }} />
+          <Button label="Receive" tone="quiet" onPress={() => navigation.navigate("Receive")} style={{ flex: 1 }} />
         </View>
-        <Button label="Add test dollars" tone="quiet" busy={funding} onPress={fund} style={{ alignSelf: "flex-start", borderColor: color.pinkBright }} />
+        <Button label="Add test dollars" tone="quiet" size="row" busy={funding} onPress={fund} style={{ alignSelf: "flex-start" }} />
       </View>
       {notice && (
         <Notice tone={notice.tone} onClose={() => setNotice(null)}>
@@ -179,15 +179,14 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
         </Notice>
       )}
       {loadError && (
-        <View style={{ gap: 8 }}>
+        <View style={{ gap: space.sm }}>
           <Notice tone="error">We couldn't update your balance or circles. Check your connection and try again.</Notice>
           <Button label="Try again" tone="quiet" busy={refreshing} onPress={refresh} />
         </View>
       )}
 
       {recent && recent.length > 0 && (
-        <>
-          <Heading style={{ marginTop: 8 }}>Recent money</Heading>
+        <Section title="Recent money">
           <List>
             {recent.map((t, i) => {
               const line = moneyLine(t, address, who);
@@ -199,7 +198,7 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
               );
             })}
           </List>
-        </>
+        </Section>
       )}
 
       <View style={styles.actions}>
@@ -207,7 +206,7 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
         <Button label="Join a circle" tone="quiet" onPress={() => navigation.navigate("Paste")} style={{ flex: 1 }} />
       </View>
 
-      <View style={[styles.between, { marginTop: 8 }]}>
+      <View style={[styles.between, { marginTop: space.sm }]}>
         <Heading>Your circles{loaded ? ` (${items.length})` : ""}</Heading>
         {needingAction > 0 && (
           <Small style={{ color: color.pink }}>
@@ -261,9 +260,7 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
               <Body style={{ fontFamily: font.bodyMedium, color: color.pink }}>{snap ? summary(snap) : "Open circle to try again"}</Body>
               {(active || forming) && (
                 <>
-                  <View style={styles.track} accessible accessibilityLabel={`${count} of ${total} ${forming ? "joined" : "paid"}`}>
-                    <View style={[styles.fill, { width: `${total ? (count / total) * 100 : 0}%` }]} />
-                  </View>
+                  <Progress value={count} total={total} label={`${count} of ${total} ${forming ? "joined" : "paid"}`} />
                   <View style={styles.between}>
                     <Small>
                       {count} of {total} {forming ? "joined" : "paid"}
@@ -285,14 +282,12 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: "row", alignItems: "center", gap: 12 },
+  header: { flexDirection: "row", alignItems: "center", gap: space.md },
   account: { minWidth: 48, minHeight: 48, alignItems: "center", justifyContent: "center" },
-  between: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "space-between", alignItems: "center" },
-  balance: { backgroundColor: color.pinkSoft, borderRadius: radius.hero, padding: 22, gap: 10, marginTop: 6 },
-  actions: { flexDirection: "row", gap: 10 },
-  circle: { backgroundColor: color.surface, borderRadius: radius.card, padding: 18, gap: 14, borderWidth: 1, borderColor: color.line },
-  track: { height: 6, borderRadius: 3, backgroundColor: color.line, overflow: "hidden" },
-  fill: { height: 6, borderRadius: 3, backgroundColor: color.pink },
-  empty: { padding: space.lg, gap: 12, alignItems: "center", backgroundColor: color.surface, borderRadius: radius.card },
-  help: { gap: 6, padding: 18, backgroundColor: color.cream, borderRadius: radius.card },
+  between: { flexDirection: "row", flexWrap: "wrap", gap: space.sm, justifyContent: "space-between", alignItems: "center" },
+  balance: { backgroundColor: color.pinkSoft, borderRadius: radius.hero, padding: space.lg, gap: space.sm },
+  actions: { flexDirection: "row", gap: space.sm },
+  circle: { backgroundColor: color.surface, borderRadius: radius.card, padding: space.md, gap: space.md, borderWidth: 1, borderColor: color.line },
+  empty: { padding: space.lg, gap: space.sm, alignItems: "center", backgroundColor: color.surface, borderRadius: radius.card },
+  help: { gap: space.xs, padding: space.md, backgroundColor: color.cream, borderRadius: radius.card },
 });
