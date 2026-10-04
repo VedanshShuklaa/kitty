@@ -628,3 +628,14 @@ Next: Envio Cloud deploy (user: GitHub app), phone test of the new APK, UX polis
 **2026-10-04 — Site outage fixed.** Pushing to GitHub made Vercel deploy the repo root (no `site/`) to production,
 so every page and `/api/*` returned 404 — which also broke new-account setup (sponsor unreachable). Promoted the last
 good deploy; root `vercel.json` now disables Git deploys. Deploy the site only with `cd site && vercel --prod`.
+
+**2026-10-04 — Indexer live; 1-min practice rounds; phone-test fixes.**
+Envio Cloud: indexer `kitty` (org `vedanshshuklaa`, root `./indexer`, auto-deploys from `main`), endpoint
+`https://indexer.dev.hyperindex.xyz/28d0a85/v1/graphql`, set as `INDEXER_URL` on Vercel; both chains synced.
+Contracts redeployed with `MIN_PERIOD_TESTNET = 60` using the REHEARSAL_MEMBER2 key (owner): factory
+`0xC0B5F234…ace9`, vault `0x4D681F77…Ed26`, earn vault `0x825B90EB…90D0`, block 67981012, verified; added to the
+indexer. App: 1/2-min cadences; `src/tidy.ts` calls off forming circles past the join deadline and collects the
+deposit (Home + Circle, no prompt), archived from Home; closable notices; prompts limited to the account's
+passkey (`Profile.credentialId`); circle times fixed after the faucet (a slow faucet made short circles revert).
+Live `practice.live.ts` passes (full 2-round 1-min circle; call-off refund).
+New APK (EAS 2f619a6d) live at /download.
