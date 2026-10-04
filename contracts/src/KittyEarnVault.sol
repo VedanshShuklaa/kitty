@@ -48,6 +48,7 @@ contract KittyEarnVault is IYieldAdapter, Ownable {
     event Accrued(uint256 amount, uint256 totalAssets, uint256 totalShares);
     event ReserveFunded(address indexed from, uint256 amount);
     event RateSet(uint32 aprBps, uint32 speedUp);
+    event InstantRedemptionFeeSet(uint16 bps);
 
     constructor(IERC20 asset_, address owner_) Ownable(owner_) {
         asset = asset_;
@@ -107,6 +108,7 @@ contract KittyEarnVault is IYieldAdapter, Ownable {
     function setInstantRedemptionFeeBps(uint16 bps) external onlyOwner {
         require(bps <= 10_000, "fee too high");
         instantRedemptionFeeBps = bps;
+        emit InstantRedemptionFeeSet(bps);
     }
 
     // ------------------------------------------------- ITokenizedVault shape

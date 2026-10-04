@@ -104,8 +104,8 @@ contract StakeVault is IStakeVault, Ownable, ReentrancyGuard {
 
     function take(address member, Kind kind, uint256 amount, address to)
         external
-        onlyRegisteredCircle
         nonReentrant
+        onlyRegisteredCircle
         returns (uint256 paid)
     {
         uint256 bal = _balances[msg.sender][member][kind];
@@ -144,7 +144,7 @@ contract StakeVault is IStakeVault, Ownable, ReentrancyGuard {
     /// @notice Moves collateral above the 30% liquid buffer into the adapter.
     /// Never redeems: the buffer refills from deposits, and a take that
     /// outruns it redeems on demand.
-    function rebalance() external onlyRegisteredCircle nonReentrant {
+    function rebalance() external nonReentrant onlyRegisteredCircle {
         Position storage p = _pos[msg.sender];
         if (p.mode != Mode.On || p.settled) return;
         uint256 keep = (p.principal * BUFFER_BPS + 9_999) / 10_000;
@@ -162,7 +162,7 @@ contract StakeVault is IStakeVault, Ownable, ReentrancyGuard {
     /// @notice Redeems everything the circle holds in the adapter. Returns
     /// what the circle now has here (`assets`) against what its ledger owes
     /// (`principal`); the circle reconciles the difference.
-    function settle() external onlyRegisteredCircle nonReentrant returns (uint256 assets, uint256 principal) {
+    function settle() external nonReentrant onlyRegisteredCircle returns (uint256 assets, uint256 principal) {
         Position storage p = _pos[msg.sender];
         if (p.settled) revert AlreadySettled();
         p.settled = true;

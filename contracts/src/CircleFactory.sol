@@ -20,6 +20,10 @@ contract CircleFactory is ICircleFactory, Ownable, Pausable {
 
     mapping(address => bool) private _isCircle;
     mapping(address => uint256) public organizerNonce;
+    /// Signs tier attestations (SRS 7.11). It can only lower a stake inside
+    /// the circle's own rule, so zero, offline or compromised all fall back to
+    /// the full stake.
+    address public tierAttestor;
 
     constructor(IERC20 ausd_, IStakeVault vault_, uint32 minPeriod_, address owner_) Ownable(owner_) {
         ausdToken = ausd_;
@@ -33,6 +37,11 @@ contract CircleFactory is ICircleFactory, Ownable, Pausable {
         else _unpause();
     }
 
+    function setTierAttestor(address attestor) external onlyOwner {
+        tierAttestor = attestor;
+        emit TierAttestorSet(attestor);
+    }
+
     function createCircle(Rules calldata rules, address[] calldata inviteSigners)
         external
         whenNotPaused
@@ -43,10 +52,10 @@ contract CircleFactory is ICircleFactory, Ownable, Pausable {
         bytes32 salt = _salt(msg.sender, organizerNonce[msg.sender]);
         organizerNonce[msg.sender] += 1;
         circle = Clones.cloneDeterministic(circleImplementation, salt);
+        _isCircle[circle] = true;
 
         Circle(circle).initialize(rules, inviteSigners, msg.sender);
         vaultAddress.registerCircle(circle);
-        _isCircle[circle] = true;
 
         emit CircleCreated(circle, msg.sender, rules, inviteSigners);
     }
