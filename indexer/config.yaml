@@ -71,6 +71,7 @@ chains:
           - "0xC0B5F23454267F5AEe552ecF840008832412ace9" # 4 Oct, 1-minute practice rounds
           - "0x455c7cad7F5e65f2BA1235485557BD1c0186c50A" # 4 Oct, static-analysis fixes
           - "0x65f831f7E8007f91A6856737Def67Fb8c77e75d1" # 5 Oct, Feed the Kitty (experimental branch)
+          - "0x945B6959622DB5d8a7F8fBe8dc58BD675e023C10" # 5 Oct, people filter and debts paid from pots
       - name: Circle
       - name: StakeVault
         address:
@@ -79,20 +80,26 @@ chains:
           - "0x4D681F775aDb2E09eEaF5316a04a082B0182Ed26"
           - "0xc91af00c71eb71eb0fa4bB58E41D7a9C66bEcBfb"
           - "0x35F8a20d394E3AF13ac82FA0a1671eE229081a7e"
+          - "0x7953F85f2147b5EdCf72a4d68Df9Ee92491aDC2E"
       - name: KittyEarnVault
         address:
           - "0x8912100fc8df228766809b3107FA9FB9249D1337"
           - "0x8fd0e8EB4dB03AeD08c14Fe686d10d59d9D5a31f"
           - "0x825B90EBa7778CC554813b1f1e790a881d4190D0"
           - "0x62cf4ec7FDB95443622494adC8fA58C47f87D136"
+          - "0x068D6e51408c49A17558786E8A06074ff32fd75b"
         start_block: 67476151
       - name: AgoraPair
         address: "0x1Aa8958Aa34cEC8096EF4381cb335effe977b0ae"
       - name: KittyRecord
-        address: "0x6403D2764a5B2a08716e5aC02cE2C31B900983E6"
+        address:
+          - "0x6403D2764a5B2a08716e5aC02cE2C31B900983E6"
+          - "0x1917a3812c61FC5FB6CeE680224BC485E1EE4b7A" # 5 Oct, people filter
         start_block: 68288159
       - name: KittyCats
-        address: "0xD8FED7bc100C55e6eB31eddFA4b6D1B8E6c209aa"
+        address:
+          - "0xD8FED7bc100C55e6eB31eddFA4b6D1B8E6c209aa"
+          - "0xBaCf87e4C7C6C7ED9E1Be5f3f6b6482D3Aa1007B"
         start_block: 68288159
       - name: KittyAccount
   - id: 143 # Monad mainnet
