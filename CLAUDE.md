@@ -699,3 +699,10 @@ StageChange/Account.stage/debt/cat/Member.stage handlers; 11 tests; not hosted (
 `site/api/cat.ts` (+ rewrite) written, not deployed (would replace prod from this branch); needs `KITTY_RECORD` env.
 Not built: House/Keepsake, cat naming/"Meet your cat" on Welcome, people filter, UI_GUIDE cat section is in.
 Next: phone test of the new APK; decide when to merge to main (then site + Envio pick it up).
+
+**2026-10-05 — Feed the Kitty merged into main (local, not pushed).**
+Branch work committed (`1c32308`) and merged `--no-ff` (`16dd521`). Rollback point: tag
+`checkpoint/pre-trust-merge` = main before the merge (`git reset --hard checkpoint/pre-trust-merge`).
+On main: forge 120/120 (1 fork skip), app tsc clean + 58 jest, indexer 11 vitest.
+Next: push main (Envio redeploys; then repoint Vercel `INDEXER_URL`), `cd site && vercel --prod` with
+`KITTY_RECORD` set (ships `/api/cat`, drops `/api/tier`), phone test of EAS build 6ca8fc1e.
