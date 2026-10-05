@@ -8,7 +8,14 @@ import type { Address, Hex } from "viem";
 // (FR-ACC-04, SRS 15.5).
 
 /** `credentialId` is the passkey's public id (not a secret): it limits later prompts to this account's passkey. */
-export type Profile = { name: string; address: Address; country: string; credentialId?: string };
+export type Profile = {
+  name: string;
+  address: Address;
+  country: string;
+  credentialId?: string;
+  /** "Meet your cat": undefined until asked; "" when the member chose not to name her. */
+  catName?: string;
+};
 
 export type CircleRef = {
   address: Address;
@@ -78,4 +85,22 @@ export async function getShowCat(): Promise<boolean> {
 
 export async function setShowCat(on: boolean): Promise<void> {
   await AsyncStorage.setItem(SHOW_CAT, on ? "on" : "off");
+}
+
+// After a payment the success notice comes first; she reacts once, on the
+// next screen she's on (Home's cat card).
+const FED = "kitty:fed";
+
+export type Meal = "onTime" | "late";
+
+export async function markFed(meal: Meal): Promise<void> {
+  await AsyncStorage.setItem(FED, meal);
+}
+
+/** The last payment's meal, once; null until the next payment. */
+export async function takeFed(): Promise<Meal | null> {
+  const v = await AsyncStorage.getItem(FED);
+  if (v !== "onTime" && v !== "late") return null;
+  await AsyncStorage.removeItem(FED);
+  return v;
 }

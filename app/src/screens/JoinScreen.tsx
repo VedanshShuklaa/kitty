@@ -8,10 +8,11 @@ import { parseInvite } from "../links";
 import type { ScreenProps } from "../nav";
 import { nameAt, rulesInWords } from "../phase";
 import { KittyLogo } from "../Brand";
+import { CatFace } from "../Cat";
 import { syncCircle } from "../restore";
 import { useMe } from "../session";
 import { firstOfferRound, payoutOrder, STAGE_NAME, termsInWords } from "../standing";
-import { getCircle, saveCircle } from "../store";
+import { getCircle, getShowCat, saveCircle } from "../store";
 import { color, font, radius, space } from "../theme";
 import { Body, Button, Heading, List, Notice, Row, Screen, Section, Small, Steps, Tag, Title, type StepState } from "../ui";
 
@@ -21,6 +22,8 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [run, setRun] = useState<{ active: string; failed: boolean; error?: string } | null>(null);
+  const [showCat, setShowCat] = useState(true);
+  useEffect(() => { getShowCat().then(setShowCat).catch(() => {}); }, []);
 
   const load = useCallback(async () => {
     if (!invite) return;
@@ -138,8 +141,8 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
   const order =
     snap && terms
       ? payoutOrder([
-          ...snap.members.filter((m) => m.address).map((m) => ({ seat: m.seat, stage: m.stage, mine: false })),
-          { seat: invite.seat, stage: terms.stage, mine: true },
+          ...snap.members.filter((m) => m.address).map((m) => ({ seat: m.seat, stage: m.stage, mine: false, owner: m.address! })),
+          { seat: invite.seat, stage: terms.stage, mine: true, owner: me },
         ])
       : [];
   const myTurn = order.findIndex((o) => o.mine) + 1;
@@ -210,6 +213,7 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
             {order.map((o, i) => (
               <Row key={o.seat} last={i === order.length - 1}>
                 <Body style={{ width: 28, color: color.slate }}>{i + 1}</Body>
+                {showCat && <CatFace owner={o.owner} stage={o.stage ?? "Shy"} size={36} />}
                 <Body style={{ flex: 1, fontFamily: o.mine ? font.bodyBold : font.body }}>{o.mine ? `You (${who})` : nameAt(names, o.seat)}</Body>
                 <Tag label={STAGE_NAME[o.stage ?? "Shy"]} tone={o.stage === "Wary" || o.stage === "Away" ? "clay" : o.stage === "Shy" ? "slate" : "leaf"} />
               </Row>

@@ -6,12 +6,15 @@ import { BottomNav } from "../Brand";
 import { Cat } from "../Cat";
 import { explorerAddress } from "../chain";
 import { explain } from "../errors";
-import { initials, money, shortAddress } from "../format";
-import { recordOf, type Passbook } from "../indexer";
+import { initials, money, shortAddress, when } from "../format";
+import { House } from "../House";
+import { pieceAdded, PIECES } from "../house";
+import { albumOf, catRecordOf, recordOf, type AlbumPage, type CatRecord, type Passbook } from "../indexer";
+import { Keepsakes } from "../Keepsakes";
 import { loadSnapshot, readStanding, repay, type Snapshot } from "../kitty";
 import type { ScreenProps } from "../nav";
 import { useMe, useSession } from "../session";
-import { nextStep, STAGE_LINE, STAGE_NAME, termsInWords, type Progress } from "../standing";
+import { nextStep, stageLine, STAGE_NAME, termsInWords, type Progress } from "../standing";
 import { getShowCat, listCircles, setShowCat, type CircleRef } from "../store";
 import { color, font, space } from "../theme";
 import { Bead, Body, Button, Check, Heading, List, Notice, Row, Screen, Section, Small, Tag, Title } from "../ui";
@@ -58,6 +61,8 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
   const { address, signer, confirm } = useMe();
   const { profile, lock, forget } = useSession();
   const [book, setBook] = useState<Passbook | null>(null);
+  const [cat, setCat] = useState<CatRecord | null>(null);
+  const [album, setAlbum] = useState<AlbumPage[] | null>(null);
   const [standing, setStanding] = useState<Progress | null>(null);
   const [showCat, setShowCatState] = useState(true);
   const [paying, setPaying] = useState<string | null>(null);
@@ -73,6 +78,8 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
     setRefreshing(true);
     try {
       recordOf(address).then(setBook).catch(() => {});
+      catRecordOf(address).then(setCat).catch(() => {});
+      albumOf(address).then(setAlbum).catch(() => {});
       readStanding(address).then(setStanding).catch(() => {});
       const refs = await listCircles(address);
       const snaps = await Promise.all(refs.map((r) => loadSnapshot(r.address, address).catch(() => null)));
@@ -88,7 +95,7 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
   // FR-TRU-17/18: what a default cost each finished circle, payable here
   const owing = items.flatMap(({ ref, snap }) => {
     const mine = snap?.me ? snap.members[snap.me.seat] : undefined;
-    return snap && mine && mine.owed > 0n && snap.state === "completed" ? [{ ref, amount: mine.owed }] : [];
+    return snap && mine && mine.owed > 0n && (snap.state === "completed" || snap.state === "active") ? [{ ref, amount: mine.owed }] : [];
   });
 
   async function payBack(circle: CircleRef, amount: bigint) {
@@ -124,8 +131,9 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
         <Section title="Your cat" right={<Tag label={STAGE_NAME[standing.stage]} tone={standing.stage === "Away" || standing.stage === "Wary" ? "clay" : standing.stage === "Shy" ? "slate" : "leaf"} />}>
           <View style={{ flexDirection: "row", gap: space.md, alignItems: "center" }}>
             {showCat && <Cat owner={address} stage={standing.stage} size={112} hidden />}
-            <Heading style={{ flex: 1 }}>{STAGE_LINE[standing.stage]}</Heading>
+            <Heading style={{ flex: 1 }}>{stageLine(standing.stage, profile?.catName)}</Heading>
           </View>
+          {!profile?.catName && <Button label="Give her a name" tone="quiet" size="row" onPress={() => navigation.navigate("MeetCat")} style={{ alignSelf: "flex-start" }} />}
           {owing.map(({ ref, amount }) => (
             <View key={ref.address} style={{ gap: space.sm }}>
               <Body>
@@ -163,6 +171,48 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
               void setShowCat(on);
             }}
           />
+        </Section>
+      )}
+
+      {cat && (
+        <Section title="Keepsakes">
+          <Keepsakes earned={cat.keepsakes} />
+          {cat.streak > 1 && <Small>{cat.streak} rounds paid on time in a row.</Small>}
+          <Small>Each one has a rule, and none can be bought. They're for fun: only kept promises change how much she trusts you.</Small>
+        </Section>
+      )}
+
+      {album && album.length > 0 && (
+        <Section title="Album">
+          {album.map((page) => {
+            const ref = items.find((i) => i.ref.address.toLowerCase() === page.circle.toLowerCase())?.ref;
+            const title = ref?.title ?? "A finished circle";
+            const name = (seat: number) => ref?.names[seat] ?? `Seat ${seat + 1}`;
+            const seatOf = (a: string | null) => items.find((i) => i.ref.address === ref?.address)?.snap?.members.find((m) => m.address?.toLowerCase() === a?.toLowerCase())?.seat;
+            return (
+              <View key={page.circle} style={{ gap: space.sm, marginBottom: space.md }}>
+                <Heading>{title}</Heading>
+                <Small>
+                  Finished {when(page.endedAt)}. The house has {Math.min(page.pieces, PIECES.length)} {page.pieces === 1 ? "piece" : "pieces"}.
+                </Small>
+                {showCat && <House pieces={page.pieces} residents={[]} />}
+                <List>
+                  {page.rounds.map((r, i) => {
+                    const seat = seatOf(r.recipient);
+                    const who = r.recipient?.toLowerCase() === address.toLowerCase() ? "You" : seat !== undefined ? name(seat) : "Someone";
+                    const piece = pieceAdded(page.rounds, i);
+                    return (
+                      <Row key={r.index} last={i === page.rounds.length - 1}>
+                        <Body style={{ flex: 1 }}>
+                          Round {r.index}: {who} took the pot.{piece ? ` Everyone paid, and ${/^[aeiou]/.test(piece) ? "an" : "a"} ${piece} arrived.` : ""}
+                        </Body>
+                      </Row>
+                    );
+                  })}
+                </List>
+              </View>
+            );
+          })}
         </Section>
       )}
 

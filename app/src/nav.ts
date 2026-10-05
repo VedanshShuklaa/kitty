@@ -3,6 +3,7 @@ import type { Address } from "viem";
 
 export type Routes = {
   Home: undefined;
+  MeetCat: undefined;
   Create: undefined;
   Circle: { address: Address };
   Bid: { address: Address; round: number };

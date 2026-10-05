@@ -24,8 +24,19 @@ function payOffsets(s: Snapshot): number[] {
   return [24 * HOUR, 2 * HOUR];
 }
 
-/** Pure: the reminders this member should have for the current round. */
-export function remindersFor(s: Snapshot, title: string, now: number): Reminder[] {
+function inWords(off: number): string {
+  if (off >= HOUR) return `${off / HOUR} ${off === HOUR ? "hour" : "hours"}`;
+  if (off >= MIN) return `${off / MIN} ${off === MIN ? "minute" : "minutes"}`;
+  return `${off} seconds`; // practice rounds remind 20 s ahead
+}
+
+/**
+ * Pure: the reminders this member should have for the current round. With
+ * `cat` (her name, while "Show my cat" is on) the pay and pot reminders speak
+ * in her voice; the amount and time never change, and offers stay out of her
+ * world (FR-TRU-09).
+ */
+export function remindersFor(s: Snapshot, title: string, now: number, cat: string | null = null): Reminder[] {
   if (s.state !== "active" || !s.me) return [];
   const mine = s.members[s.me.seat];
   if (!mine || mine.standing === "defaulted") return [];
@@ -36,12 +47,21 @@ export function remindersFor(s: Snapshot, title: string, now: number): Reminder[
 
   if (!mine.paid) {
     for (const off of payOffsets(s)) {
-      out.push({
-        id: `${key}:pay:${off}`,
-        at: due - off,
-        title: `${title}: ${money(s.me.pay)} due soon`,
-        body: `Round ${s.round} is due in ${off >= HOUR ? `${off / HOUR} hours` : `${off / MIN} minutes`}.`,
-      });
+      out.push(
+        cat
+          ? {
+              id: `${key}:pay:${off}`,
+              at: due - off,
+              title: `${cat}'s bowl is empty soon`,
+              body: `${title}: pay ${money(s.me.pay)} in the next ${inWords(off)}.`,
+            }
+          : {
+              id: `${key}:pay:${off}`,
+              at: due - off,
+              title: `${title}: ${money(s.me.pay)} due soon`,
+              body: `Round ${s.round} is due in ${inWords(off)}.`,
+            },
+      );
     }
   }
   const committed = s.me.commitment !== zeroHash;
@@ -65,7 +85,7 @@ export function remindersFor(s: Snapshot, title: string, now: number): Reminder[
   out.push({
     id: `${key}:close`,
     at: due + r.grace,
-    title: `${title}: the pot is ready`,
+    title: cat ? `Pot day in ${title}` : `${title}: the pot is ready`,
     body: `Round ${s.round} can be handed out now. Open the circle to do it.`,
   });
   return out.filter((x) => x.at > now);

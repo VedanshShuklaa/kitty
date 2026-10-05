@@ -8,7 +8,9 @@ import { explorerAddress } from "../chain";
 import { explain } from "../errors";
 import { feedLine } from "../feed";
 import { initials, money, shortAddress, when } from "../format";
-import { earnRate, feedOf, type Activity } from "../indexer";
+import { House } from "../House";
+import { houseWords, type Resident } from "../house";
+import { earnRate, feedOf, housePiecesOf, type Activity } from "../indexer";
 import {
   cancelCircle,
   closeRound,
@@ -28,9 +30,9 @@ import type { ScreenProps } from "../nav";
 import { nameAt, nextInLine, plan, rulesInWords, type Action } from "../phase";
 import { remindersFor, syncReminders } from "../reminders";
 import { rosterKeyHex, syncCircle } from "../restore";
-import { useMe } from "../session";
-import { STAGE_NAME } from "../standing";
-import { getCircle, getInviteKeys, type CircleRef } from "../store";
+import { useMe, useSession } from "../session";
+import { payoutOrder, STAGE_NAME } from "../standing";
+import { getCircle, getInviteKeys, getShowCat, markFed, type CircleRef } from "../store";
 import { tidyCircle, tidyStep } from "../tidy";
 import { color, font, radius, space } from "../theme";
 import { Amount, Bead, Body, Button, Heading, LinkText, List, Notice, Progress, Row, Screen, Section, Small, Tag, Title } from "../ui";
@@ -38,6 +40,10 @@ import { Amount, Bead, Body, Button, Heading, LinkText, List, Notice, Progress, 
 export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
   const { address } = route.params;
   const { address: me, signer, need } = useMe();
+  const { profile } = useSession();
+  const [pieces, setPieces] = useState<number | null>(null);
+  const [showCat, setShowCat] = useState(true);
+  const [ate, setAte] = useState(false); // her one hop after this member pays
   const [ref, setRef] = useState<CircleRef | undefined>();
   const [legacyKeys, setLegacyKeys] = useState<(Hex | null)[] | null>(null);
   const [feed, setFeed] = useState<Activity[] | null>(null);
@@ -53,6 +59,7 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
   useEffect(() => {
     getCircle(me, address).then(setRef);
     getInviteKeys(address).then(setLegacyKeys);
+    getShowCat().then(setShowCat).catch(() => {});
     earnRate()
       .then((r) => setRate(r?.aprBps ?? null))
       .catch(() => {});
@@ -69,6 +76,9 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
 
   const titleRef = useRef("Savings circle");
   titleRef.current = ref?.title ?? "Savings circle";
+  // reminders speak in her voice only while her drawing is on
+  const voiceRef = useRef<string | null>(null);
+  voiceRef.current = showCat ? (profile?.catName || "Your cat") : null;
   const load = useCallback(async () => {
     try {
       const s = await loadSnapshot(address, me);
@@ -76,8 +86,9 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
       setSnap(s);
       setOffset(off);
       setLoadError(null);
-      syncReminders(address, remindersFor(s, titleRef.current, s.chainNow), off).catch(() => {});
+      syncReminders(address, remindersFor(s, titleRef.current, s.chainNow, voiceRef.current), off).catch(() => {});
       feedOf(address).then(setFeed).catch(() => {});
+      housePiecesOf(address).then(setPieces).catch(() => setPieces(null));
     } catch (e) {
       setLoadError(explain(e));
     }
@@ -121,10 +132,15 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
       const s = await need();
       let done = "";
       switch (a.kind) {
-        case "pay":
+        case "pay": {
+          const late = Date.now() / 1000 + offset > snap.due;
           await contribute(s, address, snap.round, a.amount ?? 0n);
           done = "Paid. Everyone in the circle can see it.";
+          void markFed(late ? "late" : "onTime");
+          setAte(true);
+          setTimeout(() => setAte(false), 1_000);
           break;
+        }
         case "reveal": {
           const bps = await revealBid(s, address, snap.round, snap.rules.maxBidBps);
           done = `Your offer is open: you'd give up ${bps / 100}%.`;
@@ -220,6 +236,13 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
   const mySeat = snap.me?.seat;
   const joined = snap.members.filter((m) => m.address).length;
   const paid = snap.members.filter((m) => m.paid).length;
+  // everyone's cat in the circle's house, in the order they're paid
+  const residents: Resident[] = payoutOrder(snap.members.filter((m) => m.address)).map((m) => ({
+    owner: m.address!,
+    stage: m.stage ?? "Shy",
+    name: nameAt(names, m.seat),
+    mine: m.seat === mySeat,
+  }));
 
   let heroLine = "";
   if (snap.state === "forming") heroLine = `First payment ${when(Number(r.firstDue))}`;
@@ -270,6 +293,11 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
         )}
       </View>
       {loadError && <><Notice tone="error">Couldn't refresh. These are the last loaded amounts. Refresh before making a payment.</Notice><Button label="Try again" tone="quiet" busy={refreshing} onPress={refresh} /></>}
+
+      <View style={{ gap: space.sm }}>
+        {showCat && <House pieces={snap.state === "forming" ? 0 : (pieces ?? 0)} residents={residents} react={ate} />}
+        <Small>{houseWords({ state: snap.state, pieces: snap.state === "forming" ? 0 : pieces, joined, memberCount: n, round: snap.round })}</Small>
+      </View>
 
       <View style={{ gap: space.xs }}>
         <Heading>{p.headline}</Heading>

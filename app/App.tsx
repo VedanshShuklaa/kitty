@@ -21,6 +21,7 @@ import { CircleScreen } from "./src/screens/CircleScreen";
 import { CreateScreen } from "./src/screens/CreateScreen";
 import { HomeScreen } from "./src/screens/HomeScreen";
 import { JoinScreen } from "./src/screens/JoinScreen";
+import { MeetCatScreen } from "./src/screens/MeetCatScreen";
 import { MeScreen } from "./src/screens/MeScreen";
 import { PasteScreen } from "./src/screens/PasteScreen";
 import { ReceiveScreen } from "./src/screens/ReceiveScreen";
@@ -58,7 +59,7 @@ export default function App() {
 }
 
 function Root() {
-  const { status, touch } = useSession();
+  const { status, touch, profile } = useSession();
   const nav = useNavigationContainerRef<Routes>();
   const [navReady, setNavReady] = useState(false);
   // FR-INV-04, FR-SND-01, FR-SND-08: a Kitty link opens its screen, after unlocking if needed
@@ -95,8 +96,12 @@ function Root() {
       {status === "paused" && <LockBar />}
       <NavigationContainer ref={nav} theme={theme} onReady={() => setNavReady(true)}>
         <StatusBar style="dark" />
-        <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.paper }, animation: "slide_from_right" }}>
+        <Stack.Navigator
+          // "Meet your cat" comes once, right after the passkey, until she has a name or the member skips it
+          initialRouteName={profile?.catName === undefined ? "MeetCat" : "Home"}
+          screenOptions={{ headerShown: false, contentStyle: { backgroundColor: color.paper }, animation: "slide_from_right" }}>
           <Stack.Screen name="Home" component={HomeScreen} />
+          <Stack.Screen name="MeetCat" component={MeetCatScreen} />
           <Stack.Screen name="Create" component={CreateScreen} />
           <Stack.Screen name="Circle" component={CircleScreen} />
           <Stack.Screen name="Bid" component={BidScreen} options={{ presentation: "modal", animation: "slide_from_bottom" }} />

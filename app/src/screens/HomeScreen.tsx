@@ -16,7 +16,7 @@ import type { ScreenProps } from "../nav";
 import { nameAt, plan } from "../phase";
 import { useMe, useSession } from "../session";
 import { moodOf, STAGE_NAME, type Stage } from "../standing";
-import { getShowCat, listCircles, type CircleRef } from "../store";
+import { getShowCat, listCircles, takeFed, type CircleRef, type Meal } from "../store";
 import { tidyCircle, tidyStep } from "../tidy";
 import { color, font, radius, space } from "../theme";
 import { Amount, Bead, Body, Button, Heading, List, Notice, Progress, Row, Screen, Section, Small, Tag, Title } from "../ui";
@@ -39,6 +39,7 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
   const [recent, setRecent] = useState<Transfer[] | null>(null);
   const [stage, setStage] = useState<Stage | null>(null);
   const [showCat, setShowCat] = useState(true);
+  const [fed, setFed] = useState<Meal | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -74,6 +75,8 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
   useFocusEffect(
     useCallback(() => {
       void load();
+      // she reacts once to a payment made since Home was last on screen
+      takeFed().then((f) => f && setFed(f)).catch(() => {});
       loadRates().then(setRates);
       const id = setInterval(() => {
         if (AppState.currentState === "active") void load();
@@ -159,6 +162,7 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
         }),
         Math.floor(Date.now() / 1000),
         { money, countdown },
+        profile?.catName,
       )
     : null;
 
@@ -214,9 +218,9 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
           onPress={() => navigation.navigate("Me")}
           style={({ pressed }) => [styles.cat, pressed && { backgroundColor: color.pinkSoft }]}
         >
-          {showCat && <Cat owner={address} stage={stage} size={76} hidden />}
+          {showCat && <Cat owner={address} stage={stage} size={76} hidden bowl={fed ? "full" : mood.bowl} react={!!fed} />}
           <View style={{ flex: 1, gap: 2 }}>
-            <Body style={{ fontFamily: font.bodyBold }}>{mood.line}</Body>
+            <Body style={{ fontFamily: font.bodyBold }}>{fed && mood.bowl !== "none" ? (fed === "late" ? "Dinner came a little late. She's fine." : "Dinner on time") : mood.line}</Body>
             <Small>{mood.detail}</Small>
             <Small style={{ color: color.pink }}>{STAGE_NAME[stage]} ›</Small>
           </View>

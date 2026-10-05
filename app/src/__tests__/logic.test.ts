@@ -233,6 +233,17 @@ describe("plan", () => {
     expect(remindersFor(snap({ state: "completed" }), "Susu", due)).toEqual([]);
   });
 
+  it("reminders speak in her voice with the cat shown, keeping amount and time", () => {
+    const now = due - rules.commitWindow - 60;
+    const plain = remindersFor(snap(), "Susu", now);
+    const voiced = remindersFor(snap(), "Susu", now, "Mimi");
+    expect(voiced.map((r) => [r.id, r.at])).toEqual(plain.map((r) => [r.id, r.at]));
+    expect(voiced[0].title).toBe("Mimi's bowl is empty soon");
+    expect(voiced[0].body).toMatch(/^Susu: pay \$\d+(\.\d+)? in the next 2 minutes\.$/);
+    expect(voiced.find((r) => r.id.endsWith(":bid"))!.title).toBe("Susu: bidding is open");
+    expect(voiced.find((r) => r.id.endsWith(":close"))!.title).toBe("Pot day in Susu");
+  });
+
   it("rules in words mention simulated yield only when it is on", () => {
     expect(rulesInWords(rules).some((l) => /simulated testnet yield/.test(l.text))).toBe(true);
     expect(rulesInWords({ ...rules, yieldOn: false }).some((l) => /yield/.test(l.text))).toBe(false);

@@ -42,6 +42,7 @@ type Session = {
   onboarding: Onboarding | null;
   restored: Restored | null;
   restore: () => Promise<void>;
+  nameCat: (name: string) => Promise<void>;
 };
 
 const Ctx = createContext<Session | null>(null);
@@ -143,9 +144,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         country: stored?.country ?? country ?? cached?.country ?? "",
         address: acct.address,
         credentialId: acct.credentialId,
+        catName: stored?.catName ?? cached?.catName,
       };
       const s = await adopt(acct, p);
-      if (!stored) putProfile(s.prf, { name: p.name, country: p.country }).catch(() => {});
+      if (!stored) putProfile(s.prf, { name: p.name, country: p.country, catName: p.catName }).catch(() => {});
       afterSignIn(s);
     },
     [adopt, afterSignIn],
@@ -179,6 +181,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setStatus("new");
   }, []);
 
+  /** "Meet your cat": her name lives in the sealed profile, so it follows the passkey. */
+  const nameCat = useCallback(async (catName: string) => {
+    const p = profileRef.current;
+    if (!p) return;
+    const next = { ...p, catName: catName.trim() };
+    await setProfile(next);
+    profileRef.current = next;
+    setProfileState(next);
+    const s = signerRef.current;
+    if (s) putProfile(s.prf, { name: next.name, country: next.country, catName: next.catName }).catch(() => {});
+  }, []);
+
   const touch = useCallback(() => {
     lastTouch.current = Date.now();
   }, []);
@@ -205,8 +219,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [pause]);
 
   const value = useMemo(
-    () => ({ status, profile, signer, create, unlock, lock: pause, forget, need, confirm, touch, onboarding, restored, restore }),
-    [status, profile, signer, create, unlock, pause, forget, need, confirm, touch, onboarding, restored, restore],
+    () => ({ status, profile, signer, create, unlock, lock: pause, forget, need, confirm, touch, onboarding, restored, restore, nameCat }),
+    [status, profile, signer, create, unlock, pause, forget, need, confirm, touch, onboarding, restored, restore, nameCat],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

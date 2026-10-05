@@ -1,14 +1,16 @@
-import { View } from "react-native";
+import { useEffect, useRef } from "react";
+import { AccessibilityInfo, Animated, View } from "react-native";
 import Svg, { Circle, Ellipse, G, Line, Path, Rect } from "react-native-svg";
 import type { Address } from "viem";
 
-import { lookOf, STAGE_LINE, type Stage } from "./standing";
+import { lookOf, stageLine, type Bowl, type Stage } from "./standing";
 import { color } from "./theme";
 
 // "Feed the Kitty": the member's cat, drawn from parts so the app grows by
 // kilobytes. Her pose is her stage; her coat and markings come from the
 // account address (KittyCats.lookOf), so every phone draws the same cat.
-// Still pictures only: no continuous animation (UI_GUIDE.md).
+// Still pictures only: no continuous animation (UI_GUIDE.md). After a
+// payment she hops once, and not at all with Reduce motion on.
 
 const COATS = [
   { fur: "#E89A52", dark: "#B8642A" }, // ginger
@@ -20,9 +22,14 @@ const COATS = [
 ];
 
 type Look = { fur: string; dark: string; eye?: string; pattern: number };
+
+export function lookFor(owner: Address): Look {
+  const { coat, pattern } = lookOf(owner);
+  return { ...COATS[coat], pattern };
+}
 type Eyes = "open" | "wide" | "closed" | "narrow";
 
-function Head({ x, y, r, look, eyes, flat }: { x: number; y: number; r: number; look: Look; eyes: Eyes; flat?: boolean }) {
+export function Head({ x, y, r, look, eyes, flat }: { x: number; y: number; r: number; look: Look; eyes: Eyes; flat?: boolean }) {
   const ear = r * 0.75;
   // flat ears point out to the sides instead of up
   const left = flat
@@ -155,24 +162,109 @@ function Pose({ stage, look }: { stage: Stage; look: Look }) {
   }
 }
 
+/** Her face for each stage: the same cues as her full pose. */
+export function faceFor(stage: Stage): { eyes: Eyes; flat: boolean } {
+  if (stage === "Away" || stage === "Wary") return { eyes: "narrow", flat: true };
+  if (stage === "Shy") return { eyes: "wide", flat: false };
+  if (stage === "Friendly") return { eyes: "open", flat: false };
+  return { eyes: "closed", flat: false };
+}
+
+function BowlArt({ bowl }: { bowl: Bowl }) {
+  if (bowl === "none") return null;
+  return (
+    <G>
+      <Path d="M92,86 L114,86 L110,93 L96,93 Z" fill={color.pink} />
+      <Ellipse cx={103} cy={86} rx={11} ry={2.5} fill="#7E1A45" />
+      {bowl === "full" && (
+        <G>
+          <Ellipse cx={103} cy={85} rx={8.5} ry={2.8} fill="#B9784A" />
+          <Circle cx={99.5} cy={84} r={1} fill="#9A5E35" />
+          <Circle cx={103.5} cy={83.4} r={1} fill="#9A5E35" />
+          <Circle cx={107} cy={84.2} r={1} fill="#9A5E35" />
+        </G>
+      )}
+    </G>
+  );
+}
+
+/** One short hop, once, when `react` turns true; never with Reduce motion on. */
+function useHop(react: boolean | undefined): Animated.Value {
+  const y = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!react) return;
+    let live = true;
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((reduce) => {
+        if (!live || reduce) return;
+        Animated.sequence([
+          Animated.timing(y, { toValue: -8, duration: 180, useNativeDriver: true }),
+          Animated.timing(y, { toValue: 0, duration: 270, useNativeDriver: true }),
+        ]).start();
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [react, y]);
+  return y;
+}
+
 /**
  * The cat for an account at a stage. `label` defaults to the stage's
  * sentence; pass `hidden` when the same sentence is already on screen.
  */
-export function Cat({ owner, stage, size = 120, hidden, label }: { owner: Address; stage: Stage; size?: number; hidden?: boolean; label?: string }) {
-  const { coat, pattern } = lookOf(owner);
-  const look = { ...COATS[coat], pattern };
+export function Cat({
+  owner,
+  stage,
+  size = 120,
+  hidden,
+  label,
+  name,
+  bowl = "none",
+  react,
+}: {
+  owner: Address;
+  stage: Stage;
+  size?: number;
+  hidden?: boolean;
+  label?: string;
+  name?: string;
+  bowl?: Bowl;
+  react?: boolean;
+}) {
+  const look = lookFor(owner);
+  const hop = useHop(react);
   return (
     <View
       accessible={!hidden}
       accessibilityRole={hidden ? undefined : "image"}
-      accessibilityLabel={hidden ? undefined : (label ?? STAGE_LINE[stage])}
+      accessibilityLabel={hidden ? undefined : (label ?? stageLine(stage, name))}
       accessibilityElementsHidden={hidden}
       importantForAccessibility={hidden ? "no-hide-descendants" : "yes"}
       style={{ width: size, height: (size * 100) / 120, backgroundColor: color.cream, borderRadius: size * 0.18, overflow: "hidden" }}
     >
-      <Svg width="100%" height="100%" viewBox="0 0 120 100">
-        <Pose stage={stage} look={look} />
+      <Animated.View style={{ width: "100%", height: "100%", transform: [{ translateY: hop }] }}>
+        <Svg width="100%" height="100%" viewBox="0 0 120 100">
+          <Pose stage={stage} look={look} />
+        </Svg>
+      </Animated.View>
+      <View style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%" }} pointerEvents="none">
+        <Svg width="100%" height="100%" viewBox="0 0 120 100">
+          <BowlArt bowl={bowl} />
+        </Svg>
+      </View>
+    </View>
+  );
+}
+
+/** Just her face, for lists: the payout order on Join, residents of a house. */
+export function CatFace({ owner, stage, size = 32 }: { owner: Address; stage: Stage; size?: number }) {
+  const f = faceFor(stage);
+  return (
+    <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" style={{ width: size, height: size }}>
+      <Svg width="100%" height="100%" viewBox="-22 -24 44 44">
+        <Head x={0} y={0} r={14} look={lookFor(owner)} eyes={f.eyes} flat={f.flat} />
       </Svg>
     </View>
   );

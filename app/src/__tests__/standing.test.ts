@@ -1,6 +1,7 @@
 import type { Address } from "viem";
 
-import { canOfferIn, firstOfferRound, lookOf, moodOf, nextStep, payoutOrder, termsInWords, type Progress } from "../standing";
+import { houseWords, pieceAdded, PIECES } from "../house";
+import { canOfferIn, firstOfferRound, lookOf, moodOf, nextStep, payoutOrder, stageLine, termsInWords, type Progress } from "../standing";
 
 const base: Progress = { stage: "Shy", debt: 0n, points: 0, onTimeBps: 0, people: 0, biggestClean: 0n, open: 0 };
 
@@ -80,7 +81,15 @@ describe("her mood", () => {
   const circle = { title: "Lagos Savers", state: "active" as const, due: 100, mine: { standing: "good" as const, paid: false, arrears: 0n }, pay: 10_000000n };
 
   it("waits for dinner while a round is unpaid, in money words", () => {
-    expect(moodOf("Shy", [circle], 0, words)).toEqual({ line: "She's waiting for dinner", detail: "Lagos Savers: pay $10 in 2 hours." });
+    expect(moodOf("Shy", [circle], 0, words)).toEqual({ line: "She's waiting for dinner", detail: "Lagos Savers: pay $10 in 2 hours.", bowl: "empty" });
+    expect(moodOf("Shy", [circle], 0, words, "Mimi").line).toBe("Mimi's waiting for dinner");
+  });
+
+  it("uses her name once she has one, and stays plain without it", () => {
+    expect(stageLine("Wary", "Mimi")).toBe("Mimi keeps her distance");
+    expect(stageLine("Family")).toBe("Your cat is family");
+    expect(stageLine("Shy", "  ")).toBe("Your cat is watching you from her box");
+    expect(moodOf("Away", [], 0, words, "Mimi")).toMatchObject({ line: "Mimi is staying with the neighbours", bowl: "none" });
   });
 
   it("puts a covered round ahead of a due one", () => {
@@ -90,5 +99,26 @@ describe("her mood", () => {
 
   it("is content when everything is paid", () => {
     expect(moodOf("Friendly", [{ ...circle, mine: { ...circle.mine, paid: true }, pay: null }], 0, words).detail).toMatch(/content/);
+  });
+});
+
+describe("the circle's house", () => {
+  const base = { state: "active" as const, pieces: 2, joined: 5, memberCount: 5, round: 3 };
+
+  it("says what it has and what the next fully paid round brings", () => {
+    expect(houseWords(base)).toBe("The house has 2 pieces. If everyone pays round 3, a window arrives.");
+    expect(houseWords({ ...base, pieces: 0, round: 1 })).toBe("The house is still a cardboard box. If everyone pays round 1, a rug arrives.");
+    expect(houseWords({ ...base, pieces: PIECES.length })).toBe("The house has 12 pieces. It's complete.");
+  });
+
+  it("follows the circle from forming to the album", () => {
+    expect(houseWords({ ...base, state: "forming", joined: 3 })).toBe("3 of 5 cats have moved in.");
+    expect(houseWords({ ...base, state: "completed", pieces: 1 })).toBe("The house has 1 piece. It's in everyone's album now.");
+    expect(houseWords({ ...base, pieces: null })).toMatch(/records are back/);
+  });
+
+  it("gives each fully paid round the next piece, and a covered round none", () => {
+    const rounds = [{ everyonePaid: true }, { everyonePaid: false }, { everyonePaid: true }];
+    expect([0, 1, 2].map((i) => pieceAdded(rounds, i))).toEqual(["rug", null, "cushion"]);
   });
 });

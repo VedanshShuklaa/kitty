@@ -170,3 +170,70 @@ export async function earnRate(): Promise<{ aprBps: number; at: number } | null>
   const r = d.EarnRate_by_pk;
   return r ? { aprBps: r.aprBps, at: Number(r.at) } : null;
 }
+
+// ---------------------------------------------------------- the cat's world
+
+/** "Feed the Kitty": pieces in a circle's house (null when the indexer hasn't seen the circle). */
+export async function housePiecesOf(circle: Address): Promise<number | null> {
+  const d = await gql<{ Circle_by_pk: { housePieces: number } | null }>(
+    `query House($c: String!) { Circle_by_pk(id: $c) { housePieces } }`,
+    { c: lower(circle) },
+  );
+  return d.Circle_by_pk?.housePieces ?? null;
+}
+
+export type CatRecord = { keepsakes: Set<string>; streak: number; bestStreak: number };
+
+export async function catRecordOf(me: Address): Promise<CatRecord> {
+  const d = await gql<{ Keepsake: { kind: string }[]; Account_by_pk: { onTimeStreak: number; bestStreak: number } | null }>(
+    `query Cat($me: String!) {
+      Keepsake(where: { account_id: { _eq: $me } }) { kind }
+      Account_by_pk(id: $me) { onTimeStreak bestStreak }
+    }`,
+    { me: lower(me) },
+  );
+  return {
+    keepsakes: new Set(d.Keepsake.map((k) => k.kind)),
+    streak: d.Account_by_pk?.onTimeStreak ?? 0,
+    bestStreak: d.Account_by_pk?.bestStreak ?? 0,
+  };
+}
+
+export type AlbumRound = { index: number; recipient: Address | null; everyonePaid: boolean };
+export type AlbumPage = { circle: Address; endedAt: number; pieces: number; memberCount: number; seat: number; rounds: AlbumRound[] };
+
+/** Every finished circle this account was in: its house and a line per round. */
+export async function albumOf(me: Address): Promise<AlbumPage[]> {
+  type Row = {
+    seat: number;
+    circle: {
+      id: string;
+      state: string;
+      endedAt: string | null;
+      housePieces: number;
+      memberCount: number;
+      rounds: { index: number; recipient: string | null; payments: number; covered: string }[];
+    };
+  };
+  const d = await gql<{ Member: Row[] }>(
+    `query Album($me: String!) {
+      Member(where: { address: { _eq: $me }, circle: { state: { _eq: "Completed" } } }) {
+        seat
+        circle { id state endedAt housePieces memberCount rounds(order_by: { index: asc }) { index recipient payments covered } }
+      }
+    }`,
+    { me: lower(me) },
+  );
+  return d.Member.map((m) => ({
+    circle: getAddress(m.circle.id),
+    endedAt: Number(m.circle.endedAt ?? 0),
+    pieces: m.circle.housePieces,
+    memberCount: m.circle.memberCount,
+    seat: m.seat,
+    rounds: m.circle.rounds.map((r) => ({
+      index: r.index,
+      recipient: r.recipient ? getAddress(r.recipient) : null,
+      everyonePaid: r.payments >= m.circle.memberCount && BigInt(r.covered) === 0n,
+    })),
+  })).sort((a, b) => b.endedAt - a.endedAt);
+}

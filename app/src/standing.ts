@@ -20,14 +20,17 @@ export const STAGE_NAME: { [S in Stage]: string } = {
 };
 
 /** What the cat does at each stage: the sentence carries the meaning, the drawing only repeats it. */
-export const STAGE_LINE: { [S in Stage]: string } = {
-  Away: "Your cat is staying with the neighbours",
-  Wary: "Your cat keeps her distance",
-  Shy: "Your cat is watching you from her box",
-  Friendly: "Your cat walks up to greet you",
-  AtHome: "Your cat is at home with you",
-  Family: "Your cat is family",
-};
+export function stageLine(stage: Stage, name?: string): string {
+  const cat = name?.trim() || "Your cat";
+  return {
+    Away: `${cat} is staying with the neighbours`,
+    Wary: `${cat} keeps her distance`,
+    Shy: `${cat} is watching you from her box`,
+    Friendly: `${cat} walks up to greet you`,
+    AtHome: `${cat} is at home with you`,
+    Family: `${cat} is family`,
+  }[stage];
+}
 
 export type Progress = {
   stage: Stage;
@@ -154,16 +157,28 @@ type MoodCircle = {
  * from what the circle reads already return, so it needs no indexer. The
  * money words stay money words: "pay $10", never "feed her".
  */
-export function moodOf(stage: Stage, circles: MoodCircle[], now: number, words: { money: (n: bigint) => string; countdown: (t: number, now: number) => string }): { line: string; detail: string } {
-  if (stage === "Away") return { line: STAGE_LINE.Away, detail: "Pay back what you owe on Account and she comes home." };
+export type Bowl = "none" | "empty" | "full";
+
+export function moodOf(
+  stage: Stage,
+  circles: MoodCircle[],
+  now: number,
+  words: { money: (n: bigint) => string; countdown: (t: number, now: number) => string },
+  name?: string,
+): { line: string; detail: string; bowl: Bowl } {
+  if (stage === "Away") return { line: stageLine("Away", name), detail: "Pay back what you owe on Account and she comes home.", bowl: "none" };
   const behind = circles.find((c) => c.state === "active" && c.mine?.standing === "behind" && c.mine.arrears > 0n);
   if (behind) {
-    return { line: "Her ears are back", detail: `The circle covered a round for you in ${behind.title}. Pay it back to settle up.` };
+    return { line: "Her ears are back", detail: `The circle covered a round for you in ${behind.title}. Pay it back to settle up.`, bowl: "full" };
   }
   const due = circles.filter((c) => c.state === "active" && c.mine && !c.mine.paid && c.mine.standing !== "defaulted" && c.pay !== null).sort((a, b) => a.due - b.due)[0];
   if (due) {
-    return { line: "She's waiting for dinner", detail: `${due.title}: pay ${words.money(due.pay!)} ${words.countdown(due.due, now)}.` };
+    return { line: `${name?.trim() || "She"}'s waiting for dinner`, detail: `${due.title}: pay ${words.money(due.pay!)} ${words.countdown(due.due, now)}.`, bowl: "empty" };
   }
   const active = circles.some((c) => c.state === "active");
-  return { line: STAGE_LINE[stage], detail: active ? "Every round you're in is paid. She's content." : "Finish circles with new people and she'll trust you more." };
+  return {
+    line: stageLine(stage, name),
+    detail: active ? "Every round you're in is paid. She's content." : "Finish circles with new people and she'll trust you more.",
+    bowl: active ? "full" : "none",
+  };
 }

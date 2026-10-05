@@ -148,6 +148,10 @@ export function plan(s: Snapshot, now: number): Plan {
   if (mine?.standing === "behind" && mine.arrears > 0n) {
     actions.push({ kind: "arrears", label: `Catch up ${money(mine.arrears)}`, amount: mine.arrears });
   }
+  // a default's loss can be paid back while the circle still runs (FR-TRU-17)
+  if (mine?.standing === "defaulted" && mine.owed > 0n) {
+    actions.push({ kind: "repay", label: `Pay back ${money(mine.owed)}`, amount: mine.owed });
+  }
 
   const paidCount = s.members.filter((m) => m.paid).length;
   const payers = s.members.filter((m) => m.address && m.standing !== "defaulted").length;

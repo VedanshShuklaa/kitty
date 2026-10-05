@@ -11,7 +11,7 @@ import { timedFetch } from "./net";
 // membership, so every read here may come back empty and callers carry on.
 
 export type Roster = { title: string; names: string[] };
-export type ProfileData = { name: string; country: string };
+export type ProfileData = { name: string; country: string; catName?: string };
 
 const chainId = () => BigInt(contracts.chainId);
 
@@ -87,5 +87,6 @@ export async function getProfileData(prf: Uint8Array): Promise<ProfileData | nul
   const blob = await getBlob(`/api/profile?id=${profileId(prf)}`);
   if (!blob) return null;
   const p = openJson<ProfileData>(profileKey(prf), blob, "profile");
-  return typeof p.name === "string" ? { name: p.name, country: typeof p.country === "string" ? p.country : "" } : null;
+  if (typeof p.name !== "string") return null;
+  return { name: p.name, country: typeof p.country === "string" ? p.country : "", catName: typeof p.catName === "string" ? p.catName : undefined };
 }

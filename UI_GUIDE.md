@@ -101,15 +101,18 @@ Keep the pot summary compact. The previous large decorative bead ring must not d
 - Preserve back navigation, keyboard access, VoiceOver/TalkBack labels, and visible focus. Test actual native focus order before release.
 - Keep motion optional. No continuous mascot animation, confetti, pulsing controls, or animated balances. Existing ring animation respects reduced motion if reused.
 
-## Standing (SRS 6.13, FR-TRU-11)
+## Standing and the cat ("Feed the Kitty", SRS 6.13, FR-TRU-11)
 
-Branch `experimental/trust-tiers` ("Feed the Kitty"): standing is the member's cat, at one of six stages (Away, Wary, Shy, Friendly, At home, Family), read from the onchain `KittyRecord`. Show the stage name and the one plain next step, never a number out of a maximum, a bar or a percentage complete, and never the words credit, score, rating or collateral. Standing now sets terms, so:
+Standing is the member's cat, at one of six stages (Away, Wary, Shy, Friendly, At home, Family), read from the onchain `KittyRecord`. Show the stage name and the one plain next step, never a number out of a maximum, a bar or a percentage complete, and never the words credit, score, rating or collateral. Standing sets terms, so:
 
-- **Terms before money.** Join shows the payout order with everyone's stage, this member's deposit (two rounds for Wary), when they can make an offer, and what they can owe after the pot, before any money moves.
+- **Terms before money.** Join shows the payout order with everyone's stage and cat face, this member's deposit (two rounds for Wary), when they can make an offer, and what they can owe after the pot, before any money moves.
 - **Every change explained.** Account says what happened, what it changes in the next circle (`termsInWords`), and the way back (`nextStep`). Away always shows the amount owed and one "Pay back" button.
-- **Where she appears.** Home (the card under the balance), Account, and member rows ("Cat: Friendly"). Never in payment steps, passkey prompts, confirmations or errors.
-- **Words first.** `app/src/Cat.tsx` draws still poses only; the drawing is hidden from screen readers where the same sentence is on screen. "Show my cat" turns the drawing off; the terms stay, in words.
-- **Money words stay.** "Pay $10" is never "Feed her". Other members see a stage, never the reason for it.
+- **Where she appears.** "Meet your cat" once after the passkey (`MeetCatScreen`, she is named there and the name is sealed with the profile); Home (the card under the balance); the circle's house under the pot summary; Account (cat, keepsakes, album); Join's payout order; member rows ("Cat: Friendly"). Never in payment steps, passkey prompts, confirmations or errors.
+- **The house** (`House.tsx`, words in `house.ts`): a cardboard box that gains one piece for each round everyone paid with nobody covered, up to twelve, never taken away. The sentence under it carries the meaning; the drawing is hidden from screen readers.
+- **Keepsakes** (`Keepsakes.tsx`): five, each with a rule shown beside it, earned ones in colour. No currency, no shop, nothing random, and they never change trust.
+- **Motion.** Still poses. After a payment she hops once on the circle's house and on Home's card, and not at all with Reduce motion on. The success notice comes first.
+- **Words first.** Every drawing has the same sentence on screen or as its label. "Show my cat" turns the drawings and her voice in reminders off; the terms stay, in words.
+- **Money words stay.** "Pay $10" is never "Feed her". Reminders in her voice keep the amount and time ("Mimi's bowl is empty soon / Susu: pay $10 in the next 2 hours"). Other members see a stage, never the reason for it.
 
 ## Copy and financial trust
 
