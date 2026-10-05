@@ -721,3 +721,9 @@ and don't have these changes (new record ABI). Moved 2 test MON from REHEARSAL_M
 Next (user): run Deploy.s.sol (command in its header, `--private-key $REHEARSAL_MEMBER2_KEY --sender 0x569F…B5B2`),
 add the new factory/record/cats to `indexer/config.yaml`, push main (Envio), repoint `INDEXER_URL`, `cd site && vercel
 --prod` with `KITTY_RECORD`, new EAS build, update `/download`.
+
+**2026-10-05 — Feed the Kitty live.** Deployed + verified (REHEARSAL_MEMBER2 key): factory `0x945B6959…3C10`, vault
+`0x7953F85f…DC2E`, record `0x1917a381…4b7A`, cats `0xBaCf87e4…007B`, earn vault `0x068D6e51…d75b`, block 68298696.
+Pushed main; Envio endpoint `6ff5e3d`, set as `INDEXER_URL`; `KITTY_RECORD` set, site redeployed (`/api/cat` live,
+`/api/tier` gone). Live `practice.live.ts` passes on the new deploy. APK EAS 9cfd8c76 at /download.
+Next: phone test of the new APK (Meet your cat, house, keepsakes, album).
