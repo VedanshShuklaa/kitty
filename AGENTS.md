@@ -77,3 +77,13 @@ script run live) — then moving into C3's bid economics tests against
 **2026-10-01 — C2 mobile UI refreshed in Kitty pink.**
 Redesigned welcome, home and circle summaries; themed all flows; added generated kitty logo/launcher assets, larger accessible controls, keyboard handling and clearer failed-read/retry states. `UI_GUIDE.md` and `app/CLAUDE.md` define frontend rules. TypeScript, 22 tests and Android export pass; browser layout checks cover small phones/tablets.
 Next: build a new preview APK and check native text scaling, keyboard, screen readers, launcher masks and two-phone payment flows. No APK published in this change.
+
+
+**2026-10-05 — Cat and standing UI rebuilt from “Feed the Kitty”.**
+Added logo-inspired vector cats in six poses/coats, shared house residents and portraits, a companion panel with harmless petting, an explorable stage guide, keepsake tiles and clearer standing-read/debt states. Repaired sample preview; TypeScript, 63 tests, Android export and browser layout/interaction checks pass.
+Next: review `?screen=Cats` and Account in the preview, then check native text scaling, screen readers, reduced motion and live payment reactions on phones. No APK published.
+
+
+**2026-10-05 — Cat artwork polish, including Midnight.**
+Refined all six palettes, face/body proportions, crouch/loaf poses and four-paw belly pose; Midnight now has blue-charcoal fur, a silver muzzle and amber eyes with dark pupils. Gallery covers every coat/marking; 108 stage combinations fit their bounds, with app checks still green.
+Next: review the coat selectors in `?screen=Cats`, then confirm the vector artwork at native phone sizes.

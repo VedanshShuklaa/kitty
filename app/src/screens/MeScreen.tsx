@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Linking, View } from "react-native";
 
 import { BottomNav } from "../Brand";
-import { Cat } from "../Cat";
+import { CatCompanion, CatStageGuide } from "../CatCompanion";
 import { explorerAddress } from "../chain";
 import { explain } from "../errors";
 import { initials, money, shortAddress, when } from "../format";
@@ -14,7 +14,7 @@ import { Keepsakes } from "../Keepsakes";
 import { loadSnapshot, readStanding, repay, type Snapshot } from "../kitty";
 import type { ScreenProps } from "../nav";
 import { useMe, useSession } from "../session";
-import { nextStep, stageLine, STAGE_NAME, termsInWords, type Progress } from "../standing";
+import { termsInWords, type Progress } from "../standing";
 import { getShowCat, listCircles, setShowCat, type CircleRef } from "../store";
 import { color, font, space } from "../theme";
 import { Bead, Body, Button, Check, Heading, List, Notice, Row, Screen, Section, Small, Tag, Title } from "../ui";
@@ -64,6 +64,7 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
   const [cat, setCat] = useState<CatRecord | null>(null);
   const [album, setAlbum] = useState<AlbumPage[] | null>(null);
   const [standing, setStanding] = useState<Progress | null>(null);
+  const [standingError, setStandingError] = useState(false);
   const [showCat, setShowCatState] = useState(true);
   const [paying, setPaying] = useState<string | null>(null);
   const [payError, setPayError] = useState<string | null>(null);
@@ -80,7 +81,7 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
       recordOf(address).then(setBook).catch(() => {});
       catRecordOf(address).then(setCat).catch(() => {});
       albumOf(address).then(setAlbum).catch(() => {});
-      readStanding(address).then(setStanding).catch(() => {});
+      await readStanding(address).then((p) => { setStanding(p); setStandingError(false); }).catch(() => setStandingError(true));
       const refs = await listCircles(address);
       const snaps = await Promise.all(refs.map((r) => loadSnapshot(r.address, address).catch(() => null)));
       setItems(refs.map((ref, i) => ({ ref, snap: snaps[i] })));
@@ -113,7 +114,7 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
   }
 
   return (
-    <Screen onBack={() => navigation.goBack()} footer={<BottomNav active="Account" onHome={() => navigation.navigate("Home")} onJoin={() => navigation.navigate("Paste")} onAccount={() => {}} />}>
+    <Screen refreshing={refreshing} onRefresh={load} onBack={() => navigation.goBack()} footer={<BottomNav active="Account" onHome={() => navigation.navigate("Home")} onJoin={() => navigation.navigate("Paste")} onAccount={() => {}} />}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: space.md, marginTop: space.sm }}>
         <Bead label={initials(profile?.name ?? "?")} size={64} />
         <View style={{ flex: 1 }}>
@@ -127,13 +128,13 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
       </View>
 
       {loadError && <><Notice tone="error">Couldn’t update your record. Check your connection and try again.</Notice><Button label="Try again" busy={refreshing} onPress={load} /></>}
+      {standingError && <><Notice tone="error">Couldn't update your cat's standing.{standing ? " Showing the last loaded terms." : " Check your connection and try again."}</Notice><Button label="Refresh standing" tone="quiet" busy={refreshing} onPress={load} /></>}
+      {!standing && !standingError && <Small>Getting to know your cat…</Small>}
       {standing && (
-        <Section title="Your cat" right={<Tag label={STAGE_NAME[standing.stage]} tone={standing.stage === "Away" || standing.stage === "Wary" ? "clay" : standing.stage === "Shy" ? "slate" : "leaf"} />}>
-          <View style={{ flexDirection: "row", gap: space.md, alignItems: "center" }}>
-            {showCat && <Cat owner={address} stage={standing.stage} size={112} hidden />}
-            <Heading style={{ flex: 1 }}>{stageLine(standing.stage, profile?.catName)}</Heading>
-          </View>
+        <>
+          <CatCompanion owner={address} name={profile?.catName} progress={standing} showCat={showCat} />
           {!profile?.catName && <Button label="Give her a name" tone="quiet" size="row" onPress={() => navigation.navigate("MeetCat")} style={{ alignSelf: "flex-start" }} />}
+          {standing.stage === "Away" && <Notice tone="info">You owe {money(standing.debt)} to your circles.{owing.length === 0 ? " Refresh your circles to find the payment details." : " Pay back below to begin rebuilding trust."}</Notice>}
           {owing.map(({ ref, amount }) => (
             <View key={ref.address} style={{ gap: space.sm }}>
               <Body>
@@ -149,19 +150,21 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
             </View>
           ))}
           {payError && <Notice tone="error">{payError}</Notice>}
-          <Body>{nextStep(standing)}</Body>
-          <Heading>In your next circle</Heading>
-          <List>
-            {termsInWords(standing.stage).map((t, i, all) => (
-              <Row key={t.label} last={i === all.length - 1}>
-                <Body style={{ flex: 1 }}>{t.label}</Body>
-                <Body style={{ fontFamily: font.bodyBold, flexShrink: 1, textAlign: "right" }}>{t.value}</Body>
-              </Row>
-            ))}
-          </List>
+          <Section title="What this means for you">
+            <Small>These are your terms in the next circle you join.</Small>
+            <List>
+              {termsInWords(standing.stage).map((t, i, all) => (
+                <Row key={t.label} last={i === all.length - 1}>
+                  <Body style={{ flex: 1 }}>{t.label}</Body>
+                  <Body style={{ fontFamily: font.bodyBold, flexShrink: 1, textAlign: "right" }}>{t.value}</Body>
+                </Row>
+              ))}
+            </List>
+          </Section>
+          <CatStageGuide owner={address} current={standing.stage} showCat={showCat} />
           <Small>
             Only kept promises change how much she trusts you: finishing circles raises it slowly, and a missed round lowers it a whole step.
-            Offers and amounts never count. Think a missed round was a mistake? Ask Kitty to review it.
+            Making an offer never lowers her trust. The size of a payment doesn't earn more trust.
           </Small>
           <Check
             label="Show my cat"
@@ -171,7 +174,7 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
               void setShowCat(on);
             }}
           />
-        </Section>
+        </>
       )}
 
       {cat && (

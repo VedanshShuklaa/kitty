@@ -165,20 +165,21 @@ export function moodOf(
   now: number,
   words: { money: (n: bigint) => string; countdown: (t: number, now: number) => string },
   name?: string,
-): { line: string; detail: string; bowl: Bowl } {
-  if (stage === "Away") return { line: stageLine("Away", name), detail: "Pay back what you owe on Account and she comes home.", bowl: "none" };
+): { line: string; detail: string; bowl: Bowl; expression: "settled" | "waiting" | "fed" | "covered" } {
+  if (stage === "Away") return { line: stageLine("Away", name), detail: "Pay back what you owe on Account and she comes home.", bowl: "none", expression: "settled" };
   const behind = circles.find((c) => c.state === "active" && c.mine?.standing === "behind" && c.mine.arrears > 0n);
   if (behind) {
-    return { line: "Her ears are back", detail: `The circle covered a round for you in ${behind.title}. Pay it back to settle up.`, bowl: "full" };
+    return { line: "Her ears are back", detail: `The circle covered a round for you in ${behind.title}. Pay it back to settle up.`, bowl: "full", expression: "covered" };
   }
   const due = circles.filter((c) => c.state === "active" && c.mine && !c.mine.paid && c.mine.standing !== "defaulted" && c.pay !== null).sort((a, b) => a.due - b.due)[0];
   if (due) {
-    return { line: `${name?.trim() || "She"}'s waiting for dinner`, detail: `${due.title}: pay ${words.money(due.pay!)} ${words.countdown(due.due, now)}.`, bowl: "empty" };
+    return { line: `${name?.trim() || "She"}'s waiting for dinner`, detail: `${due.title}: pay ${words.money(due.pay!)} ${words.countdown(due.due, now)}.`, bowl: "empty", expression: "waiting" };
   }
   const active = circles.some((c) => c.state === "active");
   return {
     line: stageLine(stage, name),
     detail: active ? "Every round you're in is paid. She's content." : "Finish circles with new people and she'll trust you more.",
     bowl: active ? "full" : "none",
+    expression: active ? "fed" : "settled",
   };
 }

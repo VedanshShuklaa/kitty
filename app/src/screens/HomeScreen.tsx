@@ -38,6 +38,7 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
   const [rates, setRates] = useState<Rates | null>(null);
   const [recent, setRecent] = useState<Transfer[] | null>(null);
   const [stage, setStage] = useState<Stage | null>(null);
+  const [standingError, setStandingError] = useState(false);
   const [showCat, setShowCat] = useState(true);
   const [fed, setFed] = useState<Meal | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -63,7 +64,7 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
       setLoaded(true);
       setLoadError(b === null || snaps.some((s) => s === null));
       transfersOf(address, 6).then(setRecent).catch(() => setRecent(null));
-      readStanding(address).then((p) => setStage(p.stage)).catch(() => {});
+      readStanding(address).then((p) => { setStage(p.stage); setStandingError(false); }).catch(() => setStandingError(true));
       getShowCat().then(setShowCat).catch(() => {});
     } catch {
       setLoadError(true);
@@ -211,18 +212,20 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
           {notice.text}
         </Notice>
       )}
+      {standingError && <Notice tone="error">Couldn't update your cat's standing.{stage ? " Showing her last loaded stage." : " Pull down to try again."}</Notice>}
       {stage && mood && (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`${mood.line}. ${mood.detail} Open your cat on Account.`}
+          accessibilityLabel={showCat ? `${mood.line}. ${mood.detail} Open your cat on Account.` : `Standing: ${STAGE_NAME[stage]}. See your terms on Account.`}
           onPress={() => navigation.navigate("Me")}
           style={({ pressed }) => [styles.cat, pressed && { backgroundColor: color.pinkSoft }]}
         >
-          {showCat && <Cat owner={address} stage={stage} size={76} hidden bowl={fed ? "full" : mood.bowl} react={!!fed} />}
-          <View style={{ flex: 1, gap: 2 }}>
-            <Body style={{ fontFamily: font.bodyBold }}>{fed && mood.bowl !== "none" ? (fed === "late" ? "Dinner came a little late. She's fine." : "Dinner on time") : mood.line}</Body>
-            <Small>{mood.detail}</Small>
-            <Small style={{ color: color.pink }}>{STAGE_NAME[stage]} ›</Small>
+          {showCat && <Cat owner={address} stage={stage} size={124} hidden bowl={mood.bowl} mood={mood.expression} react={!!fed} />}
+          <View style={{ flex: 1, minWidth: 140, gap: space.xs }}>
+            <Small style={{ color: color.pink, fontFamily: font.bodyBold }}>{showCat ? profile?.catName || "Your cat" : "Your standing"} · {STAGE_NAME[stage]}</Small>
+            <Body style={{ fontFamily: font.bodyBold }}>{showCat ? mood.line : STAGE_NAME[stage]}</Body>
+            <Small>{showCat ? mood.detail : "Your standing sets your terms in a circle."}</Small>
+            <Small style={{ color: color.pink, fontFamily: font.bodyBold }}>{showCat ? "Visit your cat" : "See your terms"} ›</Small>
           </View>
         </Pressable>
       )}
@@ -337,6 +340,6 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: space.sm },
   circle: { backgroundColor: color.surface, borderRadius: radius.card, padding: space.md, gap: space.md, borderWidth: 1, borderColor: color.line },
   empty: { padding: space.lg, gap: space.sm, alignItems: "center", backgroundColor: color.surface, borderRadius: radius.card },
-  cat: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, backgroundColor: color.surface, borderRadius: radius.card, borderWidth: 1, borderColor: color.line },
+  cat: { flexWrap: "wrap", flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, backgroundColor: color.surface, borderRadius: radius.card, borderWidth: 1, borderColor: color.line },
   help: { gap: space.xs, padding: space.md, backgroundColor: color.cream, borderRadius: radius.card },
 });

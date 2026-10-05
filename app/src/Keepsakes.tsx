@@ -2,7 +2,7 @@ import { View } from "react-native";
 import Svg, { Circle, Ellipse, G, Path, Rect } from "react-native-svg";
 
 import { KEEPSAKES, type KeepsakeKind } from "./house";
-import { color, font, space } from "./theme";
+import { color, font, radius, space } from "./theme";
 import { Body, Small } from "./ui";
 
 // "Feed the Kitty": milestones the cat keeps. Every one has a rule anyone can
@@ -71,7 +71,7 @@ export function KeepsakeIcon({ kind, earned, size = 36 }: { kind: KeepsakeKind; 
 /** Every keepsake with its rule; `earned` holds the kinds this account has. */
 export function Keepsakes({ earned }: { earned: Set<string> }) {
   return (
-    <View style={{ gap: space.sm }}>
+    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
       {KEEPSAKES.map((k) => {
         const got = earned.has(k.kind);
         return (
@@ -79,12 +79,13 @@ export function Keepsakes({ earned }: { earned: Set<string> }) {
             key={k.kind}
             accessible
             accessibilityLabel={`${k.name}: ${got ? "earned" : "not yet"}. ${k.rule}.`}
-            style={{ flexDirection: "row", alignItems: "center", gap: space.md, minHeight: 48 }}
+            style={{ flexBasis: "45%", flexGrow: 1, minWidth: 120, gap: space.sm, padding: space.md, borderRadius: radius.card, backgroundColor: got ? color.cream : color.surface, borderWidth: 1, borderColor: color.line }}
           >
-            <KeepsakeIcon kind={k.kind} earned={got} />
+            <KeepsakeIcon kind={k.kind} earned={got} size={52} />
             <View style={{ flex: 1 }}>
               <Body style={{ fontFamily: got ? font.bodyBold : font.body }}>{k.name}</Body>
-              <Small>{got ? `Earned. ${k.rule}.` : `${k.rule}.`}</Small>
+              <Small>{k.rule}.</Small>
+              <Small style={{ color: got ? color.leaf : color.slate, fontFamily: font.bodyBold, marginTop: space.sm }}>{got ? "Earned" : "Not yet"}</Small>
             </View>
           </View>
         );

@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { AccessibilityInfo, Animated, View } from "react-native";
 import Svg, { Circle, Ellipse, G, Line, Path, Rect } from "react-native-svg";
 
-import { faceFor, Head, lookFor } from "./Cat";
+import { CatArt, lookFor } from "./Cat";
 import { PIECES, type Resident } from "./house";
 import { color } from "./theme";
 
@@ -113,32 +113,18 @@ function Box() {
   );
 }
 
-/** Where each resident sits: a row along the front of the room. */
-function seatX(i: number, count: number): number {
-  if (count === 1) return W / 2;
-  const left = 30;
-  return left + (i * (W - 2 * left)) / (count - 1);
-}
-
-/** A member's cat in the house; an Away cat has left, so only her pawprint shows. */
-function Resident({ r, x, mark }: { r: Resident; x: number; mark?: boolean }) {
-  if (r.stage === "Away") {
-    return (
-      <G transform={`translate(${x} 218)`} fill="#C9A88F">
-        <Ellipse rx={3.4} ry={2.8} />
-        <Circle cx={-3.2} cy={-3.8} r={1.3} />
-        <Circle cy={-4.9} r={1.3} />
-        <Circle cx={3.2} cy={-3.8} r={1.3} />
-      </G>
-    );
-  }
-  const f = faceFor(r.stage);
-  return (
-    <G>
-      {mark && <Path d={`M${x - 5},166 l5,-6 l5,6 z`} fill={color.pink} />}
-      <Head x={x} y={190} r={13} look={lookFor(r.owner)} eyes={f.eyes} flat={f.flat} />
-    </G>
-  );
+/** Full cats, with room for every member: wrap larger circles into two rows. */
+function Resident({ r, index, count }: { r: Resident; index: number; count: number }) {
+  const columns = Math.min(count, 6);
+  const row = Math.floor(index / columns);
+  const inRow = Math.min(columns, count - row * columns);
+  const x = W / 2 + (index % columns - (inRow - 1) / 2) * (300 / Math.max(columns, 1));
+  const y = count > 6 && row === 0 ? 149 : 207;
+  const scale = Math.min(0.85, 2.8 / Math.max(columns, 1));
+  return <G transform={`translate(${x} ${y}) scale(${scale})`}>
+    <CatArt stage={r.stage} look={lookFor(r.owner)} />
+    {r.mine && <Path d="M-5,17 L0,12 L5,17" fill="none" stroke={color.pink} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />}
+  </G>;
 }
 
 /**
@@ -181,7 +167,7 @@ export function House({ pieces, residents, react }: { pieces: number; residents:
         <Rect y={159} width={W} height={6} fill="#E3C6AE" />
         <Pieces n={p} />
         <Box />
-        {shown.map((r, i) => (i === mine ? null : <Resident key={r.owner} r={r} x={seatX(i, shown.length)} />))}
+        {shown.map((r, i) => (i === mine ? null : <Resident key={r.owner} r={r} index={i} count={shown.length} />))}
       </Svg>
       {mine >= 0 && (
         // this member's cat sits in her own layer so she can hop on her own
@@ -190,7 +176,7 @@ export function House({ pieces, residents, react }: { pieces: number; residents:
           style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%", transform: [{ translateY: hop }] }}
         >
           <Svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`}>
-            <Resident r={shown[mine]} x={seatX(mine, shown.length)} mark />
+            <Resident r={shown[mine]} index={mine} count={shown.length} />
           </Svg>
         </Animated.View>
       )}

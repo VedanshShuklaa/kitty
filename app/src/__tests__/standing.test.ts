@@ -81,7 +81,7 @@ describe("her mood", () => {
   const circle = { title: "Lagos Savers", state: "active" as const, due: 100, mine: { standing: "good" as const, paid: false, arrears: 0n }, pay: 10_000000n };
 
   it("waits for dinner while a round is unpaid, in money words", () => {
-    expect(moodOf("Shy", [circle], 0, words)).toEqual({ line: "She's waiting for dinner", detail: "Lagos Savers: pay $10 in 2 hours.", bowl: "empty" });
+    expect(moodOf("Shy", [circle], 0, words)).toEqual({ line: "She's waiting for dinner", detail: "Lagos Savers: pay $10 in 2 hours.", bowl: "empty", expression: "waiting" });
     expect(moodOf("Shy", [circle], 0, words, "Mimi").line).toBe("Mimi's waiting for dinner");
   });
 
@@ -89,16 +89,18 @@ describe("her mood", () => {
     expect(stageLine("Wary", "Mimi")).toBe("Mimi keeps her distance");
     expect(stageLine("Family")).toBe("Your cat is family");
     expect(stageLine("Shy", "  ")).toBe("Your cat is watching you from her box");
-    expect(moodOf("Away", [], 0, words, "Mimi")).toMatchObject({ line: "Mimi is staying with the neighbours", bowl: "none" });
+    expect(moodOf("Away", [], 0, words, "Mimi")).toMatchObject({ line: "Mimi is staying with the neighbours", bowl: "none", expression: "settled" });
   });
 
   it("puts a covered round ahead of a due one", () => {
     const behind = { ...circle, title: "Market Women", mine: { standing: "behind" as const, paid: true, arrears: 10_000000n } };
-    expect(moodOf("Shy", [circle, behind], 0, words).line).toBe("Her ears are back");
+    expect(moodOf("Shy", [circle, behind], 0, words)).toMatchObject({ line: "Her ears are back", expression: "covered", bowl: "full" });
   });
 
   it("is content when everything is paid", () => {
-    expect(moodOf("Friendly", [{ ...circle, mine: { ...circle.mine, paid: true }, pay: null }], 0, words).detail).toMatch(/content/);
+    const fed = moodOf("Friendly", [{ ...circle, mine: { ...circle.mine, paid: true }, pay: null }], 0, words);
+    expect(fed.detail).toMatch(/content/);
+    expect(fed).toMatchObject({ expression: "fed", bowl: "full" });
   });
 });
 

@@ -1,13 +1,14 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { View } from "react-native";
 
-import { Cat } from "../Cat";
+import { CatScene } from "../Cat";
+import { explain } from "../errors";
 import { readStanding } from "../kitty";
 import type { ScreenProps } from "../nav";
 import { useMe, useSession } from "../session";
 import type { Stage } from "../standing";
-import { color, space } from "../theme";
-import { Body, Button, Field, Small, Screen, Title } from "../ui";
+import { color, radius, space } from "../theme";
+import { Body, Button, Field, Notice, Small, Screen, Title } from "../ui";
 
 // "Meet your cat" (Feed the Kitty), once, right after the passkey. She's
 // drawn from the new address, so she looks the same on every phone; the
@@ -18,20 +19,26 @@ export function MeetCatScreen({ navigation }: ScreenProps<"MeetCat">) {
   const { address } = useMe();
   const { nameCat } = useSession();
   const [name, setName] = useState("");
-  const [stage, setStage] = useState<Stage>("Shy");
+  const [stage, setStage] = useState<Stage | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // a returning account may already have earned her trust
-  useEffect(() => {
-    readStanding(address)
-      .then((p) => setStage(p.stage))
-      .catch(() => {});
+  // Returning accounts keep their actual stage; an unavailable read is not Shy.
+  const load = useCallback(async () => {
+    setLoadError(false);
+    await readStanding(address).then((p) => setStage(p.stage)).catch(() => setLoadError(true));
   }, [address]);
+  useEffect(() => { void load(); }, [load]);
 
   async function done(catName: string) {
     setBusy(true);
-    await nameCat(catName).catch(() => {});
-    navigation.replace("Home");
+    setSaveError(null);
+    try {
+      await nameCat(catName);
+      navigation.replace("Home");
+    } catch (error) { setSaveError(explain(error)); }
+    finally { setBusy(false); }
   }
 
   const trimmed = name.trim();
@@ -45,11 +52,14 @@ export function MeetCatScreen({ navigation }: ScreenProps<"MeetCat">) {
       }
     >
       <Title>Meet your cat</Title>
-      <View style={{ alignItems: "center", marginVertical: space.md }}>
-        <Cat owner={address} stage={stage} size={200} label="Your new cat, peeking out of her box" />
+      <View style={{ overflow: "hidden", borderRadius: radius.hero, marginVertical: space.sm }}>
+        {stage && <CatScene owner={address} stage={stage} />}
       </View>
+      {loadError && <><Notice tone="error">Couldn't load your cat. Try again to see her current stage.</Notice><Button label="Try again" tone="quiet" onPress={load} /></>}
+      {!stage && !loadError && <Small>Getting to know your cat…</Small>}
+      {saveError && <Notice tone="error">{saveError}</Notice>}
       <Body>
-        Every Kitty account comes with a cat. Her coat comes from your account, so she looks the same on any phone you sign in on.
+        A little companion for every promise you keep. This one is yours, with the same coat and markings on every phone you sign in on.
       </Body>
       <Body style={{ color: color.slate }}>
         Each round you pay on time is a meal. Kept promises slowly earn her trust, and her trust decides your place in the queue in
