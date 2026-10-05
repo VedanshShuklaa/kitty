@@ -26,6 +26,7 @@ contract FakeCircle {
 /// every miss as arrears, paying back a default).
 contract StandingTest is CircleTestBase {
     KittyRecord internal rec;
+    address internal _lastKojoCircle;
 
     address internal ama = makeAddr("ama");
     address internal kojo = makeAddr("kojo");
@@ -88,12 +89,16 @@ contract StandingTest is CircleTestBase {
         _close(circle, round);
     }
 
-    /// @dev Three clean circles of three: 40 points each from two Shy others.
+    /// @dev Three clean circles of three, with new partners each time: 40
+    /// points each from two Shy others. Ama, Efua and Tunde all end Friendly.
     function _makeFriendly() internal {
-        address[] memory w = _three(ama, efua, tunde);
-        _runClean(w);
-        _runClean(w);
-        _runClean(w);
+        _runClean(_three(ama, efua, tunde));
+        _runClean(_three(ama, makeAddr("p1"), makeAddr("p2")));
+        _runClean(_three(ama, makeAddr("p3"), makeAddr("p4")));
+        _runClean(_three(efua, makeAddr("e1"), makeAddr("e2")));
+        _runClean(_three(efua, makeAddr("e3"), makeAddr("e4")));
+        _runClean(_three(tunde, makeAddr("t1"), makeAddr("t2")));
+        _runClean(_three(tunde, makeAddr("t3"), makeAddr("t4")));
     }
 
     /// @dev Kojo takes the first pot and stops paying. His deposit and the
@@ -131,12 +136,11 @@ contract StandingTest is CircleTestBase {
     }
 
     function test_threeCleanCircles_makeFriendly() public {
-        address[] memory w = _three(ama, efua, tunde);
-        _runClean(w);
+        _runClean(_three(ama, efua, tunde));
         assertEq(_points(ama), 40);
-        _runClean(w);
+        _runClean(_three(ama, makeAddr("p1"), makeAddr("p2")));
         _assertStage(ama, IKittyRecord.Stage.Shy);
-        _runClean(w);
+        _runClean(_three(ama, makeAddr("p3"), makeAddr("p4")));
         assertEq(_points(ama), 120);
         _assertStage(ama, IKittyRecord.Stage.Friendly);
         (, uint16 onTimeBps, uint16 people, uint64 biggest, uint8 open) = rec.progressOf(ama);
@@ -144,6 +148,26 @@ contract StandingTest is CircleTestBase {
         assertEq(people, 6);
         assertEq(biggest, CONTRIBUTION);
         assertEq(open, 0);
+    }
+
+    /// SRS 8.4's anti-farming rule: only people new to you count, so the
+    /// same three saving again earn nothing after the first circle.
+    function test_samePeopleAgain_earnNothing() public {
+        address[] memory w = _three(ama, efua, tunde);
+        _runClean(w);
+        assertEq(_points(ama), 40);
+        assertTrue(rec.hasMet(ama, efua));
+        assertFalse(rec.hasMet(ama, kojo));
+        _runClean(w);
+        _runClean(w);
+        assertEq(_points(ama), 40);
+        (, uint16 onTimeBps, uint16 people,,) = rec.progressOf(ama);
+        assertEq(people, 2);
+        assertEq(onTimeBps, 10_000, "rounds still count toward on time");
+
+        // one new face out of two others: half the weight
+        _runClean(_three(ama, efua, kofi));
+        assertEq(_points(ama), 60);
     }
 
     function test_sizeRule_biggerCircleTreatsFriendlyAsShy() public {
@@ -397,8 +421,9 @@ contract StandingTest is CircleTestBase {
         address[] memory wa = _four(kojo, kofi, kwame(), makeAddr("yaw"));
         address a = _circleWith(wa, ra);
 
-        _kojoDefaults();
+        (_lastKojoCircle,) = _kojoDefaults();
         assertGt(rec.debtOf(kojo), 0);
+        assertEq(rec.owedIn(kojo).length, 1);
 
         _payAllAndClose(a, wa, 1);
         assertEq(Circle(a).recipientOf(1), kofi, "seat 0 no longer wins the tie");
@@ -408,8 +433,55 @@ contract StandingTest is CircleTestBase {
         vm.expectRevert(ICircle.NotEligible.selector);
         Circle(a).commitBid(3, bytes32(uint256(1)));
         _payAllAndClose(a, wa, 3);
-        _payAllAndClose(a, wa, 4);
+
+        // his pot in A pays his debt in B first, to B's members who lost it
+        address b = _lastKojoCircle;
+        uint256 debt = rec.debtOf(kojo);
+        uint256 creditsBefore = _credits(b, kojo);
+        uint256 kojoBefore = ausd.balanceOf(kojo);
+        vm.warp(Circle(a).dueTime(4) - 1);
+        for (uint256 i = 0; i < 4; i++) {
+            _pay(a, wa[i], 4);
+        }
+        kojoBefore = ausd.balanceOf(kojo);
+        _close(a, 4);
         assertEq(Circle(a).recipientOf(4), kojo);
+        assertEq(rec.debtOf(kojo), 0, "debt paid from the pot");
+        assertEq(_credits(b, kojo) - creditsBefore, debt, "B's members credited");
+        assertEq(ausd.balanceOf(kojo) - kojoBefore, 4 * uint256(CONTRIBUTION) - debt);
+        _assertStage(kojo, IKittyRecord.Stage.Wary);
+        assertEq(rec.owedIn(kojo).length, 0);
+
+        _withdrawAll(b, _four(kojo, ama, efua, tunde));
+        _withdrawAll(a, wa);
+        assertEq(ausd.balanceOf(a), 0);
+        assertEq(ausd.balanceOf(b), 0);
+    }
+
+    function _credits(address circle, address except) internal view returns (uint256 sum) {
+        for (uint8 s = 0; s < 4; s++) {
+            address m = Circle(circle).memberAt(s);
+            if (m == except) continue;
+            (,,, uint256 c) = Circle(circle).standingOf(m);
+            sum += c;
+        }
+    }
+
+    function test_repayFor_anyoneCanPayPartOfADebt() public {
+        (address circle, address[] memory w) = _kojoDefaults();
+        uint256 half = CONTRIBUTION / 2;
+        ausd.mint(kofi, half);
+        vm.startPrank(kofi);
+        ausd.approve(circle, half);
+        assertEq(Circle(circle).repayFor(kojo, half), half);
+        vm.stopPrank();
+        assertEq(rec.debtOf(kojo), CONTRIBUTION - half);
+        _assertStage(kojo, IKittyRecord.Stage.Away);
+        vm.prank(kojo);
+        Circle(circle).repay();
+        assertEq(rec.debtOf(kojo), 0);
+        _withdrawAll(circle, w);
+        assertEq(ausd.balanceOf(circle), 0);
     }
 
     /// FR-TRU-17, the hole the design found: a member paid last who never

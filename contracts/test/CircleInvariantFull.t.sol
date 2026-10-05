@@ -331,13 +331,27 @@ contract FullInvariantHandler is Test {
         }
     }
 
+    function _tracked(Circle e) internal view returns (bool) {
+        for (uint256 j = 0; j < circles.length; j++) {
+            if (circles[j] == e) return true;
+        }
+        return false;
+    }
+
     function _scanLogs(Circle c) internal {
         Vm.Log[] memory logs = vm.getRecordedLogs();
         uint256 pots = 0;
         uint256 closes = 0;
         for (uint256 i = 0; i < logs.length; i++) {
-            if (logs[i].emitter != address(c)) continue;
+            // a pot can pay a debt in another tracked circle (FR-TRU-18), so
+            // credits land in whichever circle emitted them
+            Circle e = Circle(logs[i].emitter);
+            if (!_tracked(e)) continue;
             bytes32 t0 = logs[i].topics[0];
+            if (e != c) {
+                if (t0 == ICircle.ArrearsCredited.selector) creditsIssued[e] += abi.decode(logs[i].data, (uint256));
+                continue;
+            }
             if (t0 == ICircle.PotPaid.selector) {
                 pots++;
                 address recipient = address(uint160(uint256(logs[i].topics[1])));

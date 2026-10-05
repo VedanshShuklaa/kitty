@@ -50,7 +50,8 @@ interface ICircle {
     function closeRound(uint32 round) external; // anyone, from due(r) + grace
     function withdraw() external; // Completed or Cancelled
     function recordFinish(address member) external; // anyone, once Completed
-    function repay() external; // pays back a default's loss, once Completed
+    function repay() external; // pays back a default's loss
+    function repayFor(address member, uint256 max) external returns (uint256 paid);
 
     function rules() external view returns (Rules memory);
     function state() external view returns (State);
@@ -122,6 +123,7 @@ interface ICircle {
     event Withdrawn(address indexed member, uint256 amount);
     event Placed(address indexed member, IKittyRecord.Stage stage);
     event Repaid(address indexed member, uint256 amount);
+    event DebtPaidElsewhere(address indexed member, address indexed circle, uint256 amount);
     // FR-TRU-17: what a member's miss or default kept from `to`, paid back as credit
     event ArrearsCredited(address indexed from, address indexed to, uint256 amount);
 }

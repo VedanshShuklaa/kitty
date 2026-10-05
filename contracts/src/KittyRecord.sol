@@ -15,7 +15,8 @@ interface ICircleOrigin {
 /// calls no token. Points heal and fade with the clock, so every stage is a
 /// view and nothing goes stale.
 ///
-/// Points: up to +100 per finished circle (SRS 8.4's people weight), a covered
+/// Points: up to +100 per finished circle (SRS 8.4's weight, counting only
+/// people new to the member), a covered
 /// miss costs one whole stage, a default sets -100 (or -300 and a debt when
 /// the circle lost money) and erases earned points. Bad points heal 10 a month
 /// once nothing is owed; good points fade on a 12-month half-life only while no
@@ -39,6 +40,7 @@ contract KittyRecord is IKittyRecord, Ownable {
         uint64 goodwillAt; // last forgiven miss
         int32 preMissPoints; // points before the latest miss
         uint64 missAt; // when the latest unforgiven miss landed; 0 when none
+        uint256 met; // two bits per person finished with: "new to you" without a list
     }
 
     struct Before {
@@ -52,6 +54,7 @@ contract KittyRecord is IKittyRecord, Ownable {
 
     mapping(address => Acct) private _acct;
     mapping(address => uint64) private _countsFrom;
+    mapping(address => address[]) private _owedIn; // circles holding this account's debt
 
     constructor(address owner_, uint64 factoryDelay_) Ownable(owner_) {
         factoryDelay = factoryDelay_;
@@ -131,6 +134,7 @@ contract KittyRecord is IKittyRecord, Ownable {
         a.missAt = 0;
         if (shortfall > 0) {
             a.debt += uint128(shortfall);
+            _noteOwedIn(m, msg.sender);
             emit DebtChanged(m, a.debt);
         }
         _store(m, a, b, b.points < to ? b.points : to, Why.Defaulted);
@@ -142,27 +146,46 @@ contract KittyRecord is IKittyRecord, Ownable {
         a.debt -= uint128(amount < a.debt ? amount : a.debt);
         emit DebtChanged(m, a.debt);
         // healing starts when the debt is gone, not when it was made
-        if (a.debt == 0) b.anchor = uint64(block.timestamp);
+        if (a.debt == 0) {
+            b.anchor = uint64(block.timestamp);
+            delete _owedIn[m];
+        }
         _store(m, a, b, b.points, Why.Repaid);
     }
 
+    /// @notice A finished circle. It earns points only for the people in it
+    /// who were new to this member, each weighted by their own standing (SRS
+    /// 8.4), so saving again with the same people, or a ring of your own
+    /// accounts, earns nothing after the first time.
     function finished(
         address m,
         uint64 contribution,
         bool clean,
         uint8 onTime,
         uint8 rounds,
-        uint8 people,
-        uint8 points
+        address[] calldata others,
+        Stage[] calldata stages
     ) external onlyCircle {
         Acct storage a = _acct[m];
         Before memory b = _before(a);
+        uint256 met = a.met;
+        uint256 sum = 0;
+        uint16 fresh = 0;
+        for (uint256 i = 0; i < others.length; i++) {
+            uint256 bits = _bits(others[i]);
+            if (met & bits == bits) continue;
+            met |= bits;
+            fresh += 1;
+            sum += _weight(stages[i]);
+        }
+        a.met = met;
         a.rounds += rounds;
         a.onTime += onTime;
-        a.people += people;
+        a.people += fresh;
         if (a.open > 0) a.open -= 1;
         if (clean && contribution > a.biggestClean) a.biggestClean = contribution;
-        _store(m, a, b, b.points + int256(uint256(points > 100 ? 100 : points)), Why.Finished);
+        uint256 pts = others.length == 0 ? 0 : sum / others.length;
+        _store(m, a, b, b.points + int256(pts > 100 ? 100 : pts), Why.Finished);
     }
 
     // ------------------------------------------------------------ reads
@@ -187,6 +210,19 @@ contract KittyRecord is IKittyRecord, Ownable {
         return _acct[who].debt;
     }
 
+    /// @notice The circles this account's debt is owed in, so its pot in
+    /// another circle can pay them first (FR-TRU-18).
+    function owedIn(address who) external view returns (address[] memory) {
+        return _owedIn[who];
+    }
+
+    /// @notice Whether `who` has finished a circle with `other` before. A
+    /// filter, so rarely a stranger reads as met; never the other way round.
+    function hasMet(address who, address other) external view returns (bool) {
+        uint256 bits = _bits(other);
+        return _acct[who].met & bits == bits;
+    }
+
     function progressOf(address who)
         external
         view
@@ -209,6 +245,28 @@ contract KittyRecord is IKittyRecord, Ownable {
         a.missAt = 0;
         _store(m, a, b, b.points > back ? b.points : back, Why.Forgiven);
         return true;
+    }
+
+    function _noteOwedIn(address m, address circle) internal {
+        address[] storage list = _owedIn[m];
+        for (uint256 i = 0; i < list.length; i++) {
+            if (list[i] == circle) return;
+        }
+        list.push(circle);
+    }
+
+    /// @dev Two of the 256 bits, from the address's hash.
+    function _bits(address who) internal pure returns (uint256) {
+        uint256 h = uint256(keccak256(abi.encodePacked(who)));
+        return (uint256(1) << (h & 0xff)) | (uint256(1) << ((h >> 8) & 0xff));
+    }
+
+    /// @dev SRS 8.4's weight per new person, as points out of 100.
+    function _weight(Stage s) internal pure returns (uint256) {
+        if (s >= Stage.AtHome) return 100;
+        if (s == Stage.Friendly) return 70;
+        if (s == Stage.Away) return 0;
+        return 40;
     }
 
     function _before(Acct storage a) internal view returns (Before memory b) {

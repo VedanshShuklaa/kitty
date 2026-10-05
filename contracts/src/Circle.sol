@@ -20,6 +20,8 @@ contract Circle is ICircle, ReentrancyGuard {
 
     bytes32 private constant JOIN_TYPEHASH = keccak256("kitty.join.v1");
 
+    uint256 private constant MAX_DEBT_CIRCLES = 4;
+
     bool private _initialized;
     // Every clone of a given CircleFactory shares the same factory, AUSD and
     // vault addresses, so these live in the shared implementation's runtime
@@ -514,6 +516,12 @@ contract Circle is ICircle, ReentrancyGuard {
             }
         }
 
+        // FR-TRU-18: a debt in another circle is paid from this pot next,
+        // straight to the circle that lost the money
+        if (winner != address(0) && _owesElsewhere(winner)) {
+            arrearsRepaid += _payDebtsElsewhere(winner, gross - discount - arrearsRepaid);
+        }
+
         uint256 holdbackAmt = 0;
         if (winner != address(0) && round < n) {
             holdbackAmt = _holdbackFor(winner, round, gross - discount - arrearsRepaid);
@@ -663,22 +671,17 @@ contract Circle is ICircle, ReentrancyGuard {
             }
         }
         uint8 n = _rules.memberCount;
-        uint256 sum = 0;
+        address[] memory others = new address[](n - 1);
+        IKittyRecord.Stage[] memory stages = new IKittyRecord.Stage[](n - 1);
+        uint256 k = 0;
         for (uint8 s = 0; s < n; s++) {
             address o = _memberAt[s];
-            if (o != m) sum += _weight(_seat[o].stage);
+            if (o == m) continue;
+            others[k] = o;
+            stages[k++] = _seat[o].stage;
         }
         uint8 onTime = n - st.late - st.missed;
-        // forge-lint: disable-next-line(unsafe-typecast)
-        record.finished(m, _rules.contribution, st.missed == 0, onTime, n, n - 1, uint8(sum / (n - 1)));
-    }
-
-    /// @dev SRS 8.4's weight per other member, as points out of 100.
-    function _weight(IKittyRecord.Stage s) internal pure returns (uint256) {
-        if (s >= IKittyRecord.Stage.AtHome) return 100;
-        if (s == IKittyRecord.Stage.Friendly) return 70;
-        if (s == IKittyRecord.Stage.Away) return 0;
-        return 40;
+        record.finished(m, _rules.contribution, st.missed == 0, onTime, n, others, stages);
     }
 
     /// @dev Moves what a member's arrears owe other people (the short and pool
@@ -697,18 +700,52 @@ contract Circle is ICircle, ReentrancyGuard {
     /// circle, to the members who lost it (they withdraw it as credit), and
     /// clears the debt in the record.
     function repay() external nonReentrant {
-        if (_state != State.Completed) revert WrongState();
         uint256 amt = _owed[msg.sender];
         if (amt == 0) revert NothingToWithdraw();
-        _owed[msg.sender] = 0;
-        ausd.safeTransferFrom(msg.sender, address(this), amt);
+        _repay(msg.sender, msg.sender, amt);
+    }
 
-        uint256 toShort = amt < _arrearsShortPortion[msg.sender] ? amt : _arrearsShortPortion[msg.sender];
-        _arrearsShortPortion[msg.sender] -= toShort;
-        uint256 rest = amt - toShort + _payShort(msg.sender, toShort);
-        if (rest > 0) _creditLosers(msg.sender, rest);
-        record.repaid(msg.sender, amt);
-        emit Repaid(msg.sender, amt);
+    /// @notice Pays up to `max` of `member`'s debt here from the caller's
+    /// money. Another circle uses it to pay a debtor's pot to this one first
+    /// (FR-TRU-18); anyone else may too. Returns what was paid.
+    function repayFor(address member, uint256 max) external nonReentrant returns (uint256 amt) {
+        amt = _owed[member] < max ? _owed[member] : max;
+        if (amt == 0) revert NothingToWithdraw();
+        _repay(msg.sender, member, amt);
+    }
+
+    function _repay(address payer, address m, uint256 amt) internal {
+        if (_state != State.Active && _state != State.Completed) revert WrongState();
+        _owed[m] -= amt;
+        ausd.safeTransferFrom(payer, address(this), amt);
+
+        uint256 toShort = amt < _arrearsShortPortion[m] ? amt : _arrearsShortPortion[m];
+        _arrearsShortPortion[m] -= toShort;
+        uint256 rest = amt - toShort + _payShort(m, toShort);
+        if (rest > 0) _creditLosers(m, rest);
+        record.repaid(m, amt);
+        emit Repaid(m, amt);
+    }
+
+    /// @dev Pays `m`'s debts in other circles from up to `available` of this
+    /// pot, oldest first. Returns what left this circle.
+    function _payDebtsElsewhere(address m, uint256 available) internal returns (uint256 paid) {
+        address[] memory circles = record.owedIn(m);
+        for (uint256 i = 0; i < circles.length && i < MAX_DEBT_CIRCLES && available > paid; i++) {
+            address c = circles[i];
+            if (c == address(this)) continue;
+            (,,, uint256 owed) = ICircle(c).placeOf(m);
+            uint256 left = available - paid;
+            uint256 amt = owed < left ? owed : left;
+            if (amt == 0) continue;
+            ausd.forceApprove(c, amt);
+            // a circle that can't take it must not stop this round closing
+            try ICircle(c).repayFor(m, amt) returns (uint256 got) {
+                paid += got;
+                emit DebtPaidElsewhere(m, c, got);
+            } catch { }
+            ausd.forceApprove(c, 0);
+        }
     }
 
     /// @dev A default shortens every pot from its round on, so those rounds'

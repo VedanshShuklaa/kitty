@@ -14,7 +14,7 @@ contract OpenRecord is IKittyRecord {
     function arrearsCleared(address) external { }
     function defaulted(address, uint256) external { }
     function repaid(address, uint256) external { }
-    function finished(address, uint64, bool, uint8, uint8, uint8, uint8) external { }
+    function finished(address, uint64, bool, uint8, uint8, address[] calldata, Stage[] calldata) external { }
     function forgive(address) external { }
     function addFactory(address) external { }
 
@@ -32,6 +32,14 @@ contract OpenRecord is IKittyRecord {
 
     function debtOf(address) external pure returns (uint256) {
         return 0;
+    }
+
+    function owedIn(address) external pure returns (address[] memory) {
+        return new address[](0);
+    }
+
+    function hasMet(address, address) external pure returns (bool) {
+        return false;
     }
 
     function progressOf(address) external pure returns (int256, uint16, uint16, uint64, uint8) {

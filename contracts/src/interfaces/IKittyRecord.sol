@@ -53,14 +53,16 @@ interface IKittyRecord {
         bool clean,
         uint8 onTime,
         uint8 rounds,
-        uint8 people,
-        uint8 points
+        address[] calldata others,
+        Stage[] calldata stages
     ) external;
 
     // Reads. Healing and fading are worked out from the clock.
     function stageOf(address a) external view returns (Stage);
     function termsOf(address a, uint64 contribution) external view returns (Terms memory);
     function debtOf(address a) external view returns (uint256);
+    function owedIn(address a) external view returns (address[] memory);
+    function hasMet(address a, address other) external view returns (bool);
     function progressOf(address a)
         external
         view
