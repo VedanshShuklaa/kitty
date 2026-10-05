@@ -4,7 +4,11 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Money on Kitty</title>
-<link rel="icon" href="/favicon.png" />
+<meta name="theme-color" content="#FCE5EF" />
+<link rel="icon" href="/favicon.ico" sizes="any" />
+<link rel="icon" href="/favicon.png" type="image/png" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<meta property="og:image" content="https://kitty-circle.vercel.app/og.png" />
 <meta property="og:title" content="Money on Kitty" />
 <meta property="og:description" content="Send and receive dollars with people you save with." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -16,6 +20,7 @@
   body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.5 Figtree, system-ui, sans-serif; }
   .hero { background:var(--soft); padding:28px 20px 32px; border-radius:0 0 32px 32px; }
   .marker { font-size:13px; color:var(--slate); }
+  .logo { display:block; width:80px; height:80px; border-radius:20px; background:#FBFBE7; margin-top:20px; }
   h1 { font:800 36px/1.08 "Bricolage Grotesque", sans-serif; letter-spacing:-0.5px; margin:14px 0 0; }
   .lead { color:var(--slate); font-size:18px; margin:10px 0 0; max-width:32ch; }
   main { padding:24px 20px; max-width:480px; }
@@ -31,6 +36,7 @@
 <body>
   <div class="hero">
     <div class="marker">Test dollars on Monad testnet</div>
+    <img class="logo" src="/logo.png" alt="" width="80" height="80" />
     <h1 id="title">Money on Kitty</h1>
     <p class="lead" id="lead">Open this link in the Kitty app.</p>
   </div>

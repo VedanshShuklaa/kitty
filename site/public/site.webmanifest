@@ -1,0 +1,11 @@
+{
+  "name": "Kitty",
+  "short_name": "Kitty",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "theme_color": "#FCE5EF",
+  "background_color": "#F8F6F7",
+  "display": "browser"
+}

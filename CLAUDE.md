@@ -727,3 +727,9 @@ add the new factory/record/cats to `indexer/config.yaml`, push main (Envio), rep
 Pushed main; Envio endpoint `6ff5e3d`, set as `INDEXER_URL`; `KITTY_RECORD` set, site redeployed (`/api/cat` live,
 `/api/tier` gone). Live `practice.live.ts` passes on the new deploy. APK EAS 9cfd8c76 at /download.
 Next: phone test of the new APK (Meet your cat, house, keepsakes, album).
+
+**2026-10-05 — Cat redesign committed, APK rebuilt, site in Kitty pink.**
+User's cat/standing UI committed (`1ff8f65`; tsc + 63 jest). APK EAS 27d90c2c at /download. Site retheme: landing,
+invite and money pages now pink with the app logo (old indigo/marigold ring gone); favicon.ico/png, apple-touch-icon,
+192/512 icons + webmanifest, og.png social image, all from `app/assets/kitty-icon.png`. Deployed and verified live.
+`output/` (design screenshots) left untracked. Next: phone test of the new APK.
