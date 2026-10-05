@@ -37,6 +37,25 @@ indexer.onEvent({ contract: "Circle", event: "Repaid" }, async ({ event, context
   });
 });
 
+// a debtor's pot in another circle paid their debt here (FR-TRU-18)
+indexer.onEvent({ contract: "Circle", event: "DebtPaidElsewhere" }, async ({ event, context }) => {
+  context.Activity.set({
+    id: logId(event),
+    circle_id: event.srcAddress,
+    kind: "PaidDebt",
+    actor: event.params.member,
+    round: undefined,
+    amount: event.params.amount,
+    fromStake: undefined,
+    fromPool: undefined,
+    shortfall: undefined,
+    bps: undefined,
+    at: at(event),
+    block: event.block.number,
+    txHash: event.transaction.hash,
+  });
+});
+
 // a missed round's short part, or a default paid back, credited to a member who lost it
 indexer.onEvent({ contract: "Circle", event: "ArrearsCredited" }, async ({ event, context }) => {
   context.Activity.set({

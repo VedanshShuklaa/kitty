@@ -324,4 +324,55 @@ describe("Feed the Kitty", () => {
     const kinds = (await indexer.Activity.getAll()).filter((a) => a.circle_id === C1).map((a) => a.kind);
     expect(kinds).toEqual(expect.arrayContaining(["PaidBack", "Credited"]));
   });
+
+  it("builds the house from fully paid rounds, keeps keepsakes once, and tracks the streak", async () => {
+    const indexer = createTestIndexer();
+    const c = C1;
+    await indexer.process({
+      chains: {
+        10143: {
+          startBlock: B0,
+          simulate: [
+            ...twoPersonCircle(c, ANA, BEN, 1), // Ben pays round 2 late
+            ...twoPersonCircle(C2, ANA, CAL, 20),
+          ] as never,
+        },
+      },
+    });
+    // both rounds of each circle were paid by everyone with nothing covered
+    expect((await indexer.Circle.getOrThrow(c)).housePieces).toBe(2);
+
+    const kinds = async (who: string) =>
+      (await indexer.Keepsake.getAll()).filter((k) => k.account_id === who).map((k) => k.kind).sort();
+    // Ana: four on time in a row, two pots, two circles all on time; each kept once
+    expect(await kinds(ANA)).toEqual(["Box", "Fish", "Gold", "Wand", "Yarn"]);
+    // Ben: one on time then a late round, so no wand and no golden bowl
+    expect(await kinds(BEN)).toEqual(["Box", "Fish", "Yarn"]);
+    expect((await indexer.Keepsake.getOrThrow(`${ANA}-Box`)).circle).toBe(c);
+
+    expect(await indexer.Account.getOrThrow(ANA)).toMatchObject({ onTimeStreak: 4, bestStreak: 4 });
+    expect(await indexer.Account.getOrThrow(BEN)).toMatchObject({ onTimeStreak: 0, bestStreak: 1 });
+  });
+
+  it("adds no house piece for a round where someone was covered", async () => {
+    const indexer = createTestIndexer();
+    await indexer.process({
+      chains: {
+        10143: {
+          startBlock: B0,
+          simulate: [
+            created(C1, ANA, 2, 1),
+            joined(C1, ANA, 0, 2),
+            joined(C1, BEN, 1, 3),
+            ev(C1, "Activated", { firstDue: BigInt(T0 + 2_000) }, 3),
+            paid(C1, ANA, 1, 4),
+            ev(C1, "Covered", { member: BEN, round: 1n, fromStake: 10_000000n, fromPool: 0n, shortfall: 0n }, 5),
+            pot(C1, ANA, 1, 5),
+            closed(C1, 1, 5),
+          ] as never,
+        },
+      },
+    });
+    expect((await indexer.Circle.getOrThrow(C1)).housePieces).toBe(0);
+  });
 });

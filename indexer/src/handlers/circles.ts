@@ -1,6 +1,6 @@
 import { indexer, type Activity, type EvmOnEventContext, type Member, type Round } from "envio";
 
-import { account, bumpDay, logId, saveAccount } from "../lib/records";
+import { account, bumpDay, keep, logId, saveAccount } from "../lib/records";
 
 // Circles, rounds and the record across them (SRS 8.1, 8.4). Each handler
 // mirrors what Circle.sol did to its own storage when it emitted the event,
@@ -95,6 +95,7 @@ indexer.onEvent({ contract: "CircleFactory", event: "CircleCreated" }, async ({ 
     totalPaidOut: 0n,
     totalCovered: 0n,
     yieldEarned: undefined,
+    housePieces: 0,
   });
   const org = await account(context, event.params.organizer, t);
   saveAccount(context, { ...org, circlesOrganized: org.circlesOrganized + 1 }, t);
@@ -173,11 +174,21 @@ indexer.onEvent({ contract: "Circle", event: "Contributed" }, async ({ event, co
     contributed: m.contributed + paid,
   });
   const a = await account(context, who, t);
+  const streak = late ? 0 : a.onTimeStreak + 1;
   saveAccount(
     context,
-    { ...a, paidOnTime: a.paidOnTime + (late ? 0 : 1), paidLate: a.paidLate + (late ? 1 : 0), totalContributed: a.totalContributed + paid },
+    {
+      ...a,
+      paidOnTime: a.paidOnTime + (late ? 0 : 1),
+      paidLate: a.paidLate + (late ? 1 : 0),
+      totalContributed: a.totalContributed + paid,
+      onTimeStreak: streak,
+      bestStreak: Math.max(a.bestStreak, streak),
+    },
     t,
   );
+  if (!late) await keep(context, who, "Yarn", circle, event);
+  if (streak >= 3) await keep(context, who, "Wand", circle, event);
   const c = await context.Circle.getOrThrow(circle);
   context.Circle.set({ ...c, totalContributed: c.totalContributed + paid });
   const r = await round(context, circle, index);
@@ -262,7 +273,7 @@ indexer.onEvent({ contract: "Circle", event: "Covered" }, async ({ event, contex
   const m = await context.Member.getOrThrow(memberId(circle, who));
   context.Member.set({ ...m, standing: "Behind", arrears: m.arrears + covered, timesCovered: m.timesCovered + 1 });
   const a = await account(context, who, t);
-  saveAccount(context, { ...a, timesCovered: a.timesCovered + 1 }, t);
+  saveAccount(context, { ...a, timesCovered: a.timesCovered + 1, onTimeStreak: 0 }, t);
   const c = await context.Circle.getOrThrow(circle);
   context.Circle.set({ ...c, totalCovered: c.totalCovered + covered });
   const r = await round(context, circle, index);
@@ -301,6 +312,7 @@ indexer.onEvent({ contract: "Circle", event: "Defaulted" }, async ({ event, cont
     {
       ...a,
       defaults: a.defaults + 1,
+      onTimeStreak: 0,
       openDefaults: a.openDefaults + (shortfall > 0n ? 1 : 0),
       lastDefaultClearedAt: shortfall > 0n ? a.lastDefaultClearedAt : t,
     },
@@ -369,6 +381,7 @@ indexer.onEvent({ contract: "Circle", event: "PotPaid" }, async ({ event, contex
   });
   const a = await account(context, who, t);
   saveAccount(context, { ...a, potsReceived: a.potsReceived + 1, totalReceived: a.totalReceived + paid }, t);
+  await keep(context, who, "Fish", circle, event);
   const c = await context.Circle.getOrThrow(circle);
   context.Circle.set({ ...c, totalPaidOut: c.totalPaidOut + paid });
 
@@ -402,7 +415,12 @@ indexer.onEvent({ contract: "Circle", event: "RoundClosed" }, async ({ event, co
   const index = Number(event.params.round);
   const r = await round(context, circle, index);
   context.Round.set({ ...r, closedAt: at(event), closer: event.params.closer });
-  const c = await context.Circle.getOrThrow(circle);
+  let c = await context.Circle.getOrThrow(circle);
+  // everyone paid and nobody was covered: the house gains a piece
+  if (r.payments >= c.memberCount && r.covered === 0n && c.housePieces < 12) {
+    c = { ...c, housePieces: c.housePieces + 1 };
+    context.Circle.set(c);
+  }
   if (index < c.memberCount) {
     context.Circle.set({ ...c, currentRound: index + 1 });
     context.Round.set(newRound(circle, index + 1, c.firstDue + BigInt(index * c.period)));
@@ -445,6 +463,8 @@ indexer.onEvent({ contract: "Circle", event: "Completed" }, async ({ event, cont
       },
       t,
     );
+    await keep(context, m.address, "Box", circle, event);
+    if (m.paidOnTime >= c.memberCount && m.paidLate === 0 && m.timesCovered === 0) await keep(context, m.address, "Gold", circle, event);
   }
 });
 

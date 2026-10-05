@@ -32,6 +32,7 @@ contracts:
       - event: "Placed(address indexed member, uint8 stage)"
       - event: "Repaid(address indexed member, uint256 amount)"
       - event: "ArrearsCredited(address indexed from, address indexed to, uint256 amount)"
+      - event: "DebtPaidElsewhere(address indexed member, address indexed circle, uint256 amount)"
   - name: KittyRecord # standing, written only by circles ("Feed the Kitty")
     events:
       - event: "StageChanged(address indexed account, uint8 from, uint8 to, uint8 why)"

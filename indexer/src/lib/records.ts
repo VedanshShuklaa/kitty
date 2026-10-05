@@ -30,6 +30,8 @@ export function newAccount(id: string, at: bigint): Account {
     stage: "Shy",
     debt: 0n,
     catAdoptedAt: undefined,
+    onTimeStreak: 0,
+    bestStreak: 0,
   };
 }
 
@@ -67,4 +69,17 @@ export async function bumpDay(context: Ctx, at: bigint, delta: Partial<Counters>
     next[k] = typeof v === "bigint" ? (next[k] as bigint) + v : (next[k] as number) + v;
   }
   context.DailyStats.set(next as unknown as DailyStats);
+}
+
+/** Keeps a keepsake the first time its rule is met; later times change nothing. */
+export async function keep(
+  context: Ctx,
+  who: string,
+  kind: "Yarn" | "Wand" | "Fish" | "Box" | "Gold",
+  circle: string,
+  e: { block: { timestamp: number }; transaction: { hash: string } },
+): Promise<void> {
+  const id = `${who}-${kind}`;
+  if (await context.Keepsake.get(id)) return;
+  context.Keepsake.set({ id, account_id: who, kind, circle, at: BigInt(e.block.timestamp), txHash: e.transaction.hash });
 }

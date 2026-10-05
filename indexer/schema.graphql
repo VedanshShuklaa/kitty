@@ -30,6 +30,9 @@ type Circle {
   totalPaidOut: BigInt! # pots handed out, net of discount and holdback
   totalCovered: BigInt! # missed payments covered from deposits and the pool
   yieldEarned: BigInt # assets above principal at settlement, when deposits earned
+  # "Feed the Kitty": the circle's house gains a piece for each round in which
+  # every member paid and nobody was covered, up to twelve. Never taken away.
+  housePieces: Int!
   members: [Member!]! @derivedFrom(field: "circle")
   rounds: [Round!]! @derivedFrom(field: "circle")
   activity: [Activity!]! @derivedFrom(field: "circle")
@@ -62,8 +65,23 @@ type Account {
   stage: String! # Away | Wary | Shy | Friendly | AtHome | Family
   debt: BigInt! # what circles lost to this account's defaults, until repaid
   catAdoptedAt: BigInt
+  onTimeStreak: Int! # on-time payments in a row, across circles; a late or covered round resets it
+  bestStreak: Int!
+  keepsakes: [Keepsake!]! @derivedFrom(field: "account")
   stageChanges: [StageChange!]! @derivedFrom(field: "account")
   memberships: [Member!]! @derivedFrom(field: "account")
+}
+
+# A milestone the cat keeps, each with a rule anyone can read and earned once:
+# Yarn (first round paid on time), Wand (three on time in a row), Fish (first
+# pot), Box (first circle finished), Gold (every round of a circle on time).
+type Keepsake {
+  id: ID! # `${account}-${kind}`
+  account: Account!
+  kind: String!
+  circle: String!
+  at: BigInt!
+  txHash: String!
 }
 
 # Each pair of accounts that finished a circle together, counted once, so
@@ -172,7 +190,7 @@ type Payout {
 type Activity {
   id: ID! # `${tx}-${logIndex}`
   circle: Circle!
-  kind: String! # Created | Joined | Started | Paid | BidSealed | BidOpened | Covered | Defaulted | DefaultFilled | CaughtUp | PotPaid | Completed | Cancelled | Collected | Settled | PaidBack | Credited
+  kind: String! # Created | Joined | Started | Paid | BidSealed | BidOpened | Covered | Defaulted | DefaultFilled | CaughtUp | PotPaid | Completed | Cancelled | Collected | Settled | PaidBack | Credited | PaidDebt
   actor: String # the member it is about, if any
   round: Int
   amount: BigInt
