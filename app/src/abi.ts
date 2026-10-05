@@ -2,12 +2,7 @@ import { parseAbi } from "viem";
 
 // Only what the app calls. Signatures mirror contracts/src/interfaces.
 const RULES =
-  "struct Rules { uint8 memberCount; uint16 stakeBps; uint16 maxBidBps; uint16 poolShareBps; uint16 holdbackBps; bool yieldOn; bool tierDiscountOn; uint64 contribution; uint64 firstDue; uint32 period; uint32 commitWindow; uint32 revealWindow; uint32 grace; uint64 joinDeadline; }";
-// Circles from factories before SRS 7.11 return Rules without tierDiscountOn
-const LEGACY_RULES =
   "struct Rules { uint8 memberCount; uint16 stakeBps; uint16 maxBidBps; uint16 poolShareBps; uint16 holdbackBps; bool yieldOn; uint64 contribution; uint64 firstDue; uint32 period; uint32 commitWindow; uint32 revealWindow; uint32 grace; uint64 joinDeadline; }";
-
-export const legacyRulesAbi = parseAbi([LEGACY_RULES, "function rules() view returns (Rules)"]);
 
 export const factoryAbi = parseAbi([
   RULES,
@@ -20,10 +15,11 @@ export const factoryAbi = parseAbi([
 export const circleAbi = parseAbi([
   RULES,
   "function join(uint8 seat, bytes inviteSig)",
-  "function join(uint8 seat, bytes inviteSig, bytes tierAttestation)",
   "function cancel()",
   "function contribute(uint32 round)",
   "function payArrears()",
+  "function repay()",
+  "function recordFinish(address member)",
   "function commitBid(uint32 round, bytes32 commitment)",
   "function revealBid(uint32 round, uint16 discountBps, bytes32 salt)",
   "function closeRound(uint32 round)",
@@ -43,6 +39,7 @@ export const circleAbi = parseAbi([
   "function recipientOf(uint32 round) view returns (address)",
   "function revealedBid(uint32 round, address member) view returns (bool revealed, uint16 discountBps)",
   "function vault() view returns (address)",
+  "function placeOf(address member) view returns (uint8 stage, uint8 limitMonths, uint8 offerFrom, uint256 owed)",
   "error WrongState()",
   "error NotMember()",
   "error SeatTaken()",
@@ -58,7 +55,23 @@ export const circleAbi = parseAbi([
   "error BadReveal()",
   "error AutopayOff()",
   "error NothingToWithdraw()",
-  "error BadAttestation()",
+  "error Owing()",
+  "error TooManyCircles()",
+]);
+
+// "Feed the Kitty": every account's standing, written only by circles.
+export const recordAbi = parseAbi([
+  "struct Terms { uint8 stage; uint16 depositX100; uint8 limitMonths; uint8 offerFrom; uint8 maxOpen; uint8 open; }",
+  "function stageOf(address a) view returns (uint8)",
+  "function termsOf(address a, uint64 contribution) view returns (Terms)",
+  "function debtOf(address a) view returns (uint256)",
+  "function progressOf(address a) view returns (int256 points, uint16 onTimeBps, uint16 people, uint64 biggestClean, uint8 open)",
+]);
+
+// The cat: one locked token per account. Holds no money; nothing reads it.
+export const catsAbi = parseAbi([
+  "function adopt() returns (uint256)",
+  "function catOf(address owner) view returns (uint256 id, bool adopted)",
 ]);
 
 // SRS 15.7: how much of a circle's collateral is earning, and what it has

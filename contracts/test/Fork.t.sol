@@ -6,6 +6,8 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { CircleFactory } from "../src/CircleFactory.sol";
+import { IKittyRecord } from "../src/interfaces/IKittyRecord.sol";
+import { OpenRecord } from "./mocks/OpenRecord.sol";
 import { StakeVault } from "../src/StakeVault.sol";
 import { Circle } from "../src/Circle.sol";
 import { ICircle } from "../src/interfaces/ICircle.sol";
@@ -29,6 +31,7 @@ contract ForkTest is Test {
 
     StakeVault vault;
     CircleFactory factory;
+    IKittyRecord record;
     address owner = makeAddr("owner");
 
     function setUp() public {
@@ -44,9 +47,12 @@ contract ForkTest is Test {
         }
         vault = new StakeVault(AUSD, owner);
         vm.prank(owner);
-        factory = new CircleFactory(AUSD, vault, 300, owner);
+        record = new OpenRecord();
+        factory = new CircleFactory(AUSD, vault, record, 300, owner);
         vm.prank(owner);
         vault.setFactory(address(factory));
+        vm.prank(owner);
+        record.addFactory(address(factory));
     }
 
     function test_TC1_15_realAusdJoinAndContribute_permitAndPlainApproval() public {
@@ -73,7 +79,6 @@ contract ForkTest is Test {
             poolShareBps: 1_000,
             holdbackBps: 2_000,
             yieldOn: false,
-            tierDiscountOn: false,
             contribution: 1_000000, // 1 AUSD, real 6-decimal amount
             firstDue: uint64(block.timestamp) + 1 hours,
             period: 600,

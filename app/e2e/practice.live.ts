@@ -16,6 +16,8 @@ jest.mock("../src/config", () => {
       chainId: d.chainId,
       circleFactory: d.circleFactory,
       ausd: d.ausd,
+      kittyRecord: d.kittyRecord,
+      kittyCats: d.kittyCats,
       ausdFaucet: "0xd236c18D274E54FAccC3dd9DDA4b27965a73ee6C",
     },
   };
@@ -26,7 +28,9 @@ jest.mock("@react-native-async-storage/async-storage", () => {
   return { getItem: async (k: string) => m.get(k) ?? null, setItem: async (k: string, v: string) => void m.set(k, v), removeItem: async (k: string) => void m.delete(k) };
 });
 
-import { balanceOf, closeRound, contribute, createCircle, depositOf, inviteKeyFor, joinCircle, loadSnapshot, withdraw, type Signer } from "../src/kitty";
+import { adoptCat, balanceOf, client, closeRound, contribute, createCircle, depositOf, inviteKeyFor, joinCircle, loadSnapshot, readStanding, withdraw, type Signer } from "../src/kitty";
+import { catsAbi } from "../src/abi";
+import { contracts } from "../src/config";
 import { tidyCircle } from "../src/tidy";
 
 jest.setTimeout(10 * 60_000);
@@ -53,10 +57,14 @@ it("runs a two-member circle on 1-minute rounds, start to finish", async () => {
   const names = ["Ama", "Kofi"];
   const circle = await createCircle(
     org,
-    { title: "Practice", names, contribution: ONE, cadence: "practice1", startIn: 180, maxBidBps: 3_000, yieldOn: true, tierDiscountOn: false },
+    { title: "Practice", names, contribution: ONE, cadence: "practice1", startIn: 180, maxBidBps: 3_000, yieldOn: true },
     () => {},
   );
   await joinCircle(mem, { circle, seat: 1, key: inviteKeyFor(org, circle, 1), title: "Practice", names, roster: null }, () => {});
+  // Feed the Kitty: newcomers join Shy, open one circle each, and offer only from the second half
+  const placed = await loadSnapshot(circle, mem.address);
+  expect(placed.members.map((m) => [m.stage, m.offerFrom])).toEqual([["Shy", 1], ["Shy", 1]]);
+  expect((await readStanding(mem.address)).open).toBe(1);
 
   for (const round of [1, 2]) {
     let s = await loadSnapshot(circle, org.address);
@@ -78,13 +86,22 @@ it("runs a two-member circle on 1-minute rounds, start to finish", async () => {
     await withdraw(who, circle);
   }
   for (const who of [org, mem]) expect((await loadSnapshot(circle, who.address)).me!.withdrawable).toBe(0n);
+  // withdrawing wrote the finished circle into the record: closed, still Shy
+  // (40 from one Shy other), every round on time
+  const after = await readStanding(mem.address);
+  expect(after).toMatchObject({ stage: "Shy", points: 40, onTimeBps: 10_000, people: 1, open: 0, debt: 0n });
+  // her cat: adopted once, as a sponsored action
+  expect(await adoptCat(mem)).toBe(true);
+  expect(await adoptCat(mem)).toBe(false);
+  const [, adopted] = await client.readContract({ address: contracts.kittyCats, abi: catsAbi, functionName: "catOf", args: [mem.address] });
+  expect(adopted).toBe(true);
 });
 
 it("calls off a circle nobody joined and returns the organizer's deposit", async () => {
   const org = signer();
   const circle = await createCircle(
     org,
-    { title: "Lonely", names: ["Ama", "Kofi"], contribution: ONE, cadence: "practice1", startIn: 60, maxBidBps: 3_000, yieldOn: false, tierDiscountOn: false },
+    { title: "Lonely", names: ["Ama", "Kofi"], contribution: ONE, cadence: "practice1", startIn: 60, maxBidBps: 3_000, yieldOn: false },
     () => {},
   );
   let s = await loadSnapshot(circle, org.address);

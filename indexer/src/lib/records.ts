@@ -1,7 +1,5 @@
 import type { Account, DailyStats, EvmOnEventContext } from "envio";
 
-import { tierOf } from "./standing";
-
 type Ctx = EvmOnEventContext;
 
 /** Ids of rows written once per log. */
@@ -29,8 +27,9 @@ export function newAccount(id: string, at: bigint): Account {
     sends: 0,
     receives: 0,
     counterparties: 0,
-    cycleWeight: 0,
-    tier: "Newcomer",
+    stage: "Shy",
+    debt: 0n,
+    catAdoptedAt: undefined,
   };
 }
 
@@ -38,9 +37,9 @@ export async function account(context: Ctx, address: string, at: bigint): Promis
   return (await context.Account.get(address)) ?? newAccount(address, at);
 }
 
-/** Writes an account back with its tier recomputed from the new record. */
-export function saveAccount(context: Ctx, a: Account, now: bigint): void {
-  context.Account.set({ ...a, tier: tierOf(a, now) });
+/** Writes an account back. `now` is kept for callers; the record has no derived fields. */
+export function saveAccount(context: Ctx, a: Account, _now: bigint): void {
+  context.Account.set(a);
 }
 
 const DAY = 86_400n;

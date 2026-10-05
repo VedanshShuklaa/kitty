@@ -13,6 +13,8 @@ type Extra = {
     chainId: number;
     circleFactory: Address;
     ausd: Address;
+    kittyRecord: Address;
+    kittyCats: Address;
     ausdFaucet: Address;
     ctk: Address;
     pair: Address;

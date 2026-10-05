@@ -3,6 +3,10 @@
   "trailingSlash": false,
   "rewrites": [
     {
+      "source": "/api/cat/:address",
+      "destination": "/api/cat?address=:address"
+    },
+    {
       "source": "/j/:path*",
       "destination": "/j/index.html"
     },

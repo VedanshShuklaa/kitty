@@ -4,6 +4,8 @@ pragma solidity 0.8.30;
 import { Test } from "forge-std/Test.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { CircleFactory } from "../src/CircleFactory.sol";
+import { IKittyRecord } from "../src/interfaces/IKittyRecord.sol";
+import { OpenRecord } from "./mocks/OpenRecord.sol";
 import { StakeVault } from "../src/StakeVault.sol";
 import { Circle } from "../src/Circle.sol";
 import { ICircle } from "../src/interfaces/ICircle.sol";
@@ -20,6 +22,7 @@ contract BidEconomicsTest is Test {
     MockAUSD ausd;
     StakeVault vault;
     CircleFactory factory;
+    IKittyRecord record;
 
     address owner = makeAddr("owner");
     address organizer = makeAddr("organizer");
@@ -33,9 +36,12 @@ contract BidEconomicsTest is Test {
         ausd = new MockAUSD();
         vault = new StakeVault(ausd, owner);
         vm.prank(owner);
-        factory = new CircleFactory(ausd, vault, 300, owner);
+        record = new OpenRecord();
+        factory = new CircleFactory(ausd, vault, record, 300, owner);
         vm.prank(owner);
         vault.setFactory(address(factory));
+        vm.prank(owner);
+        record.addFactory(address(factory));
     }
 
     function _rulesFor(uint8 memberCount, uint64 contribution) internal view returns (Rules memory r) {
@@ -46,7 +52,6 @@ contract BidEconomicsTest is Test {
             poolShareBps: 1_000,
             holdbackBps: 2_000,
             yieldOn: false,
-            tierDiscountOn: false,
             contribution: contribution,
             firstDue: uint64(block.timestamp) + 1 days,
             period: PERIOD,
@@ -437,11 +442,13 @@ contract BidEconomicsTest is Test {
         Circle(circle).closeRound(2);
         assertEq(Circle(circle).pool(), 0, "pool drained to cover the miss");
         (,, uint256 arrears,) = Circle(circle).standingOf(members[2]);
-        assertEq(arrears, 53_000000, "50M from stake + 3M from pool");
+        // FR-TRU-17: the whole round is owed, including the 47M nobody covered
+        assertEq(arrears, 100_000000, "50M from stake + 3M from pool + 47M short");
+        (,,, uint256 creditBefore) = Circle(circle).standingOf(organizer);
 
-        // repaying arrears in full must restore the stake portion to the
-        // member's own stake, and the pool portion back to the shared pool --
-        // not all 53M dumped into the member's personal stake
+        // repaying arrears in full pays round 2's recipient (the organizer)
+        // the 47M their pot was short, returns the pool portion to the pool,
+        // and restores the stake portion to the member's own stake
         vm.startPrank(members[2]);
         ausd.approve(circle, type(uint256).max);
         Circle(circle).payArrears();
@@ -451,6 +458,8 @@ contract BidEconomicsTest is Test {
             vault.balanceOf(circle, members[2], IStakeVault.Kind.Stake), 50_000000, "stake restored, not the pool cut"
         );
         assertEq(Circle(circle).pool(), 3_000000, "pool portion returns to the shared pool");
+        (,,, uint256 creditAfter) = Circle(circle).standingOf(organizer);
+        assertEq(creditAfter - creditBefore, 47_000000, "the short recipient is paid back");
     }
 
     // ---- TC-3-09: a defaulted member cannot contribute or bid ----

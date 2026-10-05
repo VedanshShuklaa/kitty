@@ -103,7 +103,13 @@ Keep the pot summary compact. The previous large decorative bead ring must not d
 
 ## Standing (SRS 6.13, FR-TRU-11)
 
-Standing is a named tier (Newcomer, Steady, Trusted, Anchor) with the one plain next step that raises it, never a number out of a maximum, a bar or a percentage complete, and never the words credit, score, rating or collateral. It only ever helps: copy must not imply a penalty below where a newcomer starts. Before joining a circle that allows smaller deposits, show the deposit this member will put down, the usual one, and who is already in with their standing.
+Branch `experimental/trust-tiers` ("Feed the Kitty"): standing is the member's cat, at one of six stages (Away, Wary, Shy, Friendly, At home, Family), read from the onchain `KittyRecord`. Show the stage name and the one plain next step, never a number out of a maximum, a bar or a percentage complete, and never the words credit, score, rating or collateral. Standing now sets terms, so:
+
+- **Terms before money.** Join shows the payout order with everyone's stage, this member's deposit (two rounds for Wary), when they can make an offer, and what they can owe after the pot, before any money moves.
+- **Every change explained.** Account says what happened, what it changes in the next circle (`termsInWords`), and the way back (`nextStep`). Away always shows the amount owed and one "Pay back" button.
+- **Where she appears.** Home (the card under the balance), Account, and member rows ("Cat: Friendly"). Never in payment steps, passkey prompts, confirmations or errors.
+- **Words first.** `app/src/Cat.tsx` draws still poses only; the drawing is hidden from screen readers where the same sentence is on screen. "Show my cat" turns the drawing off; the terms stay, in words.
+- **Money words stay.** "Pay $10" is never "Feed her". Other members see a stage, never the reason for it.
 
 ## Copy and financial trust
 

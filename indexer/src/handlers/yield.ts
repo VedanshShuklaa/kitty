@@ -1,6 +1,6 @@
 import { indexer, type EvmOnEventContext } from "envio";
 
-import { aprBps } from "../lib/standing";
+import { aprBps } from "../lib/rate";
 
 // The yield line on a circle (SRS 15.7) shows simulated testnet yield beside
 // the real earnAUSD rate on mainnet. Both come in as share prices; the rate is

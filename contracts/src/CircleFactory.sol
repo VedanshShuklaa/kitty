@@ -8,6 +8,7 @@ import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { ICircleFactory, Rules } from "./interfaces/ICircleFactory.sol";
 import { Circle } from "./Circle.sol";
 import { IStakeVault } from "./interfaces/IStakeVault.sol";
+import { IKittyRecord } from "./interfaces/IKittyRecord.sol";
 
 /// @notice Validates circle rules and deploys each circle as an EIP-1167
 /// clone with CREATE2 (SRS section 7.2). The owner can pause new circle
@@ -17,29 +18,24 @@ contract CircleFactory is ICircleFactory, Ownable, Pausable {
     IERC20 public immutable ausdToken;
     IStakeVault public immutable vaultAddress;
     uint32 public immutable minPeriodValue;
+    IKittyRecord public immutable record;
 
     mapping(address => bool) private _isCircle;
     mapping(address => uint256) public organizerNonce;
-    /// Signs tier attestations (SRS 7.11). It can only lower a stake inside
-    /// the circle's own rule, so zero, offline or compromised all fall back to
-    /// the full stake.
-    address public tierAttestor;
 
-    constructor(IERC20 ausd_, IStakeVault vault_, uint32 minPeriod_, address owner_) Ownable(owner_) {
+    constructor(IERC20 ausd_, IStakeVault vault_, IKittyRecord record_, uint32 minPeriod_, address owner_)
+        Ownable(owner_)
+    {
         ausdToken = ausd_;
         vaultAddress = vault_;
+        record = record_;
         minPeriodValue = minPeriod_;
-        circleImplementation = address(new Circle(ausd_, vault_, address(this)));
+        circleImplementation = address(new Circle(ausd_, vault_, address(this), record_));
     }
 
     function setPaused(bool paused_) external onlyOwner {
         if (paused_) _pause();
         else _unpause();
-    }
-
-    function setTierAttestor(address attestor) external onlyOwner {
-        tierAttestor = attestor;
-        emit TierAttestorSet(attestor);
     }
 
     function createCircle(Rules calldata rules, address[] calldata inviteSigners)

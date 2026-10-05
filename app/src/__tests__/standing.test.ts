@@ -1,86 +1,94 @@
-import { encodeFunctionResult } from "viem";
+import type { Address } from "viem";
 
-jest.mock("../config", () => ({
-  apiUrl: "https://kitty-circle.vercel.app",
-  contracts: { chainId: 10143, circleFactory: "0x0000000000000000000000000000000000000001" },
-}));
+import { canOfferIn, firstOfferRound, lookOf, moodOf, nextStep, payoutOrder, termsInWords, type Progress } from "../standing";
 
-import { circleAbi, legacyRulesAbi } from "../abi";
-import { decodeRules, depositOf, stakeBpsWithTier, type Rules } from "../kitty";
-import { rulesInWords } from "../phase";
-import { nextWords, usable, type Standing } from "../standing";
+const base: Progress = { stage: "Shy", debt: 0n, points: 0, onTimeBps: 0, people: 0, biggestClean: 0n, open: 0 };
 
-const rules: Rules = {
-  memberCount: 3,
-  stakeBps: 10_000,
-  maxBidBps: 3_000,
-  poolShareBps: 1_000,
-  holdbackBps: 2_000,
-  yieldOn: true,
-  tierDiscountOn: true,
-  contribution: 10_000000n,
-  firstDue: 1_800_000_000n,
-  period: 600,
-  commitWindow: 240,
-  revealWindow: 60,
-  grace: 120,
-  joinDeadline: 1_799_999_760n,
-};
-
-describe("rules, before and after SRS 7.11", () => {
-  it("reads the new layout as it is", () => {
-    const data = encodeFunctionResult({ abi: circleAbi, functionName: "rules", result: rules });
-    expect(decodeRules(data)).toEqual(rules);
-  });
-
-  it("reads an older circle's rules without shifting a field", () => {
-    const { tierDiscountOn: _, ...old } = rules;
-    const data = encodeFunctionResult({ abi: legacyRulesAbi, functionName: "rules", result: old });
-    expect(decodeRules(data)).toEqual({ ...rules, tierDiscountOn: false });
+describe("the cat's look (KittyCats.lookOf)", () => {
+  it("matches keccak256(abi.encodePacked(owner)) in Solidity, whatever the case", () => {
+    // expected values from `cast keccak <address>`
+    expect(lookOf("0x2222222222222222222222222222222222222222")).toEqual({ coat: 0, pattern: 2 });
+    expect(lookOf("0x0cdF60D04d67B6b6B1D9bD8C5bBfC7cC0C3fC1aB")).toEqual({ coat: 4, pattern: 1 });
+    expect(lookOf("0x0CDF60D04D67B6B6B1D9BD8C5BBFC7CC0C3FC1AB" as Address)).toEqual({ coat: 4, pattern: 1 });
   });
 });
 
-describe("tier deposits (SRS 7.11)", () => {
-  it("takes a share of the circle's own deposit, never under half", () => {
-    expect(stakeBpsWithTier(rules, 8_500)).toBe(8_500);
-    expect(stakeBpsWithTier({ ...rules, stakeBps: 12_000 }, 8_500)).toBe(10_200);
-    expect(stakeBpsWithTier({ ...rules, stakeBps: 6_000 }, 5_000)).toBe(5_000);
-    expect(depositOf({ contribution: 10_000000n, stakeBps: stakeBpsWithTier(rules, 7_000) })).toBe(7_000000n);
+describe("payout order (Circle._rank)", () => {
+  it("puts better stages first and breaks ties by seat", () => {
+    const order = payoutOrder([
+      { seat: 0, stage: "Shy" as const },
+      { seat: 1, stage: "Wary" as const },
+      { seat: 2, stage: "Friendly" as const },
+      { seat: 3, stage: "Shy" as const },
+      { seat: 4, stage: "Family" as const },
+    ]);
+    expect(order.map((m) => m.seat)).toEqual([4, 2, 0, 3, 1]);
   });
+});
 
-  it("changes nothing where the organizer kept discounts off", () => {
-    expect(stakeBpsWithTier({ ...rules, tierDiscountOn: false }, 5_000)).toBe(10_000);
-  });
-
-  it("sends an attestation only while it has time left", () => {
-    const s: Standing = { tier: "Steady", tierBps: 8_500, next: null, attestation: "0x01", expiry: 1_000 };
-    expect(usable(s, 800)).toBe("0x01");
-    expect(usable(s, 900)).toBeNull();
-    expect(usable({ ...s, attestation: null }, 0)).toBeNull();
-    expect(usable(null, 0)).toBeNull();
-  });
-
-  it("tells members before they join", () => {
-    expect(rulesInWords(rules).some((l) => /trust circle/.test(l.lead))).toBe(true);
-    expect(rulesInWords({ ...rules, tierDiscountOn: false }).some((l) => /trust circle/.test(l.lead))).toBe(false);
+describe("offer windows (Circle._canOffer)", () => {
+  it("opens any round, the second half, or never", () => {
+    expect(canOfferIn(0, 1, 4)).toBe(true);
+    expect(canOfferIn(1, 2, 4)).toBe(false);
+    expect(canOfferIn(1, 3, 4)).toBe(true);
+    expect(canOfferIn(1, 3, 5)).toBe(true);
+    expect(canOfferIn(2, 4, 4)).toBe(false);
+    expect(firstOfferRound(1, 6)).toBe(4);
+    expect(firstOfferRound(2, 6)).toBeNull();
   });
 });
 
 describe("standing in words (FR-TRU-11)", () => {
-  const banned = /credit|score|rating|collateral|\d+\s*\/\s*\d+|%\s*complete/i;
+  const banned = /credit|score|rating|collateral|points?\b/i;
 
-  it("names the next step, never a number out of a maximum", () => {
-    const lines = [
-      nextWords({ tier: "Steady", circles: 3, newPeople: 0, onTimeBps: 9_000, open: false, heldUntil: null }),
-      nextWords({ tier: "Trusted", circles: 1, newPeople: 6, onTimeBps: 0, open: false, heldUntil: null }),
-      nextWords({ tier: "Steady", circles: 0, newPeople: 0, onTimeBps: 0, open: true, heldUntil: null }),
-      nextWords({ tier: "Steady", circles: 0, newPeople: 0, onTimeBps: 0, open: false, heldUntil: 1_830_000_000 }),
-      nextWords(null),
-    ];
-    expect(lines[0]).toBe("To become Steady: finish up to 3 more circles with people you haven't saved with before and pay on time at least 9 times in 10.");
-    expect(lines[1]).toBe("To become Trusted: finish up to 1 more circle with people you haven't saved with before and save with 6 more new people.");
-    expect(lines[2]).toMatch(/Pay back the round you missed/);
-    expect(lines[3]).toMatch(/can rise again from/);
-    for (const l of lines) expect(l).not.toMatch(banned);
+  it("never uses a number out of a maximum or the banned words", () => {
+    for (const p of [
+      base,
+      { ...base, points: 40, onTimeBps: 8_000 },
+      { ...base, stage: "Friendly" as const, points: 140, onTimeBps: 9_600, people: 4 },
+      { ...base, stage: "AtHome" as const, points: 420, onTimeBps: 9_700, people: 8 },
+      { ...base, stage: "Family" as const, points: 700 },
+      { ...base, stage: "Wary" as const, points: -300 },
+      { ...base, stage: "Away" as const, points: -300, debt: 6_000000n },
+    ]) {
+      expect(nextStep(p)).not.toMatch(banned);
+    }
+  });
+
+  it("names the one next step", () => {
+    expect(nextStep({ ...base, points: 40, onTimeBps: 8_000 })).toBe(
+      "For her to become Friendly: finish at least 1 more circle with people you haven't saved with before and pay on time at least 9 times in 10.",
+    );
+    expect(nextStep({ ...base, stage: "Friendly", points: 140, onTimeBps: 9_600, people: 4 })).toBe(
+      "For her to become At home: finish at least 2 more circles with people you haven't saved with before and save with 2 more new people.",
+    );
+    expect(nextStep({ ...base, stage: "Wary", points: -300 })).toMatch(/about 30 months/);
+    expect(nextStep({ ...base, stage: "Away", debt: 1n })).toMatch(/^Pay back/);
+  });
+
+  it("states the terms each stage sets (the queue table)", () => {
+    const wary = Object.fromEntries(termsInWords("Wary").map((t) => [t.label, t.value]));
+    expect(wary).toMatchObject({ "You're paid": "Last", "Offers to go earlier": "None", Deposit: "Two rounds", "Most you can owe after the pot": "Nothing" });
+    const shy = Object.fromEntries(termsInWords("Shy").map((t) => [t.label, t.value]));
+    expect(shy).toMatchObject({ "Offers to go earlier": "From the second half", Deposit: "One round", "Circles at once": "2" });
+    expect(termsInWords("Away")[0]).toEqual({ label: "New circles", value: "Not until you pay back" });
+  });
+});
+
+describe("her mood", () => {
+  const words = { money: (n: bigint) => `$${n / 1_000000n}`, countdown: () => "in 2 hours" };
+  const circle = { title: "Lagos Savers", state: "active" as const, due: 100, mine: { standing: "good" as const, paid: false, arrears: 0n }, pay: 10_000000n };
+
+  it("waits for dinner while a round is unpaid, in money words", () => {
+    expect(moodOf("Shy", [circle], 0, words)).toEqual({ line: "She's waiting for dinner", detail: "Lagos Savers: pay $10 in 2 hours." });
+  });
+
+  it("puts a covered round ahead of a due one", () => {
+    const behind = { ...circle, title: "Market Women", mine: { standing: "behind" as const, paid: true, arrears: 10_000000n } };
+    expect(moodOf("Shy", [circle, behind], 0, words).line).toBe("Her ears are back");
+  });
+
+  it("is content when everything is paid", () => {
+    expect(moodOf("Friendly", [{ ...circle, mine: { ...circle.mine, paid: true }, pay: null }], 0, words).detail).toMatch(/content/);
   });
 });

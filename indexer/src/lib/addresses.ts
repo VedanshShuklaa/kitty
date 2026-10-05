@@ -16,8 +16,12 @@ export const VAULTS = new Set([
   "0x8fd0e8eb4db03aed08c14fe686d10d59d9d5a31f",
   "0x4d681f775adb2e09eeaf5316a04a082b0182ed26", // 4 Oct
   "0x825b90eba7778cc554813b1f1e790a881d4190d0",
-  "0xd31244805b5bc141b69bb88b4e510a399cea0ce0", // 4 Oct, tier attestations
-  "0xfa0866e6d11f65a6f30beaaa5d4f24133ea4ac2e",
-  "0xc91af00c71eb71eb0fa4bb58e41d7a9c66becbfb", // 4 Oct, main's redeploy
+  "0xc91af00c71eb71eb0fa4bb58e41d7a9c66becbfb", // 4 Oct, static-analysis fixes
   "0x62cf4ec7fdb95443622494adc8fa58c47f87d136",
+  "0x35f8a20d394e3af13ac82fa0a1671ee229081a7e", // 5 Oct, Feed the Kitty
+  "0x8912100fc8df228766809b3107fa9fb9249d1337",
 ]);
+
+// "Feed the Kitty": the standing record and the cats (5 Oct)
+export const KITTY_RECORD = "0x6403d2764a5b2a08716e5ac02ce2c31b900983e6";
+export const KITTY_CATS = "0xd8fed7bc100c55e6eb31eddfa4b6d1b8e6c209aa";

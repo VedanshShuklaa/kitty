@@ -2,6 +2,7 @@ import { zeroHash } from "viem";
 
 import { countdown, money, span, when } from "./format";
 import { CADENCES, cadenceOf, depositOf, potOf, type Member, type Rules, type Snapshot } from "./kitty";
+import { canOfferIn, payoutOrder } from "./standing";
 
 // FR-RST-03: until a roster is back, people are "Member 2" and so on
 export const nameAt = (names: string[], seat: number) => names[seat]?.trim() || `Member ${seat + 1}`;
@@ -17,21 +18,22 @@ export function rulesInWords(r: Rules): { lead: string; text: string }[] {
     r.maxBidBps > 0
       ? {
           lead: "Need it sooner?",
-          text: `Offer to give up to ${r.maxBidBps / 100}% of a pot to take it early. The others share what you give up. With no offers, turns go in order.`,
+          text: `Offer to give up to ${r.maxBidBps / 100}% of a pot to take it early. The others share what you give up. Newcomers can offer from the second half; members with a record, any round.`,
         }
-      : { lead: "Turns go in order.", text: "Bidding is off in this circle." },
-    { lead: `${money(depositOf(r))} deposit.`, text: "You put it down when you join. Any deposit left after covering missed payments is returned at the end." },
+      : { lead: "No offers.", text: "Bidding is off in this circle." },
+    {
+      lead: "Who's paid when.",
+      text: "Members whose cats trust them more are paid first; among equals, the order of seats. Anyone who owes another circle goes to the back.",
+    },
+    {
+      lead: `${money(depositOf(r))} deposit.`,
+      text: "You put it down when you join (two rounds' worth if your cat is wary). Any deposit left after covering missed payments is returned at the end.",
+    },
     {
       lead: "Late or short?",
       text: `You have ${span(r.grace)} after each due time. Miss a round and your deposit covers you; you catch up later.`,
     },
   ];
-  if (r.tierDiscountOn) {
-    lines.push({
-      lead: "A trust circle (experimental).",
-      text: "People with a good record from earlier circles may put down less, never under half. If one of them misses a round, the shared pool covers more of it.",
-    });
-  }
   if (r.yieldOn) {
     lines.push({
       lead: "Deposits earn while they're locked.",
@@ -45,7 +47,7 @@ export function rulesInWords(r: Rules): { lead: string; text: string }[] {
 // say, and which buttons does it offer? Kept free of React so it can be
 // tested against every window edge.
 
-export type ActionKind = "pay" | "bid" | "reveal" | "close" | "withdraw" | "cancel" | "arrears";
+export type ActionKind = "pay" | "bid" | "reveal" | "close" | "withdraw" | "cancel" | "arrears" | "repay";
 export type Action = { kind: ActionKind; label: string; amount?: bigint };
 
 export type Plan = {
@@ -54,16 +56,21 @@ export type Plan = {
   actions: Action[]; // first one is the primary action
 };
 
-/** Seat-order fallback for a round with no winning bid (SRS 7.7 step 4). */
+/** The no-offer fallback (Circle._firstInOrder): best stage first, then seat; Behind only when nobody else is left. */
 export function nextInLine(members: Member[]): Member | undefined {
+  const order = payoutOrder(members);
   return (
-    members.find((m) => m.address && m.standing === "good" && !m.received) ??
-    members.find((m) => m.address && m.standing === "behind" && !m.received)
+    order.find((m) => m.address && m.standing === "good" && !m.received) ??
+    order.find((m) => m.address && m.standing === "behind" && !m.received)
   );
 }
 
-export function eligibleBidders(members: Member[]): number {
-  return members.filter((m) => m.address && m.standing === "good" && !m.received).length;
+/** Circle._canOffer: up to date, no pot yet, and inside their stage's offer window. */
+export const canOffer = (m: Member, round: number, memberCount: number) =>
+  !!m.address && m.standing === "good" && !m.received && canOfferIn(m.offerFrom, round, memberCount);
+
+export function eligibleBidders(members: Member[], round: number, memberCount: number): number {
+  return members.filter((m) => canOffer(m, round, memberCount)).length;
 }
 
 export function plan(s: Snapshot, now: number): Plan {
@@ -93,6 +100,18 @@ export function plan(s: Snapshot, now: number): Plan {
   if (s.state === "cancelled" || s.state === "completed") {
     const amount = me?.withdrawable ?? 0n;
     const headline = s.state === "cancelled" ? "This circle was called off" : "Every round is done";
+    // FR-TRU-17/18: what a default or unpaid catch-up cost the others comes first
+    const owed = me ? (s.members[me.seat]?.owed ?? 0n) : 0n;
+    if (s.state === "completed" && owed > 0n) {
+      return {
+        headline,
+        detail: `The rounds you didn't pay cost the circle ${money(owed)}. Paying it back goes to the members who lost it, and your cat comes home.`,
+        actions: [
+          { kind: "repay", label: `Pay back ${money(owed)}`, amount: owed },
+          ...(amount > 0n ? [{ kind: "withdraw" as const, label: `Collect ${money(amount)}`, amount }] : []),
+        ],
+      };
+    }
     if (amount > 0n) {
       return {
         headline,
@@ -123,7 +142,7 @@ export function plan(s: Snapshot, now: number): Plan {
     }
   }
   if (closeOpen) actions.push({ kind: "close", label: "Hand out the pot" });
-  if (me && mine && commitOpen && mine.standing === "good" && !mine.received && eligibleBidders(s.members) >= 2) {
+  if (me && mine && commitOpen && canOffer(mine, s.round, r.memberCount) && eligibleBidders(s.members, s.round, r.memberCount) >= 2) {
     actions.push({ kind: "bid", label: committed ? "Change my offer" : "Bid for the pot" });
   }
   if (mine?.standing === "behind" && mine.arrears > 0n) {

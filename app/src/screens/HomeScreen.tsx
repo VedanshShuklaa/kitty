@@ -4,17 +4,19 @@ import { AppState, Pressable, StyleSheet, View } from "react-native";
 import type { Address } from "viem";
 
 import { BottomNav, KittyLogo } from "../Brand";
+import { Cat } from "../Cat";
 import { explain } from "../errors";
 import { moneyLine } from "../feed";
 import { countdown, initials, money, shortAddress } from "../format";
 import { loadRates, localEstimate, type Rates } from "../fx";
 import { transfersOf, type Transfer } from "../indexer";
-import { getTestDollars, loadSnapshot, type Snapshot } from "../kitty";
+import { adoptCat, getTestDollars, loadSnapshot, readStanding, type Snapshot } from "../kitty";
 import { balances, type Balances } from "../money";
 import type { ScreenProps } from "../nav";
 import { nameAt, plan } from "../phase";
 import { useMe, useSession } from "../session";
-import { listCircles, type CircleRef } from "../store";
+import { moodOf, STAGE_NAME, type Stage } from "../standing";
+import { getShowCat, listCircles, type CircleRef } from "../store";
 import { tidyCircle, tidyStep } from "../tidy";
 import { color, font, radius, space } from "../theme";
 import { Amount, Bead, Body, Button, Heading, List, Notice, Progress, Row, Screen, Section, Small, Tag, Title } from "../ui";
@@ -35,6 +37,8 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
   const [bal, setBal] = useState<Balances | null>(null);
   const [rates, setRates] = useState<Rates | null>(null);
   const [recent, setRecent] = useState<Transfer[] | null>(null);
+  const [stage, setStage] = useState<Stage | null>(null);
+  const [showCat, setShowCat] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -58,6 +62,8 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
       setLoaded(true);
       setLoadError(b === null || snaps.some((s) => s === null));
       transfersOf(address, 6).then(setRecent).catch(() => setRecent(null));
+      readStanding(address).then((p) => setStage(p.stage)).catch(() => {});
+      getShowCat().then(setShowCat).catch(() => {});
     } catch {
       setLoadError(true);
     } finally {
@@ -101,6 +107,15 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
     })();
   }, [items, signer, load]);
 
+  // Mera UX: adopting her is a member's first sponsored action, in the
+  // background and never in the way; a failure just retries next visit
+  const adopting = useRef(false);
+  useEffect(() => {
+    if (!signer || adopting.current) return;
+    adopting.current = true;
+    adoptCat(signer).catch(() => { adopting.current = false; });
+  }, [signer]);
+
   // circles restored from the indexer land in the cache; show them as they arrive
   useEffect(() => {
     if (restored) void load();
@@ -132,6 +147,20 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
     for (const m of snap?.members ?? []) if (m.address) names.set(m.address.toLowerCase(), nameAt(ref.names, m.seat));
   }
   const who = (a: Address | null) => (a ? (names.get(a.toLowerCase()) ?? shortAddress(a)) : "Someone");
+
+  const mood = stage
+    ? moodOf(
+        stage,
+        items.flatMap(({ ref, snap }) => {
+          if (!snap) return [];
+          const mine = snap.me ? snap.members[snap.me.seat] : undefined;
+          const first = plan(snap, snap.chainNow).actions.find((a) => a.kind === "pay");
+          return [{ title: ref.title, state: snap.state, due: snap.due, mine: mine ?? null, pay: first?.amount ?? null }];
+        }),
+        Math.floor(Date.now() / 1000),
+        { money, countdown },
+      )
+    : null;
 
   const needingAction = items.filter(({ snap }) => snap && plan(snap, snap.chainNow).actions.length > 0).length;
   const local = bal ? localEstimate(bal.dollars + bal.cashOut, profile?.country, rates) : null;
@@ -177,6 +206,21 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
         <Notice tone={notice.tone} onClose={() => setNotice(null)}>
           {notice.text}
         </Notice>
+      )}
+      {stage && mood && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${mood.line}. ${mood.detail} Open your cat on Account.`}
+          onPress={() => navigation.navigate("Me")}
+          style={({ pressed }) => [styles.cat, pressed && { backgroundColor: color.pinkSoft }]}
+        >
+          {showCat && <Cat owner={address} stage={stage} size={76} hidden />}
+          <View style={{ flex: 1, gap: 2 }}>
+            <Body style={{ fontFamily: font.bodyBold }}>{mood.line}</Body>
+            <Small>{mood.detail}</Small>
+            <Small style={{ color: color.pink }}>{STAGE_NAME[stage]} ›</Small>
+          </View>
+        </Pressable>
       )}
       {loadError && (
         <View style={{ gap: space.sm }}>
@@ -289,5 +333,6 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: space.sm },
   circle: { backgroundColor: color.surface, borderRadius: radius.card, padding: space.md, gap: space.md, borderWidth: 1, borderColor: color.line },
   empty: { padding: space.lg, gap: space.sm, alignItems: "center", backgroundColor: color.surface, borderRadius: radius.card },
+  cat: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, backgroundColor: color.surface, borderRadius: radius.card, borderWidth: 1, borderColor: color.line },
   help: { gap: space.xs, padding: space.md, backgroundColor: color.cream, borderRadius: radius.card },
 });

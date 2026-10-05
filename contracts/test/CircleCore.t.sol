@@ -4,6 +4,8 @@ pragma solidity 0.8.30;
 import { Test } from "forge-std/Test.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { CircleFactory } from "../src/CircleFactory.sol";
+import { IKittyRecord } from "../src/interfaces/IKittyRecord.sol";
+import { OpenRecord } from "./mocks/OpenRecord.sol";
 import { StakeVault } from "../src/StakeVault.sol";
 import { Circle } from "../src/Circle.sol";
 import { ICircle } from "../src/interfaces/ICircle.sol";
@@ -19,6 +21,7 @@ contract CircleCoreTest is Test {
     MockAUSD ausd;
     StakeVault vault;
     CircleFactory factory;
+    IKittyRecord record;
 
     address owner = makeAddr("owner");
     address organizer = makeAddr("organizer");
@@ -34,9 +37,12 @@ contract CircleCoreTest is Test {
         ausd = new MockAUSD();
         vault = new StakeVault(ausd, owner);
         vm.prank(owner);
-        factory = new CircleFactory(ausd, vault, 300, owner);
+        record = new OpenRecord();
+        factory = new CircleFactory(ausd, vault, record, 300, owner);
         vm.prank(owner);
         vault.setFactory(address(factory));
+        vm.prank(owner);
+        record.addFactory(address(factory));
     }
 
     function _baseRules(uint8 memberCount) internal view returns (Rules memory r) {
@@ -47,7 +53,6 @@ contract CircleCoreTest is Test {
             poolShareBps: 1_000,
             holdbackBps: 2_000,
             yieldOn: false,
-            tierDiscountOn: false,
             contribution: CONTRIBUTION,
             firstDue: uint64(block.timestamp) + 1 days,
             period: PERIOD,

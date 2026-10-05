@@ -17,7 +17,6 @@ type Circle {
   poolShareBps: Int!
   holdbackBps: Int!
   yieldOn: Boolean!
-  tierDiscountOn: Boolean! # members may post a reduced stake with a tier attestation (SRS 7.11)
   period: Int!
   firstDue: BigInt!
   joinDeadline: BigInt!
@@ -57,13 +56,18 @@ type Account {
   sends: Int!
   receives: Int!
   counterparties: Int! # distinct people met in a finished circle
-  cycleWeight: Int! # x1000; SRS 8.4
-  tier: String! # Newcomer | Steady | Trusted | Anchor
+  # "Feed the Kitty": standing as KittyRecord last reported it. The record is
+  # the source of truth (healing and fading are worked out from the clock when
+  # it's read), so the app reads stageOf over RPC; this is history.
+  stage: String! # Away | Wary | Shy | Friendly | AtHome | Family
+  debt: BigInt! # what circles lost to this account's defaults, until repaid
+  catAdoptedAt: BigInt
+  stageChanges: [StageChange!]! @derivedFrom(field: "account")
   memberships: [Member!]! @derivedFrom(field: "account")
 }
 
-# Each pair of accounts that finished a circle together, counted once: a
-# circle only adds weight for the people who were new to you (FR-TRU-06).
+# Each pair of accounts that finished a circle together, counted once, so
+# counterparties counts people rather than circles.
 type Counterparty {
   id: ID! # `${account}-${other}`
   account: String! @index
@@ -79,10 +83,10 @@ type Member {
   address: String! @index
   seat: Int!
   standing: String! # Good | Behind | Defaulted
+  stage: String # the member's stage when they joined: sets their place in the order
   received: Boolean!
   receivedRound: Int
   stake: BigInt!
-  tierStakeBps: Int # the stake share a tier attestation set at join; unset means the circle's rule
   arrears: BigInt!
   paidOnTime: Int!
   paidLate: Int!
@@ -168,7 +172,7 @@ type Payout {
 type Activity {
   id: ID! # `${tx}-${logIndex}`
   circle: Circle!
-  kind: String! # Created | Joined | Started | Paid | BidSealed | BidOpened | Covered | Defaulted | DefaultFilled | CaughtUp | PotPaid | Completed | Cancelled | Collected | Settled
+  kind: String! # Created | Joined | Started | Paid | BidSealed | BidOpened | Covered | Defaulted | DefaultFilled | CaughtUp | PotPaid | Completed | Cancelled | Collected | Settled | PaidBack | Credited
   actor: String # the member it is about, if any
   round: Int
   amount: BigInt
@@ -233,4 +237,16 @@ type DailyStats {
   sends: Int!
   sent: BigInt!
   swaps: Int!
+}
+
+# A change of stage, as KittyRecord emitted it. Other members see a stage,
+# never the reason; the reason is for the member's own Account screen.
+type StageChange {
+  id: ID! # `${tx}-${logIndex}`
+  account: Account!
+  from: String!
+  to: String!
+  why: String! # Joined | Missed | Defaulted | Repaid | Finished | Forgiven | Left
+  at: BigInt! @index
+  txHash: String!
 }

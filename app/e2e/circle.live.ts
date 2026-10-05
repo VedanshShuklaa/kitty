@@ -16,6 +16,8 @@ jest.mock("../src/config", () => {
       chainId: d.chainId,
       circleFactory: d.circleFactory,
       ausd: d.ausd,
+      kittyRecord: d.kittyRecord,
+      kittyCats: d.kittyCats,
       ausdFaucet: "0xd236c18D274E54FAccC3dd9DDA4b27965a73ee6C",
     },
   };
@@ -38,7 +40,7 @@ it("creates a circle, joins it by invite, and both members pay round 1", async (
   const steps: string[] = [];
   const circle = await createCircle(
     org,
-    { title: "E2E", names: ["Ama", "Kofi"], contribution: 1_000000n, cadence: "demo", startIn: 900, maxBidBps: 3_000, yieldOn: true, tierDiscountOn: false },
+    { title: "E2E", names: ["Ama", "Kofi"], contribution: 1_000000n, cadence: "demo", startIn: 900, maxBidBps: 3_000, yieldOn: true },
     (id) => steps.push(id),
   );
   console.log("circle", circle);

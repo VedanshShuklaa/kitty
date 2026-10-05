@@ -180,34 +180,4 @@ contract SignaturesTest is CircleTestBase {
         }
         return sha256(abi.encodePacked(opad, sha256(abi.encodePacked(ipad, message))));
     }
-
-    /// SRS 7.11: the attestation site/api/tier.ts signs with viem decodes and
-    /// recovers in Solidity exactly as Circle.join reads it.
-    function test_tierAttestationVector() public view {
-        string memory k = ".tierAttestation";
-        assertEq(keccak256("kitty.tier.v1"), vm.parseJsonBytes32(json, string.concat(k, ".typehash")));
-        address member = vm.parseJsonAddress(json, string.concat(k, ".member"));
-        uint16 tierBps = uint16(vm.parseJsonUint(json, string.concat(k, ".tierBps")));
-        uint64 expiry = uint64(vm.parseJsonUint(json, string.concat(k, ".expiry")));
-        bytes32 digest = keccak256(
-            abi.encode(
-                keccak256("kitty.tier.v1"),
-                vm.parseJsonUint(json, string.concat(k, ".chainId")),
-                vm.parseJsonAddress(json, string.concat(k, ".factory")),
-                member,
-                tierBps,
-                expiry
-            )
-        );
-        assertEq(digest, vm.parseJsonBytes32(json, string.concat(k, ".digest")));
-        (uint16 b, uint64 e, bytes memory sig) =
-            abi.decode(vm.parseJsonBytes(json, string.concat(k, ".attestation")), (uint16, uint64, bytes));
-        assertEq(b, tierBps);
-        assertEq(e, expiry);
-        assertEq(sig, vm.parseJsonBytes(json, string.concat(k, ".signature")));
-        assertEq(
-            ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(digest), sig),
-            vm.parseJsonAddress(json, string.concat(k, ".attestor"))
-        );
-    }
 }

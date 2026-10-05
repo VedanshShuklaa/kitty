@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { createTestIndexer } from "envio";
 
-import { AUSD, CTK, FAUCET, PAIR } from "../src/lib/addresses";
-import { aprBps, cycleGain, tierOf, type Track } from "../src/lib/standing";
+import { AUSD, CTK, FAUCET, KITTY_RECORD, PAIR } from "../src/lib/addresses";
+import { aprBps } from "../src/lib/rate";
 
 // SRS 15.6 tests: factory registration, the record across two circles
-// (TC-2-12), tier derivation, filtering transfers down to Kitty accounts, and
+// (TC-2-12), filtering transfers down to Kitty accounts, and
 // the earn rate. Addresses are lowercase, as the indexer stores them.
 
 const FACTORY = "0x99a7c36046d6ae7835942fc48b6afeefecf6b846";
@@ -110,14 +110,12 @@ describe("circles", () => {
     expect(ana).toMatchObject({ circlesJoined: 2, circlesOrganized: 2, circlesCompleted: 2, paidOnTime: 4, paidLate: 0, potsReceived: 2, counterparties: 2 });
     expect(ana.totalContributed).toBe(40_000000n);
     expect(ana.totalReceived).toBe(40_000000n);
-    // two circles of strangers with no standing: 0.4 each, over n - 1 = 1
-    expect(ana.cycleWeight).toBe(800);
 
     const ben = await indexer.Account.getOrThrow(BEN);
-    expect(ben).toMatchObject({ circlesJoined: 1, paidOnTime: 1, paidLate: 1, counterparties: 1, cycleWeight: 400, tier: "Newcomer" });
+    expect(ben).toMatchObject({ circlesJoined: 1, paidOnTime: 1, paidLate: 1, counterparties: 1 });
   });
 
-  it("gives nothing for running the same circle again with the same people", async () => {
+  it("counts the same person once across circles", async () => {
     const indexer = createTestIndexer();
     await indexer.process({
       chains: { 10143: { startBlock: B0, simulate: [...twoPersonCircle(C1, ANA, BEN, 1), ...twoPersonCircle(C2, ANA, BEN, 20)] as never } },
@@ -125,7 +123,6 @@ describe("circles", () => {
     const ana = await indexer.Account.getOrThrow(ANA);
     expect(ana.circlesCompleted).toBe(2);
     expect(ana.counterparties).toBe(1);
-    expect(ana.cycleWeight).toBe(400);
   });
 
   it("follows a covered miss and a default into the record and the feed", async () => {
@@ -154,7 +151,7 @@ describe("circles", () => {
     expect(ben).toMatchObject({ standing: "Good", timesCovered: 1, arrears: 0n });
     const cal = await indexer.Member.getOrThrow(`${C1}-${CAL}`);
     expect(cal.standing).toBe("Defaulted");
-    expect(await indexer.Account.getOrThrow(CAL)).toMatchObject({ defaults: 1, openDefaults: 1, tier: "Newcomer" });
+    expect(await indexer.Account.getOrThrow(CAL)).toMatchObject({ defaults: 1, openDefaults: 1 });
 
     const r1 = await indexer.Round.getOrThrow(`${C1}-1`);
     expect(r1.covered).toBe(17_000000n);
@@ -166,80 +163,7 @@ describe("circles", () => {
   });
 });
 
-describe("tier discounts (SRS 7.11)", () => {
-  it("reads the new Rules layout and records a discounted stake", async () => {
-    const C3 = "0x1313131313131313131313131313131313131313";
-    const firstDue = BigInt(T0 + 2_000);
-    const v2 = {
-      contract: "CircleFactory" as const,
-      event: "CircleCreatedV2" as const,
-      srcAddress: FACTORY,
-      params: {
-        circle: C3,
-        organizer: ANA,
-        rules: { 0: 2n, 1: 12_000n, 2: 3_000n, 3: 1_000n, 4: 2_000n, 5: false, 6: true, 7: 10_000000n, 8: firstDue, 9: PERIOD, 10: 240n, 11: 60n, 12: 120n, 13: firstDue - 240n },
-        inviteSigners: [],
-      },
-      block: at(1),
-      transaction: tx(),
-    };
-    const indexer = createTestIndexer();
-    await indexer.process({
-      chains: {
-        10143: {
-          startBlock: B0,
-          simulate: [
-            v2,
-            joined(C3, ANA, 0, 2),
-            joined(C3, BEN, 1, 3),
-            ev(C3, "StakeDiscounted", { member: BEN, stakeBps: 10_200n }, 3),
-          ] as never,
-        },
-      },
-    });
-    const c = await indexer.Circle.getOrThrow(C3);
-    expect(c).toMatchObject({ stakeBps: 12_000, yieldOn: false, tierDiscountOn: true, contribution: 10_000000n, period: 600, joinDeadline: firstDue - 240n });
-    expect((await indexer.Member.getOrThrow(`${C3}-${BEN}`)).tierStakeBps).toBe(10_200);
-    expect((await indexer.Member.getOrThrow(`${C3}-${ANA}`)).tierStakeBps).toBeUndefined();
-  });
-
-  it("marks circles from the old factories as full-stake only", async () => {
-    const indexer = createTestIndexer();
-    await indexer.process({ chains: { 10143: { startBlock: B0, simulate: [created(C1, ANA, 2, 1)] as never } } });
-    expect((await indexer.Circle.getOrThrow(C1)).tierDiscountOn).toBe(false);
-  });
-});
-
-describe("tiers (SRS 8.4)", () => {
-  const base: Track = { paidOnTime: 0, paidLate: 0, timesCovered: 0, defaults: 0, openDefaults: 0, lastDefaultClearedAt: undefined, counterparties: 0, cycleWeight: 0 };
-  const now = 2_000_000_000n;
-  const DAY = 86_400n;
-
-  it("starts everyone at Newcomer and never goes below it", () => {
-    expect(tierOf(base, now)).toBe("Newcomer");
-    expect(tierOf({ ...base, defaults: 3, openDefaults: 3 }, now)).toBe("Newcomer");
-  });
-
-  it("lifts to Steady, Trusted and Anchor at the published thresholds", () => {
-    expect(tierOf({ ...base, paidOnTime: 9, paidLate: 1, cycleWeight: 1_000 }, now)).toBe("Steady");
-    expect(tierOf({ ...base, paidOnTime: 19, paidLate: 1, cycleWeight: 3_000, counterparties: 6 }, now)).toBe("Trusted");
-    expect(tierOf({ ...base, paidOnTime: 50, paidLate: 1, cycleWeight: 6_000, counterparties: 12 }, now)).toBe("Anchor");
-    // Anchor needs a history with no default, even one cleared long ago
-    expect(tierOf({ ...base, paidOnTime: 50, cycleWeight: 6_000, counterparties: 12, defaults: 1, lastDefaultClearedAt: now - 400n * DAY }, now)).toBe("Trusted");
-  });
-
-  it("holds a member at Newcomer for a year after a default is cleared", () => {
-    const r = { ...base, paidOnTime: 30, cycleWeight: 2_000, defaults: 1, lastDefaultClearedAt: now - 100n * DAY };
-    expect(tierOf(r, now)).toBe("Newcomer");
-    expect(tierOf(r, now + 300n * DAY)).toBe("Steady");
-  });
-
-  it("weighs a finished circle by who was new, over memberCount - 1", () => {
-    expect(cycleGain(["Newcomer"], 2)).toBe(400);
-    expect(cycleGain(["Trusted", "Anchor", "Steady"], 4)).toBe(900);
-    expect(cycleGain([], 6)).toBe(0);
-  });
-
+describe("earn rate", () => {
   it("annualises a share price change, and stays at zero inside a day", () => {
     expect(aprBps(1_000000n, 1_000100n, 3_600n)).toBe(0);
     // +0.1% in about 8.1 days is about 4.5% a year
@@ -359,5 +283,45 @@ describe("yield", () => {
     expect(rate.sharePrice).toBe(1_002004n);
     expect(rate.aprBps).toBeGreaterThan(0);
     expect((await indexer.YieldPoint.getAll()).every((p) => p.chainId === 143)).toBe(true);
+  });
+});
+
+describe("Feed the Kitty", () => {
+  const RECORD = KITTY_RECORD;
+  const rec = (event: string, params: Record<string, unknown>, block: number) => ({
+    contract: "KittyRecord" as const,
+    event,
+    srcAddress: RECORD,
+    params,
+    block: at(block),
+    transaction: tx(),
+  });
+
+  // record events sit after the record's start block (B0 + 1_188_159)
+  it("keeps each member's stage at join, and every stage change with its reason", async () => {
+    const indexer = createTestIndexer();
+    await indexer.process({
+      chains: {
+        10143: {
+          startBlock: B0,
+          simulate: [
+            created(C1, ANA, 2, 1),
+            joined(C1, ANA, 0, 2),
+            ev(C1, "Placed", { member: ANA, stage: 3n }, 2),
+            rec("StageChanged", { account: BEN, from: 2n, to: 1n, why: 1n }, 1_200_003),
+            rec("StageChanged", { account: BEN, from: 1n, to: 0n, why: 2n }, 1_200_004),
+            rec("DebtChanged", { account: BEN, debt: 6_000000n }, 1_200_004),
+            ev(C1, "Repaid", { member: BEN, amount: 6_000000n }, 1_200_005),
+            ev(C1, "ArrearsCredited", { from: BEN, to: ANA, amount: 6_000000n }, 1_200_005),
+          ] as never,
+        },
+      },
+    });
+    expect((await indexer.Member.getOrThrow(`${C1}-${ANA}`)).stage).toBe("Friendly");
+    expect(await indexer.Account.getOrThrow(BEN)).toMatchObject({ stage: "Away", debt: 6_000000n });
+    const changes = (await indexer.StageChange.getAll()).filter((c) => c.account_id === BEN).map((c) => `${c.from}>${c.to}:${c.why}`);
+    expect(changes.sort()).toEqual(["Shy>Wary:Missed", "Wary>Away:Defaulted"]);
+    const kinds = (await indexer.Activity.getAll()).filter((a) => a.circle_id === C1).map((a) => a.kind);
+    expect(kinds).toEqual(expect.arrayContaining(["PaidBack", "Credited"]));
   });
 });

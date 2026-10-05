@@ -117,7 +117,6 @@ contract Rehearsal is Script {
             poolShareBps: 1_000,
             holdbackBps: 2_000,
             yieldOn: false,
-            tierDiscountOn: false,
             contribution: 1_000000, // 1 AUSD, rehearsal amounts
             firstDue: uint64(block.timestamp) + PERIOD,
             period: PERIOD,

@@ -10,7 +10,6 @@ struct Rules {
     uint16 poolShareBps; // share of a winning discount kept in the pool    (default 1_000)
     uint16 holdbackBps; // 0..5_000                                        (default 2_000)
     bool yieldOn; // collateral goes to the yield adapter
-    bool tierDiscountOn; // members may post a reduced stake with a tier attestation (SRS 7.11)
     uint64 contribution; // AUSD units, 6 decimals; at least 1_000000
     uint64 firstDue; // unix seconds; due time of round 1
     uint32 period; // seconds between due times; at least factory.minPeriod()
@@ -22,13 +21,11 @@ struct Rules {
 
 interface ICircleFactory {
     event CircleCreated(address indexed circle, address indexed organizer, Rules rules, address[] inviteSigners);
-    event TierAttestorSet(address attestor);
 
     error BadRules();
 
     function createCircle(Rules calldata rules, address[] calldata inviteSigners) external returns (address circle);
     function predictCircle(address organizer) external view returns (address);
-    function tierAttestor() external view returns (address); // zero: no discounts anywhere
     function isCircle(address) external view returns (bool);
     function minPeriod() external view returns (uint32);
     function ausd() external view returns (address);
