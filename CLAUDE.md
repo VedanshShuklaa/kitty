@@ -706,3 +706,18 @@ Branch work committed (`1c32308`) and merged `--no-ff` (`16dd521`). Rollback poi
 On main: forge 120/120 (1 fork skip), app tsc clean + 58 jest, indexer 11 vitest.
 Next: push main (Envio redeploys; then repoint Vercel `INDEXER_URL`), `cd site && vercel --prod` with
 `KITTY_RECORD` set (ships `/api/cat`, drops `/api/tier`), phone test of EAS build 6ca8fc1e.
+
+**2026-10-05 — Feed the Kitty finished in code; not yet deployed.**
+Contracts (`0af0306`): KittyRecord counts only people new to you (256-bit filter, `hasMet`), so repeat circles earn
+nothing; it lists the circles a debt is owed in (`owedIn`), and a debtor's pot in another circle pays them first via
+the new `Circle.repayFor` (try/catch, so a bad circle can't block a round). `repay` also works while Active. 122/122
+forge, invariants (log attribution fixed for cross-circle credits), budgets hold (closeRound worst 777k, withdraw 151k).
+Indexer (`b228a3d`): `Circle.housePieces`, `Keepsake` (Yarn/Wand/Fish/Box/Gold), `Account.onTimeStreak/bestStreak`,
+`DebtPaidElsewhere` feed; 13 tests. App (`84ba5c3`): MeetCat screen (name sealed in profile), `House.tsx` under the pot,
+`Keepsakes.tsx` + album on Account, cat faces in Join's order, one hop after paying (Reduce motion off), cat-voiced
+reminders, repay in active circles. 63 jest, tsc, Android export OK.
+Blocked: the testnet deploy was refused by the permission classifier, so the live contracts are still `0x65f8…75d1`
+and don't have these changes (new record ABI). Moved 2 test MON from REHEARSAL_MEMBER1 to the deployer first.
+Next (user): run Deploy.s.sol (command in its header, `--private-key $REHEARSAL_MEMBER2_KEY --sender 0x569F…B5B2`),
+add the new factory/record/cats to `indexer/config.yaml`, push main (Envio), repoint `INDEXER_URL`, `cd site && vercel
+--prod` with `KITTY_RECORD`, new EAS build, update `/download`.
