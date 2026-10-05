@@ -47,3 +47,6 @@ SRS.html
 site/.agents/
 site/.claude/
 site/skills-lock.json
+
+# Local design screenshots
+output/
