@@ -29,8 +29,8 @@ contract YieldTest is CircleTestBase {
     }
 
     function _ledgerAll(address circle, address m) internal view returns (uint256) {
-        return vault.balanceOf(circle, m, IStakeVault.Kind.Stake) + vault.balanceOf(circle, m, IStakeVault.Kind.Holdback)
-            + vault.balanceOf(circle, m, IStakeVault.Kind.Pool);
+        return vault.balanceOf(circle, m, IStakeVault.Kind.Stake)
+            + vault.balanceOf(circle, m, IStakeVault.Kind.Holdback) + vault.balanceOf(circle, m, IStakeVault.Kind.Pool);
     }
 
     function _withdrawAll(address circle, address[] memory m) internal returns (uint256 paidOut) {

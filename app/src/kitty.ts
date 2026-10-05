@@ -4,6 +4,7 @@ import {
   createPublicClient,
   createWalletClient,
   encodeAbiParameters,
+  encodeFunctionData,
   hexToBytes,
   http,
   keccak256,
@@ -20,11 +21,12 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 import { keccak_256 } from "@noble/hashes/sha3";
 
-import { ausdAbi, circleAbi, factoryAbi, faucetAbi, vaultAbi } from "./abi";
+import { ausdAbi, catsAbi, circleAbi, factoryAbi, faucetAbi, recordAbi, vaultAbi } from "./abi";
 import { bidSalt, inviteKey } from "./account/keys";
 import { monadTestnet } from "./chain";
 import { apiUrl, contracts } from "./config";
 import type { Invite } from "./links";
+import { STAGES, type Progress, type Stage } from "./standing";
 
 // Every read the app makes is batched into Multicall3 calls.
 export const client = createPublicClient({ chain: monadTestnet, transport: http(), batch: { multicall: true } });
@@ -172,11 +174,13 @@ export function buildRules(d: CircleDraft, nowSec: number): Rules {
   };
 }
 
-export const depositOf = (r: Pick<Rules, "contribution" | "stakeBps">) => (r.contribution * BigInt(r.stakeBps)) / 10_000n;
+/** The circle's deposit; `depositX100` is the member's stage multiple (200 for Wary, FR-TRU-13). */
+export const depositOf = (r: Pick<Rules, "contribution" | "stakeBps">, depositX100 = 100) =>
+  (r.contribution * BigInt(r.stakeBps) * BigInt(depositX100)) / 1_000_000n;
 export const potOf = (r: Pick<Rules, "contribution" | "memberCount">) => r.contribution * BigInt(r.memberCount);
 
 /** FR-JOIN-03: one approval covers the deposit, every round, and one catch-up. */
-export const approvalFor = (r: Rules) => depositOf(r) + r.contribution * BigInt(r.memberCount + 1);
+export const approvalFor = (r: Rules, depositX100 = 100) => depositOf(r, depositX100) + r.contribution * BigInt(r.memberCount + 1);
 
 export function cadenceOf(r: Pick<Rules, "period">): Cadence | null {
   return (Object.keys(CADENCES) as Cadence[]).find((k) => CADENCES[k].period === r.period) ?? null;
@@ -329,7 +333,8 @@ export async function createCircle(
 
   onStep("dollars");
   const amounts = buildRules(draft, 0);
-  await ensureDollars(s, depositOf(amounts) + amounts.contribution);
+  const terms = await joinTerms(s.address, amounts.contribution);
+  await ensureDollars(s, depositOf(amounts, terms.depositX100) + amounts.contribution);
   // the times are fixed only now: the faucet can take a minute when it's busy,
   // which would otherwise eat a short round's joining window
   const rules = buildRules(draft, await nowOnChain());
@@ -348,7 +353,7 @@ export async function createCircle(
   await send(s, { address: contracts.circleFactory, abi: factoryAbi, functionName: "createCircle", args: [rules, signers] });
 
   onStep("approve");
-  await ensureAllowance(s, circle, approvalFor(rules));
+  await ensureAllowance(s, circle, approvalFor(rules, terms.depositX100));
   onStep("deposit");
   await send(s, { address: circle, abi: circleAbi, functionName: "join", args: [0, "0x"] });
   return circle;
@@ -357,10 +362,11 @@ export async function createCircle(
 /** Resume after createCircle failed past "create": approve and take seat 0. */
 export async function joinAsOrganizer(s: Signer, circle: Address, onStep: (id: string) => void): Promise<void> {
   const rules = await readRules(circle);
+  const terms = await joinTerms(s.address, rules.contribution);
   onStep("approve");
   await ensureTopUp(s.address);
-  await ensureDollars(s, depositOf(rules) + rules.contribution);
-  await ensureAllowance(s, circle, approvalFor(rules));
+  await ensureDollars(s, depositOf(rules, terms.depositX100) + rules.contribution);
+  await ensureAllowance(s, circle, approvalFor(rules, terms.depositX100));
   onStep("deposit");
   await send(s, { address: circle, abi: circleAbi, functionName: "join", args: [0, "0x"] });
 }
@@ -379,14 +385,47 @@ export function joinDigest(circle: Address, seat: number, joiner: Address): Hex 
   );
 }
 
+export type Terms = {
+  stage: Stage;
+  depositX100: number; // multiple of the circle's deposit, x100
+  limitMonths: number; // most owed after the pot beyond the deposit, in rounds; 255 = the circle's own rule
+  offerFrom: number; // 0 any round, 1 second half, 2 never
+  maxOpen: number;
+  open: number;
+};
+
+/** FR-TRU-13/14: what this account's standing means in a circle of this size, read from the record. */
+export async function joinTerms(account: Address, contribution: bigint): Promise<Terms> {
+  const t = await client.readContract({
+    address: contracts.kittyRecord,
+    abi: recordAbi,
+    functionName: "termsOf",
+    args: [account, contribution],
+  });
+  return { ...t, stage: STAGES[t.stage] ?? "Shy" };
+}
+
+/** The account's standing across every circle, straight from the record, so it survives an indexer outage. */
+export async function readStanding(account: Address): Promise<Progress> {
+  const r = { address: contracts.kittyRecord, abi: recordAbi } as const;
+  const [stage, debt, [points, onTimeBps, people, biggestClean, open]] = await Promise.all([
+    client.readContract({ ...r, functionName: "stageOf", args: [account] }),
+    client.readContract({ ...r, functionName: "debtOf", args: [account] }),
+    client.readContract({ ...r, functionName: "progressOf", args: [account] }),
+  ]);
+  return { stage: STAGES[stage] ?? "Shy", debt, points: Number(points), onTimeBps, people, biggestClean, open };
+}
+
+/** The deposit is the circle's, times the member's stage multiple (Wary puts down two). */
 export async function joinCircle(s: Signer, invite: Invite, onStep: (id: string) => void): Promise<void> {
   const rules = await readRules(invite.circle);
+  const terms = await joinTerms(s.address, rules.contribution);
   onStep("topup");
   await ensureTopUp(s.address);
   onStep("dollars");
-  await ensureDollars(s, depositOf(rules) + rules.contribution);
+  await ensureDollars(s, depositOf(rules, terms.depositX100) + rules.contribution);
   onStep("approve");
-  await ensureAllowance(s, invite.circle, approvalFor(rules));
+  await ensureAllowance(s, invite.circle, approvalFor(rules, terms.depositX100));
 
   onStep("deposit");
   // SRS 7.6: the seat's invite key signs over the joiner's own address, so a
@@ -412,6 +451,9 @@ export type Member = {
   credit: bigint;
   paid: boolean; // this round
   revealed: boolean; // this round
+  stage: Stage | null; // fixed when they joined; sets their place in the payout order
+  offerFrom: number; // 0 any round, 1 second half, 2 never
+  owed: bigint; // what their default cost the others, until repaid
 };
 
 export type Snapshot = {
@@ -440,7 +482,7 @@ export type Snapshot = {
 };
 
 export async function readRules(circle: Address): Promise<Rules> {
-  return (await client.readContract({ address: circle, abi: circleAbi, functionName: "rules" })) as Rules;
+  return client.readContract({ address: circle, abi: circleAbi, functionName: "rules" });
 }
 
 export async function loadSnapshot(circle: Address, me: Address | null): Promise<Snapshot> {
@@ -465,16 +507,41 @@ export async function loadSnapshot(circle: Address, me: Address | null): Promise
   const members: Member[] = await Promise.all(
     addrs.map(async (a, seat): Promise<Member> => {
       if (a === zeroAddress) {
-        return { seat, address: null, standing: "none", received: false, arrears: 0n, credit: 0n, paid: false, revealed: false };
+        return {
+          seat,
+          address: null,
+          standing: "none",
+          received: false,
+          arrears: 0n,
+          credit: 0n,
+          paid: false,
+          revealed: false,
+          stage: null,
+          offerFrom: 0,
+          owed: 0n,
+        };
       }
-      const [[standing, received, arrears, credit], paid, [revealed]] = await Promise.all([
+      const [[standing, received, arrears, credit], paid, [revealed], [stage, , offerFrom, owed]] = await Promise.all([
         client.readContract({ ...c, functionName: "standingOf", args: [a] }),
         round > 0 ? client.readContract({ ...c, functionName: "paidRound", args: [round, a] }) : Promise.resolve(false),
         round > 0
           ? client.readContract({ ...c, functionName: "revealedBid", args: [round, a] })
           : Promise.resolve([false, 0] as const),
+        client.readContract({ ...c, functionName: "placeOf", args: [a] }),
       ]);
-      return { seat, address: a, standing: STANDINGS[standing] ?? "none", received, arrears, credit, paid, revealed };
+      return {
+        seat,
+        address: a,
+        standing: STANDINGS[standing] ?? "none",
+        received,
+        arrears,
+        credit,
+        paid,
+        revealed,
+        stage: STAGES[stage] ?? null,
+        offerFrom,
+        owed,
+      };
     }),
   );
 
@@ -553,6 +620,27 @@ export async function payArrears(s: Signer, circle: Address, amount: bigint): Pr
   await ensureDollars(s, amount);
   await ensureAllowance(s, circle, amount);
   await send(s, { address: circle, abi: circleAbi, functionName: "payArrears" });
+}
+
+/**
+ * Adopts this account's cat: one locked token, free with sponsored gas. She
+ * holds no money and no circle reads her; her stage is the record's either
+ * way, so a failed adoption only means she's adopted on a later try.
+ */
+export async function adoptCat(s: Signer): Promise<boolean> {
+  const [, adopted] = await client.readContract({ address: contracts.kittyCats, abi: catsAbi, functionName: "catOf", args: [s.address] });
+  if (adopted) return false;
+  await ensureTopUp(s.address);
+  await send(s, { address: contracts.kittyCats, abi: catsAbi, functionName: "adopt" });
+  return true;
+}
+
+/** Pays back what a default cost a finished circle, to the members who lost it. */
+export async function repay(s: Signer, circle: Address, amount: bigint): Promise<void> {
+  await ensureTopUp(s.address);
+  await ensureDollars(s, amount);
+  await ensureAllowance(s, circle, amount);
+  await send(s, { address: circle, abi: circleAbi, functionName: "repay" });
 }
 
 export async function closeRound(s: Signer, circle: Address, round: number): Promise<void> {

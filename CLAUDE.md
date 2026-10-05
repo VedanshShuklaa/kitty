@@ -652,3 +652,50 @@ indexer's tier fields. Branch `experimental/trust-tiers` = main + tiers: contrac
 circle, `/api/tier`, standing on Account; its own deployment (factory `0x3C9B05B4…AfDD`) and live e2e.
 Each Envio deploy gets a new URL; repoint Vercel `INDEXER_URL` after pushes (`npx envio-cloud indexer get kitty vedanshshuklaa`).
 Next: push notifications (Firebase), new APK, phone test.
+
+**Branch `experimental/trust-tiers`** = main + trust tiers (SRS 6.13/7.11/8.4). Opt-in per circle: Create's
+"Make it a trust circle (experimental)" toggle, off by default; every account still sees its standing on
+Account. Own deployment: factory `0x3C9B05B4…AfDD`, attestor `0x72219263…e3Fc` (key in Vercel env
+`TIER_ATTESTOR_KEY`), `/api/tier` (site from this branch only). Live `e2e/tier.live.ts` passed: Steady after 3
+practice circles, joined with 85%. Envio deploys main only, so this branch's indexer isn't hosted.
+
+**2026-10-05 — Trust-score cat redesigned with bad standing (design only, no code).**
+"Feed the Kitty" artifact (https://claude.ai/artifact/Row6wNVEe8jnnsUp2J2kSz, v2; source in session scratchpad only)
+is now the trust SRS. User rejected benefits-only standing (FR-TRU-02): six stages Away/Wary/Shy/Friendly/At home/
+Family; stage sets payout order, offer window, deposit (Wary 2x) and a credit limit enforced by holdback; newcomers
+paid after members with a record; points = +100 max per finished circle, a covered miss costs one stage, a default
+-100/-300 and wipes earned points. Proposes an onchain `KittyRecord` written by circles (no signer); KittyCats reads it.
+Found a live hole in `Circle.sol`: uncovered misses before payout never become arrears, so a member paid last can stop
+paying and still collect the last pot ($30 in a 5x$10 circle). Fix is FR-TRU-17 in the doc.
+Next: user answers the doc's 9 decisions; then the arrears fix (worth doing regardless), then the demo slice (~4 days).
+
+**2026-10-05 — Feed the Kitty, contracts slice on `experimental/trust-tiers` (uncommitted). 119/119 forge.**
+Took the doc's recommended answer on all 9 decisions. Removed the branch's signed-attestation tiers from
+`contracts/` (back to main's Rules; `Tier.t.sol` gone). New `KittyRecord.sol`: per-address points/stage written
+only by circles of an added factory (delay is a constructor arg: 0 on testnet), heal 10/month, fade 12-month
+half-life only with no circle open, miss = one stage, default -100 / -300 + debt (Away), goodwill once a year,
+owner can only forgive a miss. No people filter yet (repeat partners still score). `Circle.sol`: terms at join
+(Away reverts `Owing`, circles-at-once `TooManyCircles`, Wary 2x deposit), payout by stage then seat, Shy offers
+from the second half, Wary never, holdback grows to the stage limit, FR-TRU-17 (every miss is arrears, pot repays
+it first, short part credited to that round's recipient; mutation-checked), `repay()` after completion credits the
+losers, `recordFinish`. `KittyCats.sol`: locked ERC-721, stage read from the record, `lookOf` = keccak(owner).
+Old suites run on `test/mocks/OpenRecord.sol` (all Family = SRS 7.7 as before); invariants also run against the
+real record. Gas: join 166k, closeRound worst 728k, withdraw 114k, createCircle 481k.
+Not done: cross-circle debt (FR-TRU-18), app (its ABI on this branch still has the old tier join and
+`tierDiscountOn`; must change before any deploy), indexer, `/api/cat`, deploy.
+Next: app (stage/terms on Join and Account, repay, cat on Home), indexer events, then deploy + APK.
+
+**2026-10-05 — Feed the Kitty: FR-TRU-18, app, indexer, /api/cat, deployed. Uncommitted on `experimental/trust-tiers`.**
+Contracts: FR-TRU-18 (part): a debt in the record sends the member behind everyone in their other circles and voids
+their offers, read live at each round (`Circle._owesElsewhere`); "their pot repays the debt first" is not built (needs
+cross-circle money routing). 120/120 forge, gas budgets hold (join 166k, closeRound worst 731k). Deployed + verified,
+REHEARSAL_MEMBER2 key: factory `0x65f831f7…75d1`, vault `0x35F8a20d…a7e`, record `0x6403D276…83E6`, cats
+`0xD8FED7bc…09aa`, block 68288159. App: old signed-tier code gone; `standing.ts` is words/order only, record reads in
+`kitty.ts` (`joinTerms`, `readStanding`, `adoptCat`, `repay`); Join shows terms and payout order before money; Account
+shows the cat, terms, next step and Pay back; Home cat card with mood; stages on member rows; offer reminders and bid
+button follow the stage's window; `Cat.tsx` (react-native-svg, six poses, coat from address). 58 unit tests; live
+`practice.live.ts` passes against the new deploy (Shy placement, finish written, adoption). Indexer reset to main's plus
+StageChange/Account.stage/debt/cat/Member.stage handlers; 11 tests; not hosted (Envio deploys main only).
+`site/api/cat.ts` (+ rewrite) written, not deployed (would replace prod from this branch); needs `KITTY_RECORD` env.
+Not built: House/Keepsake, cat naming/"Meet your cat" on Welcome, people filter, UI_GUIDE cat section is in.
+Next: phone test of the new APK; decide when to merge to main (then site + Envio pick it up).

@@ -205,8 +205,9 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
           <Heading>Check your circle</Heading>
           <Body>
             Each round, all {n} of you put in {money(contribution)}, {c.every}. One person takes the{" "}
-            {money(contribution * BigInt(n))} pot. Everyone also puts down a {money(contribution)} deposit when they join, and gets it
-            back at the end, less any missed payments covered by that deposit.
+            {money(contribution * BigInt(n))} pot, in an order set by how much each person's cat trusts them. Everyone also puts down a {money(contribution)} deposit when they join
+            {" "}(two rounds' worth for anyone whose cat is wary), and gets it back at the end, less any missed payments
+            covered by that deposit.
           </Body>
         </View>
       ) : null}

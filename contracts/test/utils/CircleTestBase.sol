@@ -4,6 +4,8 @@ pragma solidity 0.8.30;
 import { Test } from "forge-std/Test.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { CircleFactory } from "../../src/CircleFactory.sol";
+import { IKittyRecord } from "../../src/interfaces/IKittyRecord.sol";
+import { OpenRecord } from "../mocks/OpenRecord.sol";
 import { StakeVault } from "../../src/StakeVault.sol";
 import { Circle } from "../../src/Circle.sol";
 import { KittyEarnVault } from "../../src/KittyEarnVault.sol";
@@ -25,6 +27,7 @@ abstract contract CircleTestBase is Test {
     MockAUSD internal ausd;
     StakeVault internal vault;
     CircleFactory internal factory;
+    IKittyRecord internal record;
     KittyEarnVault internal earn;
 
     address internal owner = makeAddr("owner");
@@ -33,13 +36,21 @@ abstract contract CircleTestBase is Test {
     function setUp() public virtual {
         ausd = new MockAUSD();
         vault = new StakeVault(ausd, owner);
-        factory = new CircleFactory(ausd, vault, 300, owner);
+        record = _newRecord();
+        factory = new CircleFactory(ausd, vault, record, 300, owner);
         // the adapter is wired for every suite; circles only use it with yieldOn
         earn = new KittyEarnVault(ausd, owner);
         vm.startPrank(owner);
         vault.setAdapter(earn);
         vault.setFactory(address(factory));
+        record.addFactory(address(factory));
         vm.stopPrank();
+    }
+
+    /// @dev Everyone Family by default, so suites written against SRS 7.7's
+    /// economics run unchanged; standing suites return a real KittyRecord.
+    function _newRecord() internal virtual returns (IKittyRecord) {
+        return new OpenRecord();
     }
 
     function _rules(uint8 memberCount) internal view returns (Rules memory r) {

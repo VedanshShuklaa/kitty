@@ -27,6 +27,9 @@ export function newAccount(id: string, at: bigint): Account {
     sends: 0,
     receives: 0,
     counterparties: 0,
+    stage: "Shy",
+    debt: 0n,
+    catAdoptedAt: undefined,
   };
 }
 

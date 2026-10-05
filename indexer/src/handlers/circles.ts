@@ -121,6 +121,7 @@ indexer.onEvent({ contract: "Circle", event: "Joined" }, async ({ event, context
     address: who,
     seat: Number(event.params.seat),
     standing: "Good",
+    stage: undefined,
     received: false,
     receivedRound: undefined,
     stake: event.params.stake,

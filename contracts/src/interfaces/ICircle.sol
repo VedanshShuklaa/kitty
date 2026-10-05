@@ -2,6 +2,7 @@
 pragma solidity 0.8.30;
 
 import { Rules } from "./ICircleFactory.sol";
+import { IKittyRecord } from "./IKittyRecord.sol";
 
 /// @notice One rotating-savings circle: seats, stakes, contributions, sealed
 /// bids, payouts, credits, covers, defaults, completion. See SRS section 7.
@@ -34,6 +35,8 @@ interface ICircle {
     error BadReveal();
     error AutopayOff();
     error NothingToWithdraw();
+    error Owing(); // an unpaid debt in the record: Away can't join
+    error TooManyCircles(); // the stage's circles-at-once limit
 
     function join(uint8 seat, bytes calldata inviteSig) external; // seat 0: the organizer, empty signature
     function reissueInvite(uint8 seat, address signer) external; // organizer, while forming, seat empty
@@ -46,6 +49,8 @@ interface ICircle {
     function revealBid(uint32 round, uint16 discountBps, bytes32 salt) external; // current round only
     function closeRound(uint32 round) external; // anyone, from due(r) + grace
     function withdraw() external; // Completed or Cancelled
+    function recordFinish(address member) external; // anyone, once Completed
+    function repay() external; // pays back a default's loss, once Completed
 
     function rules() external view returns (Rules memory);
     function state() external view returns (State);
@@ -68,6 +73,11 @@ interface ICircle {
     function paidRound(uint32 round, address member) external view returns (bool);
     function recipientOf(uint32 round) external view returns (address); // zero if nobody was paid
     function revealedBid(uint32 round, address member) external view returns (bool revealed, uint16 discountBps);
+    // terms fixed at join, and what this member's default still owes the circle
+    function placeOf(address member)
+        external
+        view
+        returns (IKittyRecord.Stage stage, uint8 limitMonths, uint8 offerFrom, uint256 owed);
 
     event Joined(address indexed member, uint8 indexed seat, uint256 stake);
     event InviteReissued(uint8 indexed seat, address signer);
@@ -110,4 +120,8 @@ interface ICircle {
     event RoundClosed(uint32 indexed round, address indexed closer);
     event Completed(uint64 at);
     event Withdrawn(address indexed member, uint256 amount);
+    event Placed(address indexed member, IKittyRecord.Stage stage);
+    event Repaid(address indexed member, uint256 amount);
+    // FR-TRU-17: what a member's miss or default kept from `to`, paid back as credit
+    event ArrearsCredited(address indexed from, address indexed to, uint256 amount);
 }

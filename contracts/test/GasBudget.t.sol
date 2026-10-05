@@ -4,6 +4,8 @@ pragma solidity 0.8.30;
 import { Test } from "forge-std/Test.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { CircleFactory } from "../src/CircleFactory.sol";
+import { IKittyRecord } from "../src/interfaces/IKittyRecord.sol";
+import { KittyRecord } from "../src/KittyRecord.sol";
 import { StakeVault } from "../src/StakeVault.sol";
 import { Circle } from "../src/Circle.sol";
 import { ICircle } from "../src/interfaces/ICircle.sol";
@@ -22,6 +24,7 @@ contract GasBudgetTest is Test {
     MockAUSD ausd;
     StakeVault vault;
     CircleFactory factory;
+    IKittyRecord record;
 
     address owner = makeAddr("owner");
     address organizer = makeAddr("organizer");
@@ -45,9 +48,12 @@ contract GasBudgetTest is Test {
         ausd = new MockAUSD();
         vault = new StakeVault(ausd, owner);
         vm.prank(owner);
-        factory = new CircleFactory(ausd, vault, 300, owner);
+        record = new KittyRecord(owner, 0);
+        factory = new CircleFactory(ausd, vault, record, 300, owner);
         vm.prank(owner);
         vault.setFactory(address(factory));
+        vm.prank(owner);
+        record.addFactory(address(factory));
     }
 
     function _rulesN(uint8 memberCount) internal view returns (Rules memory r) {
@@ -184,21 +190,24 @@ contract GasBudgetTest is Test {
         address[] memory members = _joinAll(circle, signers, keys, N);
         Rules memory r = Circle(circle).rules();
 
+        // newcomers (Shy) may only offer in the second half: round 7 of 12
+        _closeRounds(circle, members, B - 1);
+        uint64 dueB = Circle(circle).dueTime(B);
         uint16 discountBps = 1_000;
         bytes32 salt = keccak256("gas-test-salt");
-        bytes32 commitment = keccak256(abi.encode(block.chainid, circle, uint32(1), members[2], discountBps, salt));
+        bytes32 commitment = keccak256(abi.encode(block.chainid, circle, B, members[8], discountBps, salt));
 
-        vm.warp(r.firstDue - r.commitWindow);
-        vm.prank(members[2]);
+        vm.warp(dueB - r.commitWindow);
+        vm.prank(members[8]);
         vm.startSnapshotGas("commitBid_singleCall");
-        Circle(circle).commitBid(1, commitment);
+        Circle(circle).commitBid(B, commitment);
         uint256 commitGas = vm.stopSnapshotGas();
         assertLe(commitGas, BUDGET_BID_STEP);
 
-        vm.warp(r.firstDue);
-        vm.prank(members[2]);
+        vm.warp(dueB);
+        vm.prank(members[8]);
         vm.startSnapshotGas("revealBid_singleCall");
-        Circle(circle).revealBid(1, discountBps, salt);
+        Circle(circle).revealBid(B, discountBps, salt);
         uint256 revealGas = vm.stopSnapshotGas();
         assertLe(revealGas, BUDGET_BID_STEP);
     }
@@ -209,59 +218,69 @@ contract GasBudgetTest is Test {
         address[] memory members = _joinAll(circle, signers, keys, N);
         Rules memory r = Circle(circle).rules();
 
-        // round 1: everyone pays, nobody bids -> seat 0 (organizer) wins and
-        // gets a holdback balance to draw on later.
-        vm.warp(r.firstDue - 1);
-        for (uint8 i = 0; i < N; i++) {
-            vm.prank(members[i]);
-            Circle(circle).contribute(1);
-        }
-        vm.warp(r.firstDue + r.grace);
-        Circle(circle).closeRound(1);
+        // rounds 1-6: everyone pays, nobody bids -> seats 0-5 win in seat
+        // order (all Shy) and hold holdbacks to draw on later
+        _closeRounds(circle, members, B - 1);
         (, bool received0,,) = Circle(circle).standingOf(members[0]);
         assertTrue(received0);
 
-        uint64 due2 = Circle(circle).dueTime(2);
+        uint64 dueB = Circle(circle).dueTime(B);
 
-        // round 2: seat 0 (already received) misses entirely -> default.
-        // seat 1 (never received) misses -> covered. seats 2 and 3 bid.
+        // round 7: seat 0 (already received) misses entirely -> default.
+        // seat 6 (never received) misses -> covered. seats 7 and 8 bid.
         uint16 bidA = 1_500;
         uint16 bidB = 2_500; // higher bid wins
         bytes32 saltA = keccak256("gasA");
         bytes32 saltB = keccak256("gasB");
-        bytes32 commitA = keccak256(abi.encode(block.chainid, circle, uint32(2), members[2], bidA, saltA));
-        bytes32 commitB = keccak256(abi.encode(block.chainid, circle, uint32(2), members[3], bidB, saltB));
+        bytes32 commitA = keccak256(abi.encode(block.chainid, circle, B, members[7], bidA, saltA));
+        bytes32 commitB = keccak256(abi.encode(block.chainid, circle, B, members[8], bidB, saltB));
 
-        vm.warp(due2 - r.commitWindow);
-        vm.prank(members[2]);
-        Circle(circle).commitBid(2, commitA);
-        vm.prank(members[3]);
-        Circle(circle).commitBid(2, commitB);
+        vm.warp(dueB - r.commitWindow);
+        vm.prank(members[7]);
+        Circle(circle).commitBid(B, commitA);
+        vm.prank(members[8]);
+        Circle(circle).commitBid(B, commitB);
 
-        vm.warp(due2 - 1);
-        for (uint8 i = 2; i < N; i++) {
+        vm.warp(dueB - 1);
+        for (uint8 i = 1; i < N; i++) {
+            if (i == 6) continue;
             vm.prank(members[i]);
-            Circle(circle).contribute(2);
+            Circle(circle).contribute(B);
         }
 
-        vm.warp(due2);
-        vm.prank(members[2]);
-        Circle(circle).revealBid(2, bidA, saltA);
-        vm.prank(members[3]);
-        Circle(circle).revealBid(2, bidB, saltB);
+        vm.warp(dueB);
+        vm.prank(members[7]);
+        Circle(circle).revealBid(B, bidA, saltA);
+        vm.prank(members[8]);
+        Circle(circle).revealBid(B, bidB, saltB);
 
-        vm.warp(due2 + r.grace);
+        vm.warp(dueB + r.grace);
         vm.startSnapshotGas("closeRound_bidsMissDefault_12members");
-        Circle(circle).closeRound(2);
+        Circle(circle).closeRound(B);
         uint256 gasUsed = vm.stopSnapshotGas();
         assertLe(gasUsed, BUDGET_CLOSE_ROUND_BID_MISS_DEFAULT);
 
         (ICircle.Standing st0,,,) = Circle(circle).standingOf(members[0]);
-        (ICircle.Standing st1,,,) = Circle(circle).standingOf(members[1]);
+        (ICircle.Standing st6,,,) = Circle(circle).standingOf(members[6]);
         assertEq(uint8(st0), uint8(ICircle.Standing.Defaulted));
-        assertEq(uint8(st1), uint8(ICircle.Standing.Behind));
-        (, bool received3,,) = Circle(circle).standingOf(members[3]);
-        assertTrue(received3); // higher bid (members[3]) won
+        assertEq(uint8(st6), uint8(ICircle.Standing.Behind));
+        (, bool received8,,) = Circle(circle).standingOf(members[8]);
+        assertTrue(received8); // higher bid (members[8]) won
+    }
+
+    uint32 constant B = 7; // first second-half round of a 12-member circle
+
+    function _closeRounds(address circle, address[] memory members, uint32 upTo) internal {
+        for (uint32 round = 1; round <= upTo; round++) {
+            uint64 due = Circle(circle).dueTime(round);
+            vm.warp(due - 1);
+            for (uint8 i = 0; i < members.length; i++) {
+                vm.prank(members[i]);
+                Circle(circle).contribute(round);
+            }
+            vm.warp(due + Circle(circle).rules().grace);
+            Circle(circle).closeRound(round);
+        }
     }
 
     // ---- withdraw, first call settles the vault ----

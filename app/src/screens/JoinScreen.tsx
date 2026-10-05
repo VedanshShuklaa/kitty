@@ -3,16 +3,17 @@ import { StyleSheet, View } from "react-native";
 
 import { explain } from "../errors";
 import { money } from "../format";
-import { depositOf, JOIN_STEPS, joinCircle, loadSnapshot, type Snapshot } from "../kitty";
+import { depositOf, JOIN_STEPS, joinCircle, joinTerms, loadSnapshot, type Snapshot, type Terms } from "../kitty";
 import { parseInvite } from "../links";
 import type { ScreenProps } from "../nav";
 import { nameAt, rulesInWords } from "../phase";
 import { KittyLogo } from "../Brand";
 import { syncCircle } from "../restore";
 import { useMe } from "../session";
+import { firstOfferRound, payoutOrder, STAGE_NAME, termsInWords } from "../standing";
 import { getCircle, saveCircle } from "../store";
 import { color, font, radius, space } from "../theme";
-import { Body, Button, Heading, Notice, Screen, Section, Small, Steps, Title, type StepState } from "../ui";
+import { Body, Button, Heading, List, Notice, Row, Screen, Section, Small, Steps, Tag, Title, type StepState } from "../ui";
 
 export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
   const { address: me, signer, confirm } = useMe();
@@ -29,6 +30,19 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
   }, [invite, me]);
 
   useEffect(() => { void load(); }, [load]);
+
+  // FR-TRU-13/14: terms before money. The record decides this member's
+  // deposit, place in the order and offer window; show all of it first.
+  const [terms, setTerms] = useState<Terms | null>(null);
+  const [termsError, setTermsError] = useState(false);
+  const contribution = snap?.rules.contribution;
+  useEffect(() => {
+    if (contribution === undefined) return;
+    setTermsError(false);
+    joinTerms(me, contribution).then(setTerms).catch(() => setTermsError(true));
+  }, [me, contribution]);
+  const nowSec = Math.floor(Date.now() / 1000);
+  const deposit = snap && terms ? depositOf(snap.rules, terms.depositX100) : 0n;
 
   // A member who reinstalled can come back through their invite link: the
   // chain says they're in, but this phone has forgotten the circle. Put it
@@ -103,7 +117,7 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
     );
   }
 
-  const now = Date.now() / 1000;
+  const now = nowSec;
   let blocker: string | null = null;
   let already = false;
   if (snap) {
@@ -113,7 +127,23 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
     else if (snap.state === "cancelled" || (snap.state === "forming" && now >= Number(snap.rules.joinDeadline)))
       blocker = `This circle no longer exists: not everyone joined in time, so it was called off and deposits went back. Ask ${organizer} to start a new one.`;
     else if (snap.state !== "forming") blocker = "This circle has already started, so it can't take new members.";
+    else if (terms?.stage === "Away")
+      blocker = "Your cat is staying with the neighbours: you still owe another circle. Pay that back on Account, then you can join.";
+    else if (terms && terms.open >= terms.maxOpen)
+      blocker = `Your cat lets you be in ${terms.maxOpen} ${terms.maxOpen === 1 ? "circle" : "circles"} at once, and you're in that many now. Finish one first.`;
   }
+
+  // the order if nobody makes an offer and nobody misses: everyone seated,
+  // and this member at their stage; seats still empty come after (FR-TRU-14)
+  const order =
+    snap && terms
+      ? payoutOrder([
+          ...snap.members.filter((m) => m.address).map((m) => ({ seat: m.seat, stage: m.stage, mine: false })),
+          { seat: invite.seat, stage: terms.stage, mine: true },
+        ])
+      : [];
+  const myTurn = order.findIndex((o) => o.mine) + 1;
+  const offerRound = terms && snap ? firstOfferRound(terms.offerFrom, snap.rules.memberCount) : null;
 
 
   return (
@@ -122,8 +152,8 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
       footer={
         already ? (
           <Button label="Open the circle" onPress={() => navigation.replace("Circle", { address: invite.circle })} />
-        ) : snap && !blocker ? (
-          <Button label={`Join and put down ${money(depositOf(snap.rules))}`} onPress={join} />
+        ) : snap && terms && !blocker ? (
+          <Button label={`Join and put down ${money(deposit)}`} onPress={join} />
         ) : undefined
       }
     >
@@ -135,7 +165,7 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
         {snap && <View style={{ marginTop: space.sm, gap: space.sm }}>
           <Heading>{money(snap.rules.contribution)} each round</Heading>
           <Small>{snap.rules.memberCount} people · {snap.rules.memberCount} rounds</Small>
-          <Small>Deposit to join: {money(depositOf(snap.rules))}. Read the rules below before you confirm.</Small>
+          {terms && <Small>Deposit to join: {money(deposit)}. Read your terms and the rules below before you confirm.</Small>}
         </View>}
       </View>
 
@@ -143,6 +173,55 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
       {!snap && !loadError && <Small>Loading the circle…</Small>}
       {already && <Notice tone="good">You're already in this circle.</Notice>}
       {blocker && <Notice tone="error">{blocker}</Notice>}
+
+      {snap && !already && !blocker && termsError && (
+        <>
+          <Notice tone="error">Couldn't check your terms for this circle. Check your connection and try again.</Notice>
+          <Button label="Try again" tone="quiet" onPress={load} />
+        </>
+      )}
+
+      {snap && terms && !already && !blocker && (
+        <Section title="Your terms" right={<Tag label={STAGE_NAME[terms.stage]} tone={terms.stage === "Wary" ? "clay" : terms.stage === "Shy" ? "slate" : "leaf"} />}>
+          <Body>
+            If nobody makes an offer and nobody misses, you'd be paid in round {myTurn} of {snap.rules.memberCount}.{" "}
+            {offerRound === null
+              ? "Your cat is wary, so you can't make offers to go earlier in this circle."
+              : offerRound === 1
+                ? "You can make an offer to go earlier in any round."
+                : `You can make an offer to go earlier from round ${offerRound}.`}
+          </Body>
+          <List>
+            {termsInWords(terms.stage)
+              .filter((t) => t.label !== "Circles at once")
+              .map((t, i, all) => (
+                <Row key={t.label} last={i === all.length - 1}>
+                  <Body style={{ flex: 1 }}>{t.label}</Body>
+                  <Body style={{ fontFamily: font.bodyBold, flexShrink: 1, textAlign: "right" }}>{t.value}</Body>
+                </Row>
+              ))}
+          </List>
+        </Section>
+      )}
+
+      {snap && terms && !already && !blocker && (
+        <Section title="Paid in this order">
+          <List>
+            {order.map((o, i) => (
+              <Row key={o.seat} last={i === order.length - 1}>
+                <Body style={{ width: 28, color: color.slate }}>{i + 1}</Body>
+                <Body style={{ flex: 1, fontFamily: o.mine ? font.bodyBold : font.body }}>{o.mine ? `You (${who})` : nameAt(names, o.seat)}</Body>
+                <Tag label={STAGE_NAME[o.stage ?? "Shy"]} tone={o.stage === "Wary" || o.stage === "Away" ? "clay" : o.stage === "Shy" ? "slate" : "leaf"} />
+              </Row>
+            ))}
+          </List>
+          <Small>
+            Members whose cats trust them more are paid first; among equals, seat order. {snap.rules.memberCount - order.length > 0
+              ? `${snap.rules.memberCount - order.length} still to join will slot in by their own cats.`
+              : ""}
+          </Small>
+        </Section>
+      )}
 
       {snap && (
         <Section title="Before you join">

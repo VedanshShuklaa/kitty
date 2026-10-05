@@ -3,15 +3,18 @@ import { useCallback, useEffect, useState } from "react";
 import { Linking, View } from "react-native";
 
 import { BottomNav } from "../Brand";
+import { Cat } from "../Cat";
 import { explorerAddress } from "../chain";
+import { explain } from "../errors";
 import { initials, money, shortAddress } from "../format";
 import { recordOf, type Passbook } from "../indexer";
-import { loadSnapshot, type Snapshot } from "../kitty";
+import { loadSnapshot, readStanding, repay, type Snapshot } from "../kitty";
 import type { ScreenProps } from "../nav";
 import { useMe, useSession } from "../session";
-import { listCircles, type CircleRef } from "../store";
-import { color, space } from "../theme";
-import { Bead, Body, Button, List, Notice, Row, Screen, Section, Small, Tag, Title } from "../ui";
+import { nextStep, STAGE_LINE, STAGE_NAME, termsInWords, type Progress } from "../standing";
+import { getShowCat, listCircles, setShowCat, type CircleRef } from "../store";
+import { color, font, space } from "../theme";
+import { Bead, Body, Button, Check, Heading, List, Notice, Row, Screen, Section, Small, Tag, Title } from "../ui";
 
 type Words = { label: string; tone: "leaf" | "clay" | "slate" | "marigold"; clean: boolean };
 
@@ -21,7 +24,7 @@ function standingWords(s: Snapshot | null): Words {
   if (!s) return { label: "Could not update", tone: "slate", clean: false };
   const mine = s.me ? s.members[s.me.seat] : undefined;
   if (!mine) return { label: "Not joined", tone: "slate", clean: false };
-  if (mine.standing === "defaulted") return { label: "Missed, not repaid", tone: "clay", clean: false };
+  if (mine.standing === "defaulted") return { label: mine.owed > 0n ? "Owes the circle" : "Stopped paying", tone: "clay", clean: false };
   if (s.state === "completed") return { label: "Finished", tone: "marigold", clean: true };
   if (s.state === "cancelled") return { label: "Called off", tone: "slate", clean: true };
   if (mine.standing === "behind") return { label: "Catching up", tone: "clay", clean: false };
@@ -52,9 +55,14 @@ function passbookLines(b: Passbook): string[] {
 }
 
 export function MeScreen({ navigation }: ScreenProps<"Me">) {
-  const { address, signer } = useMe();
+  const { address, signer, confirm } = useMe();
   const { profile, lock, forget } = useSession();
   const [book, setBook] = useState<Passbook | null>(null);
+  const [standing, setStanding] = useState<Progress | null>(null);
+  const [showCat, setShowCatState] = useState(true);
+  const [paying, setPaying] = useState<string | null>(null);
+  const [payError, setPayError] = useState<string | null>(null);
+  useEffect(() => { getShowCat().then(setShowCatState).catch(() => {}); }, []);
   const [items, setItems] = useState<{ ref: CircleRef; snap: Snapshot | null }[]>([]);
   const [copied, setCopied] = useState(false);
 
@@ -65,6 +73,7 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
     setRefreshing(true);
     try {
       recordOf(address).then(setBook).catch(() => {});
+      readStanding(address).then(setStanding).catch(() => {});
       const refs = await listCircles(address);
       const snaps = await Promise.all(refs.map((r) => loadSnapshot(r.address, address).catch(() => null)));
       setItems(refs.map((ref, i) => ({ ref, snap: snaps[i] })));
@@ -76,6 +85,25 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
   useEffect(() => { void load(); }, [load]);
 
   const clean = items.filter((i) => standingWords(i.snap).clean).length;
+  // FR-TRU-17/18: what a default cost each finished circle, payable here
+  const owing = items.flatMap(({ ref, snap }) => {
+    const mine = snap?.me ? snap.members[snap.me.seat] : undefined;
+    return snap && mine && mine.owed > 0n && snap.state === "completed" ? [{ ref, amount: mine.owed }] : [];
+  });
+
+  async function payBack(circle: CircleRef, amount: bigint) {
+    setPaying(circle.address);
+    setPayError(null);
+    try {
+      // paying back moves money: a fresh fingerprint (SRS 15.4)
+      await repay(await confirm(), circle.address, amount);
+      await load();
+    } catch (e) {
+      setPayError(explain(e));
+    } finally {
+      setPaying(null);
+    }
+  }
 
   return (
     <Screen onBack={() => navigation.goBack()} footer={<BottomNav active="Account" onHome={() => navigation.navigate("Home")} onJoin={() => navigation.navigate("Paste")} onAccount={() => {}} />}>
@@ -92,6 +120,52 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
       </View>
 
       {loadError && <><Notice tone="error">Couldn’t update your record. Check your connection and try again.</Notice><Button label="Try again" busy={refreshing} onPress={load} /></>}
+      {standing && (
+        <Section title="Your cat" right={<Tag label={STAGE_NAME[standing.stage]} tone={standing.stage === "Away" || standing.stage === "Wary" ? "clay" : standing.stage === "Shy" ? "slate" : "leaf"} />}>
+          <View style={{ flexDirection: "row", gap: space.md, alignItems: "center" }}>
+            {showCat && <Cat owner={address} stage={standing.stage} size={112} hidden />}
+            <Heading style={{ flex: 1 }}>{STAGE_LINE[standing.stage]}</Heading>
+          </View>
+          {owing.map(({ ref, amount }) => (
+            <View key={ref.address} style={{ gap: space.sm }}>
+              <Body>
+                You took the pot in {ref.title} and the rounds after it weren't all paid. The circle lost {money(amount)}.
+              </Body>
+              <Button
+                label={`Pay back ${money(amount)}`}
+                busy={paying === ref.address}
+                disabled={paying !== null}
+                onPress={() => payBack(ref, amount)}
+              />
+              <Small>The {money(amount)} goes to the members who lost it. Until it's paid, you can't join a new circle.</Small>
+            </View>
+          ))}
+          {payError && <Notice tone="error">{payError}</Notice>}
+          <Body>{nextStep(standing)}</Body>
+          <Heading>In your next circle</Heading>
+          <List>
+            {termsInWords(standing.stage).map((t, i, all) => (
+              <Row key={t.label} last={i === all.length - 1}>
+                <Body style={{ flex: 1 }}>{t.label}</Body>
+                <Body style={{ fontFamily: font.bodyBold, flexShrink: 1, textAlign: "right" }}>{t.value}</Body>
+              </Row>
+            ))}
+          </List>
+          <Small>
+            Only kept promises change how much she trusts you: finishing circles raises it slowly, and a missed round lowers it a whole step.
+            Offers and amounts never count. Think a missed round was a mistake? Ask Kitty to review it.
+          </Small>
+          <Check
+            label="Show my cat"
+            value={showCat}
+            onChange={(on) => {
+              setShowCatState(on);
+              void setShowCat(on);
+            }}
+          />
+        </Section>
+      )}
+
       {items.length > 0 && (
         <Section title="Your record">
           <List>

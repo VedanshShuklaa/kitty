@@ -16,6 +16,8 @@ jest.mock("../src/config", () => {
       chainId: d.chainId,
       circleFactory: d.circleFactory,
       ausd: d.ausd,
+      kittyRecord: d.kittyRecord,
+      kittyCats: d.kittyCats,
       ausdFaucet: "0xd236c18D274E54FAccC3dd9DDA4b27965a73ee6C",
     },
   };

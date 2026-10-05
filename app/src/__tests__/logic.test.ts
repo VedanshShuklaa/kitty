@@ -147,6 +147,9 @@ describe("plan", () => {
     credit: 0n,
     paid: false,
     revealed: false,
+    stage: "Shy",
+    offerFrom: 0,
+    owed: 0n,
     ...over,
   });
   const snap = (over: Partial<Snapshot> = {}, meOver: Partial<NonNullable<Snapshot["me"]>> = {}): Snapshot => ({

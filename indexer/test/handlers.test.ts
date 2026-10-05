@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createTestIndexer } from "envio";
 
-import { AUSD, CTK, FAUCET, PAIR } from "../src/lib/addresses";
+import { AUSD, CTK, FAUCET, KITTY_RECORD, PAIR } from "../src/lib/addresses";
 import { aprBps } from "../src/lib/rate";
 
 // SRS 15.6 tests: factory registration, the record across two circles
@@ -283,5 +283,45 @@ describe("yield", () => {
     expect(rate.sharePrice).toBe(1_002004n);
     expect(rate.aprBps).toBeGreaterThan(0);
     expect((await indexer.YieldPoint.getAll()).every((p) => p.chainId === 143)).toBe(true);
+  });
+});
+
+describe("Feed the Kitty", () => {
+  const RECORD = KITTY_RECORD;
+  const rec = (event: string, params: Record<string, unknown>, block: number) => ({
+    contract: "KittyRecord" as const,
+    event,
+    srcAddress: RECORD,
+    params,
+    block: at(block),
+    transaction: tx(),
+  });
+
+  // record events sit after the record's start block (B0 + 1_188_159)
+  it("keeps each member's stage at join, and every stage change with its reason", async () => {
+    const indexer = createTestIndexer();
+    await indexer.process({
+      chains: {
+        10143: {
+          startBlock: B0,
+          simulate: [
+            created(C1, ANA, 2, 1),
+            joined(C1, ANA, 0, 2),
+            ev(C1, "Placed", { member: ANA, stage: 3n }, 2),
+            rec("StageChanged", { account: BEN, from: 2n, to: 1n, why: 1n }, 1_200_003),
+            rec("StageChanged", { account: BEN, from: 1n, to: 0n, why: 2n }, 1_200_004),
+            rec("DebtChanged", { account: BEN, debt: 6_000000n }, 1_200_004),
+            ev(C1, "Repaid", { member: BEN, amount: 6_000000n }, 1_200_005),
+            ev(C1, "ArrearsCredited", { from: BEN, to: ANA, amount: 6_000000n }, 1_200_005),
+          ] as never,
+        },
+      },
+    });
+    expect((await indexer.Member.getOrThrow(`${C1}-${ANA}`)).stage).toBe("Friendly");
+    expect(await indexer.Account.getOrThrow(BEN)).toMatchObject({ stage: "Away", debt: 6_000000n });
+    const changes = (await indexer.StageChange.getAll()).filter((c) => c.account_id === BEN).map((c) => `${c.from}>${c.to}:${c.why}`);
+    expect(changes.sort()).toEqual(["Shy>Wary:Missed", "Wary>Away:Defaulted"]);
+    const kinds = (await indexer.Activity.getAll()).filter((a) => a.circle_id === C1).map((a) => a.kind);
+    expect(kinds).toEqual(expect.arrayContaining(["PaidBack", "Credited"]));
   });
 });

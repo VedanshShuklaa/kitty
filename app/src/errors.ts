@@ -13,12 +13,14 @@ const CONTRACT: Record<string, string> = {
   TooEarly: "It's too early for that. Try again when the window opens.",
   TooLate: "The window for that has closed.",
   AlreadyPaid: "You've already paid this round.",
-  NotEligible: "You can't do that right now: only members who are up to date and haven't taken the pot yet can bid, and there must be at least two of them.",
+  NotEligible: "You can't make an offer this round. Offers are open to members who are up to date, haven't had the pot, and whose cat allows it this round, and there must be at least two of them.",
   BiddingOff: "Bidding is turned off for this circle.",
   BidTooHigh: "That offer is above this circle's limit.",
   BadReveal: "Your sealed offer couldn't be matched, so it won't count this round.",
   AutopayOff: "Autopay is off for this member.",
   NothingToWithdraw: "There's nothing left for you to collect.",
+  Owing: "You still owe another circle. Pay that back on Account, then you can join.",
+  TooManyCircles: "You're already in as many circles as your cat allows at once. Finish one first.",
   MaxFrequencyExceeded: "The test-dollar tap is busy. Try again in a minute.",
 };
 

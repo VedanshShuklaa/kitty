@@ -9,6 +9,7 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 import { ICircle } from "./interfaces/ICircle.sol";
 import { Rules } from "./interfaces/ICircleFactory.sol";
 import { IStakeVault } from "./interfaces/IStakeVault.sol";
+import { IKittyRecord } from "./interfaces/IKittyRecord.sol";
 
 /// @notice One rotating-savings circle, deployed as an EIP-1167 clone by
 /// CircleFactory. Implements SRS section 7.7 in full: contributions, sealed
@@ -27,6 +28,9 @@ contract Circle is ICircle, ReentrancyGuard {
     address public immutable factory;
     IERC20 public immutable ausd;
     IStakeVault public immutable vault;
+    // Standing ("Feed the Kitty"): read at join, written on every miss,
+    // default, repayment and finished circle
+    IKittyRecord public immutable record;
     address public organizer;
 
     Rules private _rules;
@@ -62,15 +66,35 @@ contract Circle is ICircle, ReentrancyGuard {
     mapping(address => uint256) private _fillRemainder;
     mapping(address => bool) private _defaultFillPending;
 
+    // A member's terms from the record, fixed at join, and their tally here
+    struct Seat {
+        IKittyRecord.Stage stage;
+        uint8 limitMonths; // 255: the circle's own holdback only
+        uint8 offerFrom; // 0 any round, 1 second half, 2 never
+        uint8 late;
+        uint8 missed;
+        bool recorded; // the finished circle is in the record
+    }
+
+    mapping(address => Seat) private _seat;
+    // FR-TRU-17: the part of a missed round nobody covered, by round, owed to
+    // that round's recipient
+    mapping(address => mapping(uint32 => uint256)) private _shortIn;
+    mapping(address => uint256) private _arrearsShortPortion;
+    // what a member's default (or unpaid arrears at the end) cost the others
+    mapping(address => uint256) private _owed;
+    mapping(address => uint32) private _defaultRound;
+
     modifier onlyMember() {
         if (_seatIndexPlusOne[msg.sender] == 0) revert NotMember();
         _;
     }
 
-    constructor(IERC20 ausd_, IStakeVault vault_, address factory_) {
+    constructor(IERC20 ausd_, IStakeVault vault_, address factory_, IKittyRecord record_) {
         ausd = ausd_;
         vault = vault_;
         factory = factory_;
+        record = record_;
     }
 
     function initialize(Rules calldata r, address[] calldata inviteSigners_, address organizer_) external {
@@ -103,7 +127,13 @@ contract Circle is ICircle, ReentrancyGuard {
             if (signer != _inviteSignerAt[seat]) revert BadInvite();
         }
 
-        uint256 stake = (uint256(_rules.contribution) * _rules.stakeBps) / 10_000;
+        // FR-TRU-13/14: the deposit, limit and offer window come from standing
+        IKittyRecord.Terms memory t = record.termsOf(msg.sender, _rules.contribution);
+        if (t.stage == IKittyRecord.Stage.Away) revert Owing();
+        if (t.open >= t.maxOpen) revert TooManyCircles();
+        _seat[msg.sender] = Seat(t.stage, t.limitMonths, t.offerFrom, 0, 0, false);
+
+        uint256 stake = (uint256(_rules.contribution) * _rules.stakeBps * t.depositX100) / 1_000_000;
         _memberAt[seat] = msg.sender;
         _seatIndexPlusOne[msg.sender] = seat + 1;
         filledSeats += 1;
@@ -113,7 +143,9 @@ contract Circle is ICircle, ReentrancyGuard {
             ausd.safeTransferFrom(msg.sender, address(vault), stake);
             vault.deposit(msg.sender, IStakeVault.Kind.Stake, stake);
         }
+        record.joined(msg.sender);
         emit Joined(msg.sender, seat, stake);
+        emit Placed(msg.sender, t.stage);
 
         if (filledSeats == _rules.memberCount) {
             _state = State.Active;
@@ -135,6 +167,10 @@ contract Circle is ICircle, ReentrancyGuard {
         if (_state != State.Forming) revert WrongState();
         if (msg.sender != organizer && block.timestamp < _rules.joinDeadline) revert TooEarly();
         _state = State.Cancelled;
+        for (uint8 s = 0; s < _rules.memberCount; s++) {
+            address m = _memberAt[s];
+            if (m != address(0)) record.left(m);
+        }
         emit Cancelled(uint64(block.timestamp));
     }
 
@@ -168,6 +204,7 @@ contract Circle is ICircle, ReentrancyGuard {
         uint64 due_ = dueTime(round);
         if (block.timestamp > due_ + _rules.grace) revert TooLate();
         bool late = block.timestamp > due_;
+        if (late) _seat[member].late += 1;
 
         (uint256 pay, uint256 creditUsed, uint256 holdbackReleased) = _amountDue(member, late);
         _paidRound[round][member] = true;
@@ -215,19 +252,44 @@ contract Circle is ICircle, ReentrancyGuard {
         }
         if (poolRestore > 0) pool += poolRestore;
         if (_standingOf[msg.sender] == Standing.Behind) _standingOf[msg.sender] = Standing.Good;
+        record.arrearsCleared(msg.sender);
         emit ArrearsPaid(msg.sender, amt);
     }
 
-    /// @dev SRS 7.7: a repayment restores the member's own stake first (the
-    /// part their miss drew from it), then whatever remains replenishes the
-    /// shared pool (the part their miss drew from there).
+    /// @dev FR-TRU-17: a repayment goes first to the members whose pots were
+    /// short, then back to the shared pool, and last restores the member's
+    /// own stake: other people's money before their own.
     function _restoreArrears(address m, uint256 repayAmt) internal returns (uint256 stakeRestore, uint256 poolRestore) {
-        uint256 poolOutstanding = _arrearsPoolPortion[m];
-        uint256 stakeOutstanding = _arrearsOf[m] - poolOutstanding;
-        stakeRestore = repayAmt < stakeOutstanding ? repayAmt : stakeOutstanding;
-        poolRestore = repayAmt - stakeRestore;
+        uint256 toShort = repayAmt < _arrearsShortPortion[m] ? repayAmt : _arrearsShortPortion[m];
+        if (toShort > 0) {
+            _arrearsShortPortion[m] -= toShort;
+            pool += _payShort(m, toShort);
+        }
+        uint256 rest = repayAmt - toShort;
+        poolRestore = rest < _arrearsPoolPortion[m] ? rest : _arrearsPoolPortion[m];
+        stakeRestore = rest - poolRestore;
         _arrearsOf[m] -= repayAmt;
         _arrearsPoolPortion[m] -= poolRestore;
+    }
+
+    /// @dev Credits each round's recipient with what `m`'s miss kept from their
+    /// pot, earliest round first; a round with no recipient to pay feeds the pool.
+    function _payShort(address m, uint256 amt) internal returns (uint256 unplaced) {
+        for (uint32 r = 1; r <= _currentRound && amt > 0; r++) {
+            uint256 x = _shortIn[m][r];
+            if (x == 0) continue;
+            uint256 part = x < amt ? x : amt;
+            _shortIn[m][r] = x - part;
+            amt -= part;
+            address to = _recipientOf[r];
+            if (to == address(0) || to == m || _standingOf[to] == Standing.Defaulted) {
+                unplaced += part;
+            } else {
+                _creditOf[to] += part;
+                emit ArrearsCredited(m, to, part);
+            }
+        }
+        unplaced += amt;
     }
 
     // --------------------------------------------------------------- bids
@@ -235,8 +297,8 @@ contract Circle is ICircle, ReentrancyGuard {
     function commitBid(uint32 round, bytes32 commitment) external onlyMember {
         if (_state != State.Active || round != _currentRound) revert WrongRound();
         if (_rules.maxBidBps == 0) revert BiddingOff();
-        if (_standingOf[msg.sender] != Standing.Good || _receivedOf[msg.sender]) revert NotEligible();
-        if (_eligibleBidderCount() < 2) revert NotEligible();
+        if (!_canOffer(msg.sender, round)) revert NotEligible();
+        if (_eligibleBidderCount(round) < 2) revert NotEligible();
         uint64 due_ = dueTime(round);
         if (block.timestamp < due_ - _rules.commitWindow) revert TooEarly();
         if (block.timestamp >= due_) revert TooLate();
@@ -245,13 +307,34 @@ contract Circle is ICircle, ReentrancyGuard {
     }
 
     /// @dev FR-BID-07: with one eligible bidder left, bidding is pointless --
-    /// the no-bid seat-order fallback already picks them.
-    function _eligibleBidderCount() internal view returns (uint8 count) {
+    /// the no-bid fallback already picks them.
+    function _eligibleBidderCount(uint32 round) internal view returns (uint8 count) {
         uint8 n = _rules.memberCount;
         for (uint8 s = 0; s < n; s++) {
-            address m = _memberAt[s];
-            if (_standingOf[m] == Standing.Good && !_receivedOf[m]) count++;
+            if (_canOffer(_memberAt[s], round)) count++;
         }
+    }
+
+    /// @dev Good standing, no pot yet, and inside their stage's offer window:
+    /// Friendly and above any round, Shy from the second half, Wary never.
+    function _canOffer(address m, uint32 round) internal view returns (bool) {
+        if (_standingOf[m] != Standing.Good || _receivedOf[m]) return false;
+        uint8 from = _seat[m].offerFrom;
+        if (from != 0 && (from != 1 || round <= _rules.memberCount / 2)) return false;
+        return !_owesElsewhere(m);
+    }
+
+    /// @dev Payout order: stage first, best first, then seat. A member who
+    /// owes another circle goes behind everyone (FR-TRU-18).
+    function _rank(address m, uint8 seat) internal view returns (uint256) {
+        uint256 stage = _owesElsewhere(m) ? 0 : uint256(_seat[m].stage);
+        return stage * 16 + (15 - seat);
+    }
+
+    /// @dev FR-TRU-18: a debt anywhere, read live, so a default in another
+    /// circle reaches this one at its next round.
+    function _owesElsewhere(address m) internal view returns (bool) {
+        return record.debtOf(m) > 0;
     }
 
     function revealBid(uint32 round, uint16 discountBps, bytes32 salt) external onlyMember {
@@ -305,10 +388,17 @@ contract Circle is ICircle, ReentrancyGuard {
                 pool -= fromPool;
                 uint256 shortfall = remaining - fromPool;
                 pot += fromStake + fromPool;
-                _arrearsOf[m] += fromStake + fromPool;
+                // FR-TRU-17: the whole round is owed, covered or not
+                _arrearsOf[m] += _rules.contribution;
                 _arrearsPoolPortion[m] += fromPool;
+                if (shortfall > 0) {
+                    _arrearsShortPortion[m] += shortfall;
+                    _shortIn[m][round] += shortfall;
+                }
                 _standingOf[m] = Standing.Behind;
                 _paidRound[round][m] = true;
+                _seat[m].missed += 1;
+                record.missed(m);
                 emit Covered(m, round, fromStake, fromPool, shortfall);
             } else {
                 uint256 left = n - round + 1;
@@ -338,6 +428,10 @@ contract Circle is ICircle, ReentrancyGuard {
                 defaultReserve += filled;
                 _standingOf[m] = Standing.Defaulted;
                 _paidRound[round][m] = true;
+                _seat[m].missed += 1;
+                _defaultRound[m] = round;
+                _seat[m].recorded = true;
+                record.defaulted(m, rem + _foldArrears(m, rem));
                 emit Defaulted(m, round, obligation, fromStake, fromHoldback, fromPool, rem);
 
                 uint256 immediateFill = _fillPerRound[m];
@@ -357,7 +451,7 @@ contract Circle is ICircle, ReentrancyGuard {
         for (uint8 s = 0; s < n; s++) {
             address m = _memberAt[s];
             if (_standingOf[m] != Standing.Good || _receivedOf[m] || !_paidRound[round][m]) continue;
-            if (_hasRevealed[round][m]) {
+            if (_hasRevealed[round][m] && !_owesElsewhere(m)) {
                 uint16 bps = _revealedBps[round][m];
                 if (!foundBid || bps > bestBps) {
                     winner = m;
@@ -366,24 +460,8 @@ contract Circle is ICircle, ReentrancyGuard {
                 }
             }
         }
-        if (!foundBid) {
-            for (uint8 s = 0; s < n; s++) {
-                address m = _memberAt[s];
-                if (_standingOf[m] == Standing.Good && !_receivedOf[m] && _paidRound[round][m]) {
-                    winner = m;
-                    break;
-                }
-            }
-        }
-        if (winner == address(0)) {
-            for (uint8 s = 0; s < n; s++) {
-                address m = _memberAt[s];
-                if (_standingOf[m] == Standing.Behind && !_receivedOf[m]) {
-                    winner = m;
-                    break;
-                }
-            }
-        }
+        if (!foundBid) winner = _firstInOrder(round, Standing.Good);
+        if (winner == address(0)) winner = _firstInOrder(round, Standing.Behind);
 
         // step 5: pay
         uint256 gross = pot;
@@ -410,23 +488,17 @@ contract Circle is ICircle, ReentrancyGuard {
         // forge-lint: disable-next-line(unsafe-typecast)
         emit CreditsIssued(round, perMember, uint8(k), toPool + dust);
 
-        uint256 holdbackAmt = 0;
-        if (winner != address(0) && round < n) {
-            holdbackAmt = (uint256(_rules.contribution) * (n - round) * _rules.holdbackBps) / 10_000;
-            // SRS 7.7 assumes the pot covers the holdback; after heavy
-            // misses and a winning bid it may not, so withhold what's there
-            if (holdbackAmt > gross - discount) holdbackAmt = gross - discount;
-            _holdbackPerPayment[winner] = (uint256(_rules.contribution) * _rules.holdbackBps) / 10_000;
-            _holdbackRemaining[winner] = holdbackAmt;
-            if (holdbackAmt > 0) {
-                ausd.safeTransfer(address(vault), holdbackAmt);
-                vault.deposit(winner, IStakeVault.Kind.Holdback, holdbackAmt);
-            }
-        }
-
+        // FR-TRU-17: a Behind winner's own pot repays what they owe first
         uint256 arrearsRepaid = 0;
         if (winner != address(0) && _standingOf[winner] == Standing.Behind) {
-            uint256 available = gross - discount - holdbackAmt;
+            // what their miss kept from this very pot was only ever their own
+            uint256 self = _shortIn[winner][round];
+            if (self > 0) {
+                _shortIn[winner][round] = 0;
+                _arrearsShortPortion[winner] -= self;
+                _arrearsOf[winner] -= self;
+            }
+            uint256 available = gross - discount;
             arrearsRepaid = _arrearsOf[winner] < available ? _arrearsOf[winner] : available;
             if (arrearsRepaid > 0) {
                 (uint256 stakeRestore, uint256 poolRestore) = _restoreArrears(winner, arrearsRepaid);
@@ -435,7 +507,19 @@ contract Circle is ICircle, ReentrancyGuard {
                     vault.deposit(winner, IStakeVault.Kind.Stake, stakeRestore);
                 }
                 if (poolRestore > 0) pool += poolRestore;
-                if (_arrearsOf[winner] == 0) _standingOf[winner] = Standing.Good;
+            }
+            if (_arrearsOf[winner] == 0) {
+                _standingOf[winner] = Standing.Good;
+                record.arrearsCleared(winner);
+            }
+        }
+
+        uint256 holdbackAmt = 0;
+        if (winner != address(0) && round < n) {
+            holdbackAmt = _holdbackFor(winner, round, gross - discount - arrearsRepaid);
+            if (holdbackAmt > 0) {
+                ausd.safeTransfer(address(vault), holdbackAmt);
+                vault.deposit(winner, IStakeVault.Kind.Holdback, holdbackAmt);
             }
         }
 
@@ -470,6 +554,7 @@ contract Circle is ICircle, ReentrancyGuard {
             return;
         }
         if (_state != State.Completed) revert WrongState();
+        if (!_seat[msg.sender].recorded) _recordFinish(msg.sender);
 
         if (!_settled) {
             (uint256 assets, uint256 principal) = vault.settle();
@@ -553,6 +638,148 @@ contract Circle is ICircle, ReentrancyGuard {
             ausd.safeTransfer(msg.sender, poolShare);
         }
         emit Withdrawn(msg.sender, total);
+    }
+
+    // -------------------------------------------------------- the record
+
+    /// @notice Writes a member's finished circle into the record. Their own
+    /// first withdraw does it; anyone can for a member who never withdraws.
+    function recordFinish(address member) external nonReentrant {
+        if (_state != State.Completed) revert WrongState();
+        if (_seatIndexPlusOne[member] == 0) revert NotMember();
+        if (_seat[member].recorded) revert AlreadyPaid();
+        _recordFinish(member);
+    }
+
+    function _recordFinish(address m) internal {
+        Seat storage st = _seat[m];
+        st.recorded = true; // a default recorded itself when it happened
+        // arrears still unpaid at the end are money the others never got back
+        if (_arrearsOf[m] > 0) {
+            uint256 owed = _foldArrears(m, 0);
+            if (owed > 0) {
+                record.defaulted(m, owed);
+                return;
+            }
+        }
+        uint8 n = _rules.memberCount;
+        uint256 sum = 0;
+        for (uint8 s = 0; s < n; s++) {
+            address o = _memberAt[s];
+            if (o != m) sum += _weight(_seat[o].stage);
+        }
+        uint8 onTime = n - st.late - st.missed;
+        // forge-lint: disable-next-line(unsafe-typecast)
+        record.finished(m, _rules.contribution, st.missed == 0, onTime, n, n - 1, uint8(sum / (n - 1)));
+    }
+
+    /// @dev SRS 8.4's weight per other member, as points out of 100.
+    function _weight(IKittyRecord.Stage s) internal pure returns (uint256) {
+        if (s >= IKittyRecord.Stage.AtHome) return 100;
+        if (s == IKittyRecord.Stage.Friendly) return 70;
+        if (s == IKittyRecord.Stage.Away) return 0;
+        return 40;
+    }
+
+    /// @dev Moves what a member's arrears owe other people (the short and pool
+    /// parts) into `_owed`, with `extra` on top. Their own stake's part is
+    /// theirs, so it is simply dropped. Returns the arrears part.
+    function _foldArrears(address m, uint256 extra) internal returns (uint256 fromArrears) {
+        fromArrears = _arrearsShortPortion[m] + _arrearsPoolPortion[m];
+        _owed[m] += extra + fromArrears;
+        _arrearsOf[m] = 0;
+        _arrearsPoolPortion[m] = 0;
+        if (_standingOf[m] == Standing.Behind) _standingOf[m] = Standing.Good;
+        // _arrearsShortPortion and _shortIn stay: repay() pays those rounds' recipients
+    }
+
+    /// @notice Pays back what this member's default or unpaid arrears cost the
+    /// circle, to the members who lost it (they withdraw it as credit), and
+    /// clears the debt in the record.
+    function repay() external nonReentrant {
+        if (_state != State.Completed) revert WrongState();
+        uint256 amt = _owed[msg.sender];
+        if (amt == 0) revert NothingToWithdraw();
+        _owed[msg.sender] = 0;
+        ausd.safeTransferFrom(msg.sender, address(this), amt);
+
+        uint256 toShort = amt < _arrearsShortPortion[msg.sender] ? amt : _arrearsShortPortion[msg.sender];
+        _arrearsShortPortion[msg.sender] -= toShort;
+        uint256 rest = amt - toShort + _payShort(msg.sender, toShort);
+        if (rest > 0) _creditLosers(msg.sender, rest);
+        record.repaid(msg.sender, amt);
+        emit Repaid(msg.sender, amt);
+    }
+
+    /// @dev A default shortens every pot from its round on, so those rounds'
+    /// recipients share it; with none left to pay, every other member does.
+    function _creditLosers(address m, uint256 amt) internal {
+        uint8 n = _rules.memberCount;
+        uint32 from = _defaultRound[m];
+        address[] memory to = new address[](n);
+        uint256 k = 0;
+        if (from != 0) {
+            for (uint32 r = from; r <= n; r++) {
+                address x = _recipientOf[r];
+                if (x != address(0) && x != m && _standingOf[x] != Standing.Defaulted) to[k++] = x;
+            }
+        }
+        if (k == 0) {
+            for (uint8 s = 0; s < n; s++) {
+                address x = _memberAt[s];
+                if (x != m && _standingOf[x] != Standing.Defaulted) to[k++] = x;
+            }
+        }
+        if (k == 0) {
+            pool += amt;
+            return;
+        }
+        uint256 per = amt / k;
+        for (uint256 i = 0; i < k; i++) {
+            uint256 x = per + (i == 0 ? amt - per * k : 0);
+            _creditOf[to[i]] += x;
+            emit ArrearsCredited(m, to[i], x);
+        }
+    }
+
+    /// @dev The best-placed member of `st` who hasn't had a pot (and, if Good,
+    /// has paid this round): stage first, then seat.
+    function _firstInOrder(uint32 round, Standing st) internal view returns (address best) {
+        uint256 bestRank = 0;
+        uint8 n = _rules.memberCount;
+        for (uint8 s = 0; s < n; s++) {
+            address m = _memberAt[s];
+            if (_standingOf[m] != st || _receivedOf[m]) continue;
+            if (st == Standing.Good && !_paidRound[round][m]) continue;
+            uint256 r = _rank(m, s) + 1;
+            if (r > bestRank) {
+                bestRank = r;
+                best = m;
+            }
+        }
+    }
+
+    /// @dev Sets the winner's holdback: the circle's own rule, or more when
+    /// what they'd still owe after the pot, beyond their deposit, would pass
+    /// their stage's limit (FR-TRU-13/14). Never more than the pot has left.
+    function _holdbackFor(address winner, uint32 round, uint256 available) internal returns (uint256 h) {
+        uint256 c = _rules.contribution;
+        uint256 left = _rules.memberCount - round;
+        h = (c * left * _rules.holdbackBps) / 10_000;
+        uint8 lim = _seat[winner].limitMonths;
+        if (lim != 255) {
+            uint256 owed = c * left;
+            uint256 cover = vault.balanceOf(address(this), winner, IStakeVault.Kind.Stake) + c * lim;
+            if (owed > cover && owed - cover > h) h = owed - cover;
+        }
+        if (h > available) h = available;
+        // released evenly over the rounds still to pay
+        uint256 per = (c * _rules.holdbackBps) / 10_000;
+        uint256 even = (h + left - 1) / left;
+        if (even > per) per = even;
+        if (per > c) per = c;
+        _holdbackPerPayment[winner] = per;
+        _holdbackRemaining[winner] = h;
     }
 
     /// @dev Takes collateral into the circle. If redemption fees have eaten
@@ -692,6 +919,15 @@ contract Circle is ICircle, ReentrancyGuard {
         return (_hasRevealed[round][member], _revealedBps[round][member]);
     }
 
+    function placeOf(address member)
+        external
+        view
+        returns (IKittyRecord.Stage stage, uint8 limitMonths, uint8 offerFrom, uint256 owed)
+    {
+        Seat memory st = _seat[member];
+        return (st.stage, st.limitMonths, st.offerFrom, _owed[member]);
+    }
+
     function withdrawable(address member) external view returns (uint256) {
         if (_seatIndexPlusOne[member] == 0) return 0;
         if (_state == State.Cancelled) return vault.balanceOf(address(this), member, IStakeVault.Kind.Stake);
@@ -699,8 +935,8 @@ contract Circle is ICircle, ReentrancyGuard {
         uint256 stakeBal = vault.balanceOf(address(this), member, IStakeVault.Kind.Stake);
         uint256 hbBal = vault.balanceOf(address(this), member, IStakeVault.Kind.Holdback);
         if (_settled) {
-            return stakeBal + hbBal + vault.balanceOf(address(this), member, IStakeVault.Kind.Pool)
-                + _creditOf[member] + _finalPoolShare[member];
+            return stakeBal + hbBal + vault.balanceOf(address(this), member, IStakeVault.Kind.Pool) + _creditOf[member]
+                + _finalPoolShare[member];
         }
         // before the first withdraw settles the circle, preview what
         // settlement will do, in its order: defaulted credits forfeit into

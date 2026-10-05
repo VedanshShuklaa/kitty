@@ -16,6 +16,7 @@ import {
   inviteKeyFor,
   loadSnapshot,
   payArrears,
+  repay,
   potOf,
   revealBid,
   withdraw,
@@ -28,6 +29,7 @@ import { nameAt, nextInLine, plan, rulesInWords, type Action } from "../phase";
 import { remindersFor, syncReminders } from "../reminders";
 import { rosterKeyHex, syncCircle } from "../restore";
 import { useMe } from "../session";
+import { STAGE_NAME } from "../standing";
 import { getCircle, getInviteKeys, type CircleRef } from "../store";
 import { tidyCircle, tidyStep } from "../tidy";
 import { color, font, radius, space } from "../theme";
@@ -143,6 +145,10 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
         case "arrears":
           await payArrears(s, address, a.amount ?? 0n);
           done = "You're caught up.";
+          break;
+        case "repay":
+          await repay(s, address, a.amount ?? 0n);
+          done = "Paid back. The members who lost out have it now.";
           break;
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -401,7 +407,7 @@ function MemberRow({ m, snap, name, me, now, last }: { m: Member; snap: Snapshot
     tag = { label: "Joined", tone: "leaf" };
     bead = "indigo";
   } else if (m.standing === "defaulted") {
-    tag = { label: "Out", tone: "clay" };
+    tag = { label: m.owed > 0n ? `Owes ${money(m.owed)}` : "Out", tone: "clay" };
     bead = "clay";
   } else if (snap.state === "active") {
     if (m.standing === "behind") tag = { label: `Behind ${money(m.arrears)}`, tone: "clay" };
@@ -418,6 +424,7 @@ function MemberRow({ m, snap, name, me, now, last }: { m: Member; snap: Snapshot
           {name}
           {me ? " (you)" : ""}
         </Body>
+        {m.stage && <Small>Cat: {STAGE_NAME[m.stage]}</Small>}
         {m.received && <Small>Has had the pot</Small>}
       </View>
       {tag && <Tag label={tag.label} tone={tag.tone} />}

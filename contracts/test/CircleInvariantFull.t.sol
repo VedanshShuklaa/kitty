@@ -5,6 +5,9 @@ import { Test } from "forge-std/Test.sol";
 import { Vm } from "forge-std/Vm.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { CircleFactory } from "../src/CircleFactory.sol";
+import { IKittyRecord } from "../src/interfaces/IKittyRecord.sol";
+import { OpenRecord } from "./mocks/OpenRecord.sol";
+import { KittyRecord } from "../src/KittyRecord.sol";
 import { StakeVault } from "../src/StakeVault.sol";
 import { Circle } from "../src/Circle.sol";
 import { KittyEarnVault } from "../src/KittyEarnVault.sol";
@@ -27,6 +30,7 @@ contract FullInvariantHandler is Test {
     MockAUSD public ausd;
     StakeVault public vault;
     CircleFactory public factory;
+    IKittyRecord public record;
     KittyEarnVault public earn;
 
     address[] public actors; // actor 0 is the organizer of every circle
@@ -49,13 +53,20 @@ contract FullInvariantHandler is Test {
     uint256 public defaults;
     uint256 public withdrawals;
 
-    constructor() {
+    uint256 public repays;
+
+    /// @param realRecord standing from a live KittyRecord (everyone starts Shy:
+    /// offers only in the second half, payout by stage, holdback to the Shy
+    /// limit), or an OpenRecord where everyone is Family (SRS 7.7 as before)
+    constructor(bool realRecord) {
         ausd = new MockAUSD();
         vault = new StakeVault(ausd, address(this));
-        factory = new CircleFactory(ausd, vault, 300, address(this));
+        record = realRecord ? IKittyRecord(address(new KittyRecord(address(this), 0))) : new OpenRecord();
+        factory = new CircleFactory(ausd, vault, record, 300, address(this));
         earn = new KittyEarnVault(ausd, address(this));
         vault.setAdapter(earn);
         vault.setFactory(address(factory));
+        record.addFactory(address(factory));
         // a reserve big enough to pay yield for the whole run
         ausd.mint(address(this), 1_000_000_000000);
         ausd.approve(address(earn), type(uint256).max);
@@ -85,7 +96,8 @@ contract FullInvariantHandler is Test {
 
         Rules memory c = _baseRules(3);
         uint256[] memory seatsC = new uint256[](3);
-        (seatsC[0], seatsC[1], seatsC[2]) = (0, 1, 4);
+        // organized by actor 1, so nobody is in more than two circles (Shy's limit)
+        (seatsC[0], seatsC[1], seatsC[2]) = (1, 4, 0);
         _open(c, seatsC, 2); // only two of three seats ever join
     }
 
@@ -113,7 +125,7 @@ contract FullInvariantHandler is Test {
         for (uint8 s = 1; s < r.memberCount; s++) {
             signers[s] = vm.addr(_inviteKey(ci, s));
         }
-        vm.prank(actors[0]);
+        vm.prank(actors[actorOfSeat[0]]);
         Circle c = Circle(factory.createCircle(r, signers));
         circles.push(c);
         rulesHash[c] = keccak256(abi.encode(c.rules()));
@@ -187,10 +199,12 @@ contract FullInvariantHandler is Test {
             if (block.timestamp >= due) break;
             bytes32 h = keccak256(abi.encode(block.chainid, address(c), round, bidder[i], bps[i], bytes32(bidSeed)));
             (ICircle.Standing st, bool rec,,) = c.standingOf(bidder[i]);
+            (,, uint8 offerFrom,) = c.placeOf(bidder[i]);
+            bool inWindow = offerFrom == 0 || (offerFrom == 1 && round > n / 2);
             vm.prank(bidder[i]);
             try c.commitBid(round, h) {
                 committed[i] = true;
-                if (st != ICircle.Standing.Good || rec) _violate("ineligible member committed a bid");
+                if (st != ICircle.Standing.Good || rec || !inWindow) _violate("ineligible member committed a bid");
             } catch { }
         }
 
@@ -254,6 +268,20 @@ contract FullInvariantHandler is Test {
             if (everDefaulted[c][m] && _standing(c, m) == ICircle.Standing.Good) {
                 _violate("defaulted member became Good");
             }
+        } catch { }
+        _scanLogs(c);
+    }
+
+    /// A defaulter (or a member who ended with arrears) pays back what the
+    /// circle lost; it lands as credit for the members who lost it.
+    function repay(uint256 which, uint256 memberSeed) external {
+        Circle c = circles[which % 2];
+        address[] memory ms = _members[c];
+        address m = ms[memberSeed % ms.length];
+        vm.recordLogs();
+        vm.prank(m);
+        try c.repay() {
+            repays++;
         } catch { }
         _scanLogs(c);
     }
@@ -325,6 +353,8 @@ contract FullInvariantHandler is Test {
             } else if (t0 == ICircle.CreditsIssued.selector) {
                 (uint256 perMember, uint8 k,) = abi.decode(logs[i].data, (uint256, uint8, uint256));
                 creditsIssued[c] += perMember * k;
+            } else if (t0 == ICircle.ArrearsCredited.selector) {
+                creditsIssued[c] += abi.decode(logs[i].data, (uint256));
             } else if (t0 == ICircle.Contributed.selector) {
                 (, uint256 creditUsed,,,) = abi.decode(logs[i].data, (uint256, uint256, uint256, bool, bool));
                 creditsUsed[c] += creditUsed;
@@ -343,8 +373,8 @@ contract FullInvariantHandler is Test {
 contract FullInvariantTest is Test {
     FullInvariantHandler h;
 
-    function setUp() public {
-        h = new FullInvariantHandler();
+    function setUp() public virtual {
+        h = new FullInvariantHandler(false);
         targetContract(address(h));
     }
 
@@ -485,5 +515,15 @@ contract FullInvariantTest is Test {
         return h.vault().balanceOf(address(c), m, IStakeVault.Kind.Stake)
             + h.vault().balanceOf(address(c), m, IStakeVault.Kind.Holdback)
             + h.vault().balanceOf(address(c), m, IStakeVault.Kind.Pool);
+    }
+}
+
+/// @notice The same invariants with standing from a live KittyRecord: offer
+/// windows, payout by stage, holdbacks to the stage's limit, every miss as
+/// arrears (FR-TRU-17) and repayment of defaults all in play.
+contract FullInvariantRealRecordTest is FullInvariantTest {
+    function setUp() public override {
+        h = new FullInvariantHandler(true);
+        targetContract(address(h));
     }
 }

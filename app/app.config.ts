@@ -13,6 +13,9 @@ const contracts = {
   chainId: deployment.chainId as number,
   circleFactory: deployment.circleFactory as string,
   ausd: deployment.ausd as string,
+  // "Feed the Kitty": standing kept by the circles, and the cat that shows it
+  kittyRecord: deployment.kittyRecord as string,
+  kittyCats: deployment.kittyCats as string,
   ausdFaucet: process.env.AUSD_FAUCET ?? "0xd236c18D274E54FAccC3dd9DDA4b27965a73ee6C",
   // Agora Instant Settlement on testnet (SRS 15.3): CTK stands in for USDC
   ctk: "0x7BEb5D9DB0d85cBEa543C04f0dE8c23c2176cd9D",

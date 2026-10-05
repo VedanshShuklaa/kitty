@@ -4,6 +4,7 @@ import { zeroHash } from "viem";
 
 import { money } from "./format";
 import { cadenceOf, type Snapshot } from "./kitty";
+import { canOffer } from "./phase";
 
 // FR-NOT-01: reminders are scheduled on the phone from each circle's rules.
 // They need no server, no Firebase and no network, and are rescheduled from
@@ -44,7 +45,8 @@ export function remindersFor(s: Snapshot, title: string, now: number): Reminder[
     }
   }
   const committed = s.me.commitment !== zeroHash;
-  if (r.maxBidBps > 0 && mine.standing === "good" && !mine.received && !committed) {
+  // members whose cat can't make an offer this round don't get the reminder
+  if (r.maxBidBps > 0 && canOffer(mine, s.round, r.memberCount) && !committed) {
     out.push({
       id: `${key}:bid`,
       at: due - r.commitWindow,

@@ -1,10 +1,10 @@
 {
-  "closeRound_bidsMissDefault_12members": "623362",
-  "collect_singleCall": "82071",
-  "commitBid_singleCall": "60539",
-  "contribute_singleCall": "81356",
-  "createCircle_12members": "481124",
-  "join_withStake": "106619",
-  "revealBid_singleCall": "51230",
-  "withdraw_firstCallSettles_12members": "94360"
+  "closeRound_bidsMissDefault_12members": "730805",
+  "collect_singleCall": "82188",
+  "commitBid_singleCall": "48434",
+  "contribute_singleCall": "81461",
+  "createCircle_12members": "481417",
+  "join_withStake": "166224",
+  "revealBid_singleCall": "51314",
+  "withdraw_firstCallSettles_12members": "113709"
 }

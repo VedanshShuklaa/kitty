@@ -68,3 +68,14 @@ export async function getInviteKeys(circle: Address): Promise<(Hex | null)[] | n
   const raw = await SecureStore.getItemAsync(invitesKey(circle));
   return raw ? (JSON.parse(raw) as (Hex | null)[]) : null;
 }
+
+// "Show my cat": hides her drawing only. Her terms still apply, in words.
+const SHOW_CAT = "kitty:showCat";
+
+export async function getShowCat(): Promise<boolean> {
+  return (await AsyncStorage.getItem(SHOW_CAT)) !== "off";
+}
+
+export async function setShowCat(on: boolean): Promise<void> {
+  await AsyncStorage.setItem(SHOW_CAT, on ? "on" : "off");
+}

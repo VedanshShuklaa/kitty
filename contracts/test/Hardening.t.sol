@@ -73,10 +73,11 @@ contract HardeningTest is CircleTestBase {
         _payAllAndClose(circle, m, 4);
         assertEq(uint8(Circle(circle).state()), uint8(ICircle.State.Completed));
 
-        (ICircle.Standing st, bool received, uint256 arrears,) = Circle(circle).standingOf(m[1]);
-        assertEq(uint8(st), uint8(ICircle.Standing.Behind));
+        // FR-TRU-17 has seat 1's own pot repay its arrears before any
+        // holdback, so nothing is left owing here; the state check still has
+        // to come first for any member who would be
+        (, bool received,,) = Circle(circle).standingOf(m[1]);
         assertTrue(received);
-        assertGt(arrears, 0);
 
         vm.prank(m[1]);
         vm.expectRevert(ICircle.WrongState.selector);
