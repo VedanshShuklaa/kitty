@@ -754,3 +754,16 @@ openDefaults, arrears, per-vault APR), 23 vitest; schema changed, so the hosted 
 Next (needs the user): commit; redeploy contracts (Deploy.s.sol with KITTY_RECORD/KITTY_CATS set to keep
 standings), update `indexer/config.yaml` + push (Envio resync) + repoint `INDEXER_URL`; `cd site && vercel
 --prod`; new EAS build + `/download`; delete unused `TIER_ATTESTOR_*` Vercel env.
+
+**2026-10-06 — Review fixes deployed (contracts, site, APK); new indexer stuck on Envio's side.**
+Contracts (REHEARSAL_MEMBER2 key, record + cats reused so standing carries over): factory `0xD1CdE7A9…EEbC`,
+vault `0xDE283aCD…11eC`, earn vault `0x98D3Dbe7…c9C6` (depositor = vault), block 68549078, all 4 verified,
+wiring checked onchain. Site deployed (rate limits, CSP, intent links) and verified live; `/download` = EAS
+d001e5b5. Indexer: config has the new addresses (commit 94f19d0), Envio build succeeded but the deployment never
+came up (endpoint `38e3c74` 404s, `deployment restart` fails, logs API times out). Dev tier looks capped at 3
+deployments: deleted unused 3f5669b, then had to `envio-cloud deployment deploy` by hand. `INDEXER_URL` still
+points at `6ff5e3d` (old schema, doesn't index the new factory); `/api/graphql` retries without the new
+`logIndex` ordering so the new APK's feed still answers. Until the new indexer is live, circles from the new
+factory don't appear in feeds/restore, and the keeper (which lists circles from the indexer) finds none.
+Next: user checks the Envio dashboard for 94f19d0 (or contacts Envio); once `38e3c74` serves and is synced,
+repoint `INDEXER_URL` and `cd site && vercel --prod`.

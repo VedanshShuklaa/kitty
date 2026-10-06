@@ -37,13 +37,22 @@ export async function POST(req: Request): Promise<Response> {
     return json({ errors: [{ message: "Only queries are allowed." }] }, 400);
   }
   try {
-    const res = await fetch(upstream, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ query: body.query, variables: body.variables ?? {} }),
-      signal: AbortSignal.timeout(8_000),
-    });
-    return new Response(await res.text(), { status: res.status, headers: { "content-type": "application/json" } });
+    const ask = (query: string) =>
+      fetch(upstream, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ query, variables: body.variables ?? {} }),
+        signal: AbortSignal.timeout(8_000),
+      });
+    let res = await ask(body.query);
+    let text = await res.text();
+    // an indexer from before the logIndex field (a redeploy still syncing)
+    // can still answer the same query in a slightly coarser order
+    if (text.includes("logIndex") && text.includes("errors")) {
+      res = await ask(body.query.replace(/,\s*\{\s*logIndex:\s*desc\s*\}/g, ""));
+      text = await res.text();
+    }
+    return new Response(text, { status: res.status, headers: { "content-type": "application/json" } });
   } catch {
     return json({ errors: [{ message: "The indexer didn't answer." }] }, 502);
   }
