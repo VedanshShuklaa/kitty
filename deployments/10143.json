@@ -1,11 +1,11 @@
 {
   "ausd": "0xa9012a055bd4e0eDfF8Ce09f960291C09D5322dC",
   "chainId": 10143,
-  "circleFactory": "0x945B6959622DB5d8a7F8fBe8dc58BD675e023C10",
-  "circleImplementation": "0x543A4D127C7d46794Cda474e43CC1e9f7f423621",
-  "deployBlock": 68298696,
+  "circleFactory": "0xD1CdE7A99a01F8dCF60eF1aFA93E0DE3b5AdEEbC",
+  "circleImplementation": "0x8e178C2083c683E33dB53C74174375449F251f0B",
+  "deployBlock": 68549078,
   "kittyCats": "0xBaCf87e4C7C6C7ED9E1Be5f3f6b6482D3Aa1007B",
-  "kittyEarnVault": "0x068D6e51408c49A17558786E8A06074ff32fd75b",
+  "kittyEarnVault": "0x98D3Dbe71A5593ff1559F0bc6eFF97D2dc40c9C6",
   "kittyRecord": "0x1917a3812c61FC5FB6CeE680224BC485E1EE4b7A",
-  "stakeVault": "0x7953F85f2147b5EdCf72a4d68Df9Ee92491aDC2E"
+  "stakeVault": "0xDE283aCD91f3dA65Ae7f0C37fa0E8FA051c211eC"
 }

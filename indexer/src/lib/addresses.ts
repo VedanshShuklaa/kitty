@@ -22,6 +22,8 @@ export const VAULTS = new Set([
   "0x8912100fc8df228766809b3107fa9fb9249d1337",
   "0x7953f85f2147b5edcf72a4d68df9ee92491adc2e", // 5 Oct, people filter
   "0x068d6e51408c49a17558786e8a06074ff32fd75b",
+  "0xde283acd91f3da65ae7f0c37fa0e8fa051c211ec", // 6 Oct, review fixes
+  "0x98d3dbe71a5593ff1559f0bc6eff97d2dc40c9c6",
 ]);
 
 // "Feed the Kitty": the standing record and the cats, as in deployments/10143.json
