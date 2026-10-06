@@ -52,14 +52,16 @@ type ButtonProps = {
   busy?: boolean;
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
+  /** What a screen reader says when the visible label alone is ambiguous (e.g. "Send" in a list of invites). */
+  a11yLabel?: string;
 };
 
-export function Button({ label, onPress, tone = "primary", size = "full", busy, disabled, style }: ButtonProps) {
+export function Button({ label, onPress, tone = "primary", size = "full", busy, disabled, style, a11yLabel }: ButtonProps) {
   const off = disabled || busy;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={a11yLabel ?? label}
       accessibilityState={{ disabled: !!off, busy: !!busy }}
       disabled={off}
       onPress={() => {

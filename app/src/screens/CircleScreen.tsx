@@ -1,11 +1,11 @@
 import { useFocusEffect } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Linking, Pressable, Share, StyleSheet, View } from "react-native";
 import type { Address, Hex } from "viem";
 
 import { explorerAddress } from "../chain";
-import { explain } from "../errors";
+import { explain, revertName } from "../errors";
 import { feedLine } from "../feed";
 import { initials, money, shortAddress, when } from "../format";
 import { House } from "../House";
@@ -66,10 +66,12 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
   }, [me, address]);
 
   // FR-KEY-03: the organizer's roster goes to Kitty's storage once, sealed
+  // Only re-read the saved circle when something was actually saved: a roster with no
+  // names saves nothing, and re-reading would hand back a fresh object and run this again.
   useEffect(() => {
-    if (ref && signer && ref.organizer && !ref.synced) {
+    if (ref && signer && ref.organizer && !ref.synced && ref.names.length > 0) {
       syncCircle(signer, ref)
-        .then(() => getCircle(me, address).then(setRef))
+        .then((saved) => (saved ? getCircle(me, address).then(setRef) : undefined))
         .catch(() => {});
     }
   }, [ref, signer, me, address]);
@@ -79,7 +81,15 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
   // reminders speak in her voice only while her drawing is on
   const voiceRef = useRef<string | null>(null);
   voiceRef.current = showCat ? (profile?.catName || "Your cat") : null;
-  const load = useCallback(async () => {
+  // What's happened and the house change only when something happens, so they are read
+  // when the screen opens, on pull-to-refresh and after this member's own actions,
+  // not on every 5 s poll.
+  const loadExtras = useCallback(() => {
+    feedOf(address).then(setFeed).catch(() => {});
+    housePiecesOf(address).then(setPieces).catch(() => setPieces(null));
+  }, [address]);
+
+  const loadOnce = useCallback(async () => {
     try {
       const s = await loadSnapshot(address, me);
       const off = s.chainNow - Date.now() / 1000;
@@ -87,27 +97,54 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
       setOffset(off);
       setLoadError(null);
       syncReminders(address, remindersFor(s, titleRef.current, s.chainNow, voiceRef.current), off).catch(() => {});
-      feedOf(address).then(setFeed).catch(() => {});
-      housePiecesOf(address).then(setPieces).catch(() => setPieces(null));
     } catch (e) {
       setLoadError(explain(e));
     }
   }, [address, me]);
 
+  // Reads never overlap. A call that lands mid-read (right after an action) asks for one more
+  // read when this one ends and waits for it; the poll passes `again = false` so a slow network
+  // can't turn it into back-to-back reads.
+  const inflight = useRef<Promise<void> | null>(null);
+  const rerun = useRef(false);
+  const load = useCallback(
+    (again = true): Promise<void> => {
+      if (inflight.current) {
+        if (again) rerun.current = true;
+        return inflight.current;
+      }
+      const run = (async () => {
+        try {
+          do {
+            rerun.current = false;
+            await loadOnce();
+          } while (rerun.current);
+        } finally {
+          inflight.current = null;
+        }
+      })();
+      inflight.current = run;
+      return run;
+    },
+    [loadOnce],
+  );
+
   useFocusEffect(
     useCallback(() => {
-      load();
-      const poll = setInterval(load, 5_000);
+      void load();
+      loadExtras();
+      const poll = setInterval(() => void load(false), 5_000);
       const tick = setInterval(() => setTick((t) => t + 1), 1_000);
       return () => {
         clearInterval(poll);
         clearInterval(tick);
       };
-    }, [load]),
+    }, [load, loadExtras]),
   );
 
   async function refresh() {
     setRefreshing(true);
+    loadExtras();
     await load();
     setRefreshing(false);
   }
@@ -115,6 +152,12 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
   const now = Date.now() / 1000 + offset;
   const names = ref?.names ?? [];
   const title = ref?.title ?? "Savings circle";
+
+  // the automatic close and reveal each run once per round (the buttons stay as the manual path)
+  const autoClosed = useRef<number | null>(null);
+  const autoRevealed = useRef<number | null>(null);
+  const closeRetryAt = useRef(0);
+  const revealRetryAt = useRef(0);
 
   async function act(a: Action, auto = false) {
     if (!snap) return;
@@ -143,7 +186,9 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
         }
         case "reveal": {
           const bps = await revealBid(s, address, snap.round, snap.rules.maxBidBps);
-          done = `Your offer is open: you'd give up ${bps / 100}%.`;
+          done = auto
+            ? `Your phone opened your sealed offer: you'd give up ${bps / 100}%.`
+            : `Your offer is open: you'd give up ${bps / 100}%.`;
           break;
         }
         case "close":
@@ -168,11 +213,35 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
           break;
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      setNotice({ tone: "good", text: auto ? "The round was due, so your phone handed out the pot." : done });
+      setNotice({ tone: "good", text: auto && a.kind === "close" ? "The round was due, so your phone handed out the pot." : done });
       await load();
+      loadExtras();
     } catch (e) {
-      if (auto) {
-        // another member's phone likely got there first; just catch up
+      if (auto && a.kind === "close") {
+        // the chain clock can lag the phone's by a second or two: try again on the next read
+        // and a dropped connection isn't a refusal: both try again shortly
+        const why = revertName(e);
+        if (why === "TooEarly" || !why) {
+          autoClosed.current = null;
+          closeRetryAt.current = Date.now() + (why ? 3_000 : 10_000);
+        }
+        // otherwise another member's phone likely got there first; just catch up
+        await load();
+        return;
+      }
+      if (auto && revertName(e) === "TooEarly") {
+        autoRevealed.current = null;
+        revealRetryAt.current = Date.now() + 3_000;
+        await load();
+        return;
+      }
+      // an automatic reveal that failed for a reason other than the contract's
+      // gets another go while its window is open (the notice below still shows)
+      if (auto && a.kind === "reveal" && !revertName(e)) {
+        autoRevealed.current = null;
+        revealRetryAt.current = Date.now() + 10_000;
+      }
+      if (auto && revertName(e) === "WrongRound") {
         await load();
         return;
       }
@@ -183,43 +252,87 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
     }
   }
 
+  const p = snap ? plan(snap, now) : null;
+
   // FR-KEEP-01: an open circle whose round is due gets closed by whichever
   // member's phone has it open, without a prompt. Once per round per visit;
-  // the button stays as the manual path.
-  const closable = !!snap && snap.state === "active" && now >= snap.due + snap.rules.grace;
-  const autoClosed = useRef<number | null>(null);
+  // the button stays as the manual path. The contract wants the grace period
+  // to have fully passed and the chain clock can lag the phone's, so wait two
+  // seconds more than the button does.
+  const closable = !!snap && snap.state === "active" && now >= snap.due + snap.rules.grace + 2;
   useEffect(() => {
     if (!snap || !closable || busy || loadError || !signer || autoClosed.current === snap.round) return;
+    if (Date.now() < closeRetryAt.current) return;
     autoClosed.current = snap.round;
     act({ kind: "close", label: "Hand out the pot" }, true);
     // act is recreated every render, so it stays out of the deps; the round
     // guard keeps this to one call
   }, [snap, closable, busy, loadError, signer]);
 
+  // Reveal is in the no-prompt policy, and a sealed offer that isn't opened in
+  // its window doesn't count, so an open circle reveals for its member
+  // automatically, once per round, whenever the plan says it's time.
+  const revealDue = !!snap && snap.state === "active" && !!p && p.actions.some((x) => x.kind === "reveal");
+  useEffect(() => {
+    if (!snap || !revealDue || busy || loadError || !signer || autoRevealed.current === snap.round) return;
+    if (Date.now() < revealRetryAt.current) return;
+    autoRevealed.current = snap.round;
+    act({ kind: "reveal", label: "Open my sealed offer" }, true);
+  }, [snap, revealDue, busy, loadError, signer]);
+
   // a circle that can't start any more is called off and the deposit collected, without a prompt
   const tidying = useRef(false);
   useEffect(() => {
     const step = snap ? tidyStep(snap) : null;
-    if (!snap || !signer || busy || tidying.current || (step !== "cancel" && step !== "withdraw")) return;
+    if (!snap || !signer || busy || tidying.current || (step !== "cancel" && step !== "withdraw" && step !== "record")) return;
     tidying.current = true;
-    setBusy(step);
+    // writing a finished circle into the record is bookkeeping: no busy button, no notice
+    if (step !== "record") setBusy(step);
     tidyCircle(signer, snap)
       .then((done) => {
-        if (done) {
+        if (done && step !== "record") {
           setNotice({
             tone: "good",
             text: `Not everyone joined in time, so the circle is called off.${done.returned > 0n ? ` Your ${money(done.returned)} deposit is back in your dollars.` : ""}`,
           });
         }
       })
-      .catch((e) => setNotice({ tone: "error", text: explain(e) }))
+      // another phone already called it off, collected or recorded it: nothing to tell this member
+      .catch((e) => {
+        const name = revertName(e);
+        if (name !== "WrongState" && name !== "AlreadyPaid" && step !== "record") setNotice({ tone: "error", text: explain(e) });
+      })
       .finally(() => {
         setBusy(null);
         void load();
+        loadExtras();
       });
-  }, [snap, signer, busy, load]);
+  }, [snap, signer, busy, load, loadExtras]);
 
-  if (!snap) {
+  // everyone's cat in the circle's house, in the order they're paid; rebuilt only when
+  // who is there, their stage or their name changes, so the per-second tick and the
+  // 5 s reads don't redraw up to twelve SVG cats
+  const residentsKey = snap
+    ? [
+        ...snap.members.filter((m) => m.address).map((m) => `${m.seat}:${m.address}:${m.stage ?? "Shy"}`),
+        names.join("|"),
+        snap.me?.seat ?? -1,
+      ].join(",")
+    : "";
+  const residents = useMemo<Resident[]>(
+    () =>
+      snap
+        ? payoutOrder(snap.members.filter((m) => m.address)).map((m) => ({
+            owner: m.address!,
+            stage: m.stage ?? "Shy",
+            name: nameAt(names, m.seat),
+            mine: m.seat === snap.me?.seat,
+          }))
+        : [],
+    [residentsKey], // the key already covers everything the list is built from
+  );
+
+  if (!snap || !p) {
     return (
       <Screen onBack={() => navigation.goBack()}>
         <Title>{title}</Title>
@@ -230,19 +343,11 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
 
   const r = snap.rules;
   const n = r.memberCount;
-  const p = plan(snap, now);
   const [primary, ...secondary] = p.actions;
   const next = snap.state === "active" ? nextInLine(snap.members) : undefined;
   const mySeat = snap.me?.seat;
   const joined = snap.members.filter((m) => m.address).length;
   const paid = snap.members.filter((m) => m.paid).length;
-  // everyone's cat in the circle's house, in the order they're paid
-  const residents: Resident[] = payoutOrder(snap.members.filter((m) => m.address)).map((m) => ({
-    owner: m.address!,
-    stage: m.stage ?? "Shy",
-    name: nameAt(names, m.seat),
-    mine: m.seat === mySeat,
-  }));
 
   let heroLine = "";
   if (snap.state === "forming") heroLine = `First payment ${when(Number(r.firstDue))}`;
@@ -258,8 +363,13 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
       refreshing={refreshing}
       onRefresh={refresh}
       footer={
-        primary ? (
-          <Button label={primary.label} busy={busy === primary.kind} disabled={!!busy || !!loadError} onPress={() => act(primary)} />
+        primary || notice ? (
+          <>
+            {notice && <Notice tone={notice.tone} onClose={() => setNotice(null)}>{notice.text}</Notice>}
+            {primary && (
+              <Button label={primary.label} busy={busy === primary.kind} disabled={!!busy || !!loadError} onPress={() => act(primary)} />
+            )}
+          </>
         ) : undefined
       }
     >
@@ -311,7 +421,6 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
         )}
       </View>
 
-      {notice && <Notice tone={notice.tone} onClose={() => setNotice(null)}>{notice.text}</Notice>}
       {secondary.map((a) => (
         <Button key={a.kind} label={a.label} tone="quiet" busy={busy === a.kind} disabled={!!busy || !!loadError} onPress={() => act(a)} />
       ))}
@@ -346,6 +455,7 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
                       <Body style={{ flex: 1 }}>{who}</Body>
                       <Button
                         label="Send"
+                        a11yLabel={`Send invite to ${who}`}
                         tone="dark"
                         size="row"
                         onPress={() =>

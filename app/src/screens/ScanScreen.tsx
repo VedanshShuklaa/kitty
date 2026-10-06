@@ -1,8 +1,8 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { useRef, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
-import { shortAddress } from "../format";
 import { parsePayee, parseSendLink } from "../money";
 import type { ScreenProps } from "../nav";
 import { color, radius, space } from "../theme";
@@ -16,12 +16,21 @@ export function ScanScreen({ navigation }: ScreenProps<"Scan">) {
   const [bad, setBad] = useState(false);
   const handled = useRef(false);
 
+  // coming back to this screen (e.g. after a cancelled claim) must scan again
+  useFocusEffect(
+    useCallback(() => {
+      handled.current = false;
+      setBad(false);
+    }, []),
+  );
+
   function scanned(data: string) {
     if (handled.current) return;
     const payee = parsePayee(data);
     if (payee) {
       handled.current = true;
-      navigation.navigate("Send", { to: payee.address, name: payee.name ?? shortAddress(payee.address) });
+      // the name inside a code is anyone's claim, so only the address goes on; Send shows what the member knows
+      navigation.popTo("Send", { to: payee.address });
       return;
     }
     if (parseSendLink(data)) {

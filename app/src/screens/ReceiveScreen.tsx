@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Share, StyleSheet, View } from "react-native";
 import type { Hex } from "viem";
 
-import { explain } from "../errors";
+import { explain, passkeyStep } from "../errors";
 import { money, parseMoney } from "../format";
 import { balances, claimLink, convert, payLink, sendLinks, SendFailed, type Arrival, type Balances } from "../money";
 import type { ScreenProps } from "../nav";
@@ -54,7 +54,7 @@ export function ReceiveScreen({ navigation }: ScreenProps<"Receive">) {
     setBusy("convert");
     setNotice(null);
     try {
-      const s = await confirm();
+      const s = await passkeyStep(confirm());
       const done = await convert(s, into, usd, tappedAt);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setNotice({
@@ -64,7 +64,7 @@ export function ReceiveScreen({ navigation }: ScreenProps<"Receive">) {
       setAmount("");
       await load();
     } catch (e) {
-      setNotice({ tone: "error", text: e instanceof SendFailed ? e.message : `${explain(e, "passkey")} No money moved.` });
+      setNotice({ tone: "error", text: e instanceof SendFailed ? e.message : `${explain(e)} No money moved.` });
     } finally {
       setBusy(null);
     }
@@ -74,12 +74,12 @@ export function ReceiveScreen({ navigation }: ScreenProps<"Receive">) {
     setBusy(`link-${n}`);
     setNotice(null);
     try {
-      const s = await confirm();
+      const s = await passkeyStep(confirm());
       const { amount: back } = await claimLink(s, key, Date.now());
       setNotice({ tone: "good", text: `${money(back)} is back in your dollars.` });
       await load();
     } catch (e) {
-      setNotice({ tone: "error", text: e instanceof SendFailed ? e.message : explain(e, "passkey") });
+      setNotice({ tone: "error", text: e instanceof SendFailed ? e.message : explain(e) });
     } finally {
       setBusy(null);
     }

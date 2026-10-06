@@ -55,7 +55,7 @@ export function ClaimScreen({ route, navigation }: ScreenProps<"Claim">) {
 
   if (done) {
     return (
-      <Screen footer={<Button label="Done" onPress={() => navigation.navigate("Home")} />}>
+      <Screen footer={<Button label="Done" onPress={() => navigation.popTo("Home")} />}>
         <View style={styles.hero}>
           <KittyLogo size={56} />
           <Small>From {from}</Small>

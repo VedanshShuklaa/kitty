@@ -28,8 +28,27 @@ import { apiUrl, contracts } from "./config";
 import type { Invite } from "./links";
 import { STAGES, type Progress, type Stage } from "./standing";
 
-// Every read the app makes is batched into Multicall3 calls.
-export const client = createPublicClient({ chain: monadTestnet, transport: http(), batch: { multicall: true } });
+// Every read the app makes is batched into Multicall3 calls. Blocks come
+// every ~0.4 s, so receipts are polled faster than viem's 4 s default.
+export const client = createPublicClient({ chain: monadTestnet, transport: http(), batch: { multicall: true }, pollingInterval: 500 });
+
+const kittyCircles = new Set<string>();
+
+/**
+ * Whether `circle` was made by Kitty's factory. An invite link names any
+ * address it likes, and a contract that merely looks like a circle could
+ * describe one set of rules and take the approval for another, so nothing is
+ * shown as a circle, approved or joined until the factory vouches for it.
+ */
+export async function isKittyCircle(circle: Address): Promise<boolean> {
+  const k = circle.toLowerCase();
+  if (kittyCircles.has(k)) return true;
+  const ok = await client.readContract({ address: contracts.circleFactory, abi: factoryAbi, functionName: "isCircle", args: [circle] });
+  if (ok) kittyCircles.add(k);
+  return ok;
+}
+
+export const NOT_A_CIRCLE = "This link doesn't lead to a Kitty circle. Nothing was sent.";
 
 export type Signer = { address: Address; account: LocalAccount; prf: Uint8Array };
 
@@ -190,7 +209,23 @@ export function cadenceOf(r: Pick<Rules, "period">): Cadence | null {
 
 export type Call = { address: Address; abi: Abi; functionName: string; args?: readonly unknown[] };
 
-export async function send(s: Signer, call: Call): Promise<Hex> {
+// One account's transactions go out one at a time. viem picks each nonce from
+// the pending count, so two sends started together (the faucet during sign-up
+// while Home adopts the cat, or two tidy runs) would pick the same one.
+const queues = new Map<string, Promise<unknown>>();
+
+export function serial<T>(address: Address, f: () => Promise<T>): Promise<T> {
+  const k = address.toLowerCase();
+  const next = (queues.get(k) ?? Promise.resolve()).catch(() => {}).then(f);
+  queues.set(k, next);
+  return next;
+}
+
+export function send(s: Signer, call: Call): Promise<Hex> {
+  return serial(s.address, () => sendNow(s, call));
+}
+
+async function sendNow(s: Signer, call: Call): Promise<Hex> {
   // FR-GAS-03: explicit limit, estimate + 20%. Estimating first also
   // surfaces a revert (and its custom error) before anything is signed.
   const gas = await client.estimateContractGas({ ...call, account: s.account } as never);
@@ -224,8 +259,26 @@ const LOW_BALANCE = parseEther("0.2");
 // of asking the sponsor twice.
 const recentTopUps = new Map<string, number>();
 
-/** FR-GAS-01: a member never has to find MON; the sponsor tops them up. */
-export async function ensureTopUp(address: Address, force = false): Promise<void> {
+const topUps = new Map<string, { p: Promise<void>; force: boolean }>();
+
+/**
+ * FR-GAS-01: a member never has to find MON; the sponsor tops them up. Calls
+ * made together share one request; a forced one waits for an unforced one in
+ * flight (which may have skipped the sponsor) and then asks itself.
+ */
+export function ensureTopUp(address: Address, force = false): Promise<void> {
+  const k = address.toLowerCase();
+  const inflight = topUps.get(k);
+  if (inflight && (inflight.force || !force)) return inflight.p;
+  const before = inflight ? inflight.p.catch(() => {}) : Promise.resolve();
+  const p = before.then(() => topUp(address, force)).finally(() => {
+    if (topUps.get(k)?.p === p) topUps.delete(k);
+  });
+  topUps.set(k, { p, force });
+  return p;
+}
+
+async function topUp(address: Address, force: boolean): Promise<void> {
   const last = recentTopUps.get(address.toLowerCase());
   if (!force && last && Date.now() - last < 120_000) return;
   if ((await client.getBalance({ address })) >= LOW_BALANCE) return;
@@ -418,6 +471,7 @@ export async function readStanding(account: Address): Promise<Progress> {
 
 /** The deposit is the circle's, times the member's stage multiple (Wary puts down two). */
 export async function joinCircle(s: Signer, invite: Invite, onStep: (id: string) => void): Promise<void> {
+  if (!(await isKittyCircle(invite.circle))) throw new Error(NOT_A_CIRCLE);
   const rules = await readRules(invite.circle);
   const terms = await joinTerms(s.address, rules.contribution);
   onStep("topup");
@@ -453,7 +507,9 @@ export type Member = {
   revealed: boolean; // this round
   stage: Stage | null; // fixed when they joined; sets their place in the payout order
   offerFrom: number; // 0 any round, 1 second half, 2 never
+  limitMonths: number; // their stage's limit, for the holdback (Circle._holdbackFor); 255 = the circle's own rule
   owed: bigint; // what their default cost the others, until repaid
+  owesElsewhere: boolean; // a debt in the record: no offers, and paid after everyone (FR-TRU-18)
 };
 
 export type Snapshot = {
@@ -478,6 +534,8 @@ export type Snapshot = {
     revealedBps: number;
     withdrawable: bigint;
     balance: bigint;
+    /** Completed with nothing left to collect, but the finished circle isn't in the record yet (a withdraw writes it). */
+    unrecorded: boolean;
   };
 };
 
@@ -518,16 +576,19 @@ export async function loadSnapshot(circle: Address, me: Address | null): Promise
           revealed: false,
           stage: null,
           offerFrom: 0,
+          limitMonths: 255,
           owed: 0n,
+          owesElsewhere: false,
         };
       }
-      const [[standing, received, arrears, credit], paid, [revealed], [stage, , offerFrom, owed]] = await Promise.all([
+      const [[standing, received, arrears, credit], paid, [revealed], [stage, limitMonths, offerFrom, owed], debt] = await Promise.all([
         client.readContract({ ...c, functionName: "standingOf", args: [a] }),
         round > 0 ? client.readContract({ ...c, functionName: "paidRound", args: [round, a] }) : Promise.resolve(false),
         round > 0
           ? client.readContract({ ...c, functionName: "revealedBid", args: [round, a] })
           : Promise.resolve([false, 0] as const),
         client.readContract({ ...c, functionName: "placeOf", args: [a] }),
+        client.readContract({ address: contracts.kittyRecord, abi: recordAbi, functionName: "debtOf", args: [a] }),
       ]);
       return {
         seat,
@@ -540,7 +601,9 @@ export async function loadSnapshot(circle: Address, me: Address | null): Promise
         revealed,
         stage: STAGES[stage] ?? null,
         offerFrom,
+        limitMonths,
         owed,
+        owesElsewhere: debt > 0n,
       };
     }),
   );
@@ -562,6 +625,14 @@ export async function loadSnapshot(circle: Address, me: Address | null): Promise
       client.readContract({ ...c, functionName: "withdrawable", args: [me] }),
       balanceOf(me),
     ]);
+    // a withdraw writes the finished circle into the record, but with nothing
+    // left to collect there's no withdraw, so ask whether recordFinish would run
+    const unrecorded =
+      state === "completed" && withdrawable === 0n
+        ? await client
+            .simulateContract({ ...c, functionName: "recordFinish", args: [me], account: me })
+            .then(() => true, () => false)
+        : false;
     mine = {
       seat: mySeat,
       pay: owed[0],
@@ -571,6 +642,7 @@ export async function loadSnapshot(circle: Address, me: Address | null): Promise
       revealedBps: revealed[0] ? revealed[1] : 0,
       withdrawable,
       balance,
+      unrecorded,
     };
   }
 
@@ -651,6 +723,12 @@ export async function closeRound(s: Signer, circle: Address, round: number): Pro
 export async function withdraw(s: Signer, circle: Address): Promise<void> {
   await ensureTopUp(s.address);
   await send(s, { address: circle, abi: circleAbi, functionName: "withdraw" });
+}
+
+/** Writes this member's finished circle into the record when there was nothing to withdraw. */
+export async function recordFinish(s: Signer, circle: Address): Promise<void> {
+  await ensureTopUp(s.address);
+  await send(s, { address: circle, abi: circleAbi, functionName: "recordFinish", args: [s.address] });
 }
 
 export async function cancelCircle(s: Signer, circle: Address): Promise<void> {

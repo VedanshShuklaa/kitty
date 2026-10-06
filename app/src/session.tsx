@@ -1,3 +1,4 @@
+import * as Notifications from "expo-notifications";
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AppState } from "react-native";
 import type { Address } from "viem";
@@ -8,7 +9,7 @@ import { getTestDollars, type Signer } from "./kitty";
 import { ensureSwapper } from "./money";
 import { expired } from "./policy";
 import { restoreCircles, type Restored } from "./restore";
-import { clearProfile, getProfile, setProfile, type Profile } from "./store";
+import { clearProfile, forgetCircles, getProfile, setProfile, type Profile } from "./store";
 import { getProfileData, putProfile } from "./vault";
 
 // One passkey ceremony starts a signing session; every key Kitty needs is
@@ -137,7 +138,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // "Welcome back" offers only the known account's passkey; a fresh sign-in offers them all
       const acct = await signIn(profileRef.current?.credentialId);
       // FR-RST-01: the profile comes back from the passkey, not from this phone
-      const stored = await getProfileData(acct.prfOutput).catch(() => null);
+      // null: the storage answered "no profile yet". undefined: the read failed,
+      // so we know nothing and must not write defaults over a profile that may exist.
+      const stored = await getProfileData(acct.prfOutput).catch(() => undefined);
       const cached = profileRef.current?.address === acct.address ? profileRef.current : null;
       const p: Profile = {
         name: stored?.name ?? name ?? cached?.name ?? "Friend",
@@ -147,7 +150,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         catName: stored?.catName ?? cached?.catName,
       };
       const s = await adopt(acct, p);
-      if (!stored) putProfile(s.prf, { name: p.name, country: p.country, catName: p.catName }).catch(() => {});
+      if (stored === null) putProfile(s.prf, { name: p.name, country: p.country, catName: p.catName }).catch(() => {});
       afterSignIn(s);
     },
     [adopt, afterSignIn],
@@ -169,11 +172,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const confirm = useCallback(async () => ceremony(), [ceremony]);
 
   const forget = useCallback(async () => {
+    const leaving = profileRef.current;
     endRef.current?.();
     endRef.current = null;
     signerRef.current = null;
     profileRef.current = null;
     await clearProfile();
+    // the next person on this phone must not see this account's circles or get its reminders
+    if (leaving) await forgetCircles(leaving.address).catch(() => {});
+    await Notifications.cancelAllScheduledNotificationsAsync().catch(() => {});
     setSigner(null);
     setProfileState(null);
     setRestored(null);

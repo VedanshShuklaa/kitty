@@ -62,14 +62,27 @@ function Root() {
   const { status, touch, profile } = useSession();
   const nav = useNavigationContainerRef<Routes>();
   const [navReady, setNavReady] = useState(false);
-  // FR-INV-04, FR-SND-01, FR-SND-08: a Kitty link opens its screen, after unlocking if needed
-  const url = Linking.useURL();
+  // FR-INV-04, FR-SND-01, FR-SND-08: a Kitty link opens its screen, after unlocking if needed.
+  // Links are events, not state: tapping the same link twice must open it twice, so each one
+  // goes into `pending` and is cleared once handled (useURL would ignore a repeat).
   const [pending, setPending] = useState<string | null>(null);
   const signedIn = status === "ready" || status === "paused";
 
   useEffect(() => {
-    if (url && routeFor(url)) setPending(url);
-  }, [url]);
+    let alive = true;
+    Linking.getInitialURL()
+      .then((u) => {
+        if (alive && u && routeFor(u)) setPending(u);
+      })
+      .catch(() => {});
+    const sub = Linking.addEventListener("url", ({ url }) => {
+      if (routeFor(url)) setPending(url);
+    });
+    return () => {
+      alive = false;
+      sub.remove();
+    };
+  }, []);
 
   useEffect(() => {
     const to = pending && routeFor(pending);
@@ -145,7 +158,7 @@ function LockBar() {
             .catch(() => {})
             .finally(() => setBusy(false));
         }}
-        style={{ minHeight: 44, paddingHorizontal: 16, borderRadius: 22, backgroundColor: color.pink, justifyContent: "center" }}
+        style={{ minHeight: 48, paddingHorizontal: 16, borderRadius: 24, backgroundColor: color.pink, justifyContent: "center" }}
       >
         <Text style={{ color: color.paper, fontFamily: font.bodyMedium, fontSize: 15 }}>{busy ? "Unlocking…" : "Unlock"}</Text>
       </Pressable>

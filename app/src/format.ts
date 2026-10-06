@@ -12,9 +12,29 @@ export function money(v: bigint): string {
   return neg ? `-${s}` : s;
 }
 
-/** Parses "12", "12.5" or "$1,200.00" into AUSD units; null if it isn't an amount. */
+/**
+ * Parses "12", "12.5", "$1,200.00", or a comma-decimal amount like "2,5" into
+ * AUSD units; null if it isn't an amount. A comma followed by one or two
+ * digits at the very end is the decimal separator (the decimal pad types it
+ * in French, German, Spanish and Portuguese locales); any other comma is a
+ * thousands separator.
+ */
 export function parseMoney(input: string): bigint | null {
-  const t = input.replace(/[$,\s]/g, "");
+  let t = input.replace(/[$\s]/g, "");
+  const decimal = /^(.*),(\d{1,2})$/.exec(t);
+  if (decimal) {
+    let whole = decimal[1];
+    if (whole.includes(".")) {
+      // "1.200,50": dots are the thousands separator here
+      if (!/^\d{1,3}(\.\d{3})+$/.test(whole)) return null;
+      whole = whole.replace(/\./g, "");
+    } else {
+      whole = whole.replace(/,/g, "");
+    }
+    t = `${whole}.${decimal[2]}`;
+  } else {
+    t = t.replace(/,/g, "");
+  }
   if (!/^\d+(\.\d{0,2})?$/.test(t)) return null;
   return parseUnits(t, 6);
 }
@@ -64,4 +84,10 @@ export function initials(name: string): string {
 
 export function shortAddress(a: string): string {
   return `${a.slice(0, 6)}…${a.slice(-4)}`;
+}
+
+/** The full address in groups of four, so it can be read out and compared: "0x1234 5678 9abc …". */
+export function groupedAddress(a: string): string {
+  const hex = a.startsWith("0x") ? a.slice(2) : a;
+  return `0x${(hex.match(/.{1,4}/g) ?? []).join(" ")}`;
 }

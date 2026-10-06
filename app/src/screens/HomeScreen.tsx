@@ -14,6 +14,7 @@ import { adoptCat, getTestDollars, loadSnapshot, readStanding, type Snapshot } f
 import { balances, type Balances } from "../money";
 import type { ScreenProps } from "../nav";
 import { nameAt, plan } from "../phase";
+import { syncFromSnapshot } from "../reminders";
 import { useMe, useSession } from "../session";
 import { moodOf, STAGE_NAME, type Stage } from "../standing";
 import { getShowCat, listCircles, takeFed, type CircleRef, type Meal } from "../store";
@@ -41,46 +42,97 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
   const [standingError, setStandingError] = useState(false);
   const [showCat, setShowCat] = useState(true);
   const [fed, setFed] = useState<Meal | null>(null);
+  const fedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [offset, setOffset] = useState(0); // chain clock minus phone clock, in seconds
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [funding, setFunding] = useState(false);
   const [notice, setNotice] = useState<{ tone: "error" | "good"; text: string } | null>(null);
-  const loading = useRef(false);
+  const inflight = useRef<Promise<void> | null>(null);
+  const rerun = useRef(false);
   const tidied = useRef(new Set<string>());
+  const catName = useRef<string | undefined>(undefined);
+  catName.current = profile?.catName;
 
-  const load = useCallback(async () => {
-    if (loading.current) return;
-    loading.current = true;
+  const loadOnce = useCallback(async () => {
     try {
       const refs = (await listCircles(address)).filter((r) => !r.archived);
       const [b, snaps] = await Promise.all([
         balances(address).catch(() => null),
         Promise.all(refs.map((r) => loadSnapshot(r.address, address).catch(() => null))),
       ]);
-      // Unknown amounts never become zero; a failed refresh is explicitly labelled.
-      setBal(b);
-      setItems(refs.map((ref, i) => ({ ref, snap: snaps[i] })));
+      // Unknown amounts never become zero, and a failed refresh keeps what was last loaded
+      // (the error notice below says so) instead of blanking the screen.
+      setBal((prev) => b ?? prev);
+      setItems((prev) =>
+        refs.map((ref, i) => ({
+          ref,
+          snap: snaps[i] ?? prev.find((p) => p.ref.address.toLowerCase() === ref.address.toLowerCase())?.snap ?? null,
+        })),
+      );
+      const fresh = snaps.find((x) => x !== null);
+      if (fresh) setOffset(fresh.chainNow - Date.now() / 1000);
       setLoaded(true);
       setLoadError(b === null || snaps.some((s) => s === null));
       transfersOf(address, 6).then(setRecent).catch(() => setRecent(null));
       readStanding(address).then((p) => { setStage(p.stage); setStandingError(false); }).catch(() => setStandingError(true));
-      getShowCat().then(setShowCat).catch(() => {});
+      const show = await getShowCat().catch(() => true);
+      setShowCat(show);
+      // reminders follow every circle Home has just read, not only the ones opened this round
+      refs.forEach((ref, i) => {
+        const snap = snaps[i];
+        if (snap) syncFromSnapshot(snap, ref.title, show ? catName.current || "Your cat" : null).catch(() => {});
+      });
     } catch {
       setLoadError(true);
-    } finally {
-      loading.current = false;
     }
   }, [address]);
+
+  /**
+   * Reads never overlap. A call that lands mid-read (right after "Add test
+   * dollars", say) asks for one more read when this one ends and waits for it,
+   * so the screen is never left on numbers older than the call. The poll passes
+   * `again = false` so a slow network can't turn it into back-to-back reads.
+   */
+  const load = useCallback(
+    (again = true): Promise<void> => {
+      if (inflight.current) {
+        if (again) rerun.current = true;
+        return inflight.current;
+      }
+      const run = (async () => {
+        try {
+          do {
+            rerun.current = false;
+            await loadOnce();
+          } while (rerun.current);
+        } finally {
+          inflight.current = null;
+        }
+      })();
+      inflight.current = run;
+      return run;
+    },
+    [loadOnce],
+  );
 
   useFocusEffect(
     useCallback(() => {
       void load();
       // she reacts once to a payment made since Home was last on screen
-      takeFed().then((f) => f && setFed(f)).catch(() => {});
+      takeFed()
+        .then((f) => {
+          if (!f) return;
+          // one hop, then she settles, so the next payment can make her hop again
+          setFed(f);
+          if (fedTimer.current) clearTimeout(fedTimer.current);
+          fedTimer.current = setTimeout(() => setFed(null), 1_000);
+        })
+        .catch(() => {});
       loadRates().then(setRates);
       const id = setInterval(() => {
-        if (AppState.currentState === "active") void load();
+        if (AppState.currentState === "active") void load(false);
       }, 12_000);
       const listener = AppState.addEventListener("change", (state) => {
         if (state === "active") void load();
@@ -88,6 +140,7 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
       return () => {
         clearInterval(id);
         listener.remove();
+        if (fedTimer.current) clearTimeout(fedTimer.current);
       };
     }, [load]),
   );
@@ -161,7 +214,7 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
           const first = plan(snap, snap.chainNow).actions.find((a) => a.kind === "pay");
           return [{ title: ref.title, state: snap.state, due: snap.due, mine: mine ?? null, pay: first?.amount ?? null }];
         }),
-        Math.floor(Date.now() / 1000),
+        Math.floor(Date.now() / 1000 + offset),
         { money, countdown },
         profile?.catName,
       )

@@ -149,7 +149,9 @@ describe("plan", () => {
     revealed: false,
     stage: "Shy",
     offerFrom: 0,
+    limitMonths: 1,
     owed: 0n,
+    owesElsewhere: false,
     ...over,
   });
   const snap = (over: Partial<Snapshot> = {}, meOver: Partial<NonNullable<Snapshot["me"]>> = {}): Snapshot => ({
@@ -164,7 +166,7 @@ describe("plan", () => {
     due,
     chainNow: due,
     yield: null,
-    me: { seat: 0, pay: 10_000000n, creditUsed: 0n, holdbackReleased: 0n, commitment: zeroHash, revealedBps: 0, withdrawable: 0n, balance: 0n, ...meOver },
+    me: { seat: 0, pay: 10_000000n, creditUsed: 0n, holdbackReleased: 0n, commitment: zeroHash, revealedBps: 0, withdrawable: 0n, balance: 0n, unrecorded: false, ...meOver },
     ...over,
   });
   const kinds = (s: Snapshot, now: number) => plan(s, now).actions.map((a) => a.kind);
@@ -206,7 +208,8 @@ describe("plan", () => {
 
   it("late payment is allowed through grace; then the round can close", () => {
     expect(kinds(snap(), due + rules.grace - 1)).toEqual(["pay"]);
-    expect(kinds(snap(), due + rules.grace)).toEqual(["pay", "close"]);
+    // the second the round can close, payments for it have stopped (Circle._pay)
+    expect(kinds(snap(), due + rules.grace)).toEqual(["close"]);
     expect(kinds(snap(), due + rules.grace + 1)).toEqual(["close"]);
   });
 

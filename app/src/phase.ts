@@ -25,6 +25,17 @@ export function rulesInWords(r: Rules): { lead: string; text: string }[] {
       lead: "Who's paid when.",
       text: "Members whose cats trust them more are paid first; among equals, the order of seats. Anyone who owes another circle goes to the back.",
     },
+    ...(r.holdbackBps > 0
+      ? [
+          {
+            lead: "Taking the pot early?",
+            text: `${r.holdbackBps / 100}% of what's still to pay is held back and handed to you as you keep paying.`,
+          },
+        ]
+      : []),
+    ...(r.maxBidBps > 0 && r.poolShareBps > 0
+      ? [{ lead: "The shared pool.", text: `${r.poolShareBps / 100}% of what winning offers give up goes into a pool that covers misses and is shared out at the end.` }]
+      : []),
     {
       lead: `${money(depositOf(r))} deposit.`,
       text: "You put it down when you join (two rounds' worth if your cat is wary). Any deposit left after covering missed payments is returned at the end.",
@@ -56,18 +67,23 @@ export type Plan = {
   actions: Action[]; // first one is the primary action
 };
 
-/** The no-offer fallback (Circle._firstInOrder): best stage first, then seat; Behind only when nobody else is left. */
+/**
+ * The no-offer fallback (Circle._firstInOrder): best stage first, then seat;
+ * anyone who owes another circle after everyone (Circle._rank); Behind only
+ * when nobody else is left.
+ */
 export function nextInLine(members: Member[]): Member | undefined {
-  const order = payoutOrder(members);
+  const ranked = payoutOrder(members);
+  const order = [...ranked.filter((m) => !m.owesElsewhere), ...ranked.filter((m) => m.owesElsewhere)];
   return (
     order.find((m) => m.address && m.standing === "good" && !m.received) ??
     order.find((m) => m.address && m.standing === "behind" && !m.received)
   );
 }
 
-/** Circle._canOffer: up to date, no pot yet, and inside their stage's offer window. */
+/** Circle._canOffer: up to date, no pot yet, no debt in another circle, and inside their stage's offer window. */
 export const canOffer = (m: Member, round: number, memberCount: number) =>
-  !!m.address && m.standing === "good" && !m.received && canOfferIn(m.offerFrom, round, memberCount);
+  !!m.address && m.standing === "good" && !m.received && !m.owesElsewhere && canOfferIn(m.offerFrom, round, memberCount);
 
 export function eligibleBidders(members: Member[], round: number, memberCount: number): number {
   return members.filter((m) => canOffer(m, round, memberCount)).length;
@@ -129,9 +145,10 @@ export function plan(s: Snapshot, now: number): Plan {
   const due = s.due;
   const actions: Action[] = [];
   const committed = !!me && me.commitment !== zeroHash;
-  const revealOpen = now >= due && now <= due + r.revealWindow;
+  // the contract stops payments and reveals the second the round can close
+  const revealOpen = now >= due && now <= due + r.revealWindow && now < due + r.grace;
   const commitOpen = r.maxBidBps > 0 && now >= due - r.commitWindow && now < due;
-  const payOpen = now <= due + r.grace;
+  const payOpen = now < due + r.grace;
   const closeOpen = now >= due + r.grace;
   const mustReveal = !!mine && committed && !mine.revealed && revealOpen;
 

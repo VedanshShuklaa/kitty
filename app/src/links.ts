@@ -15,9 +15,13 @@ export function inviteLink(i: Invite): string {
 }
 
 export function parseInvite(url: string): Invite | null {
-  const m = url.trim().match(/\/j\/(0x[0-9a-fA-F]{40})\/(\d{1,2})#(.+)$/);
+  // `?` as well as `#`: the invite page's "Open in Kitty" button hands the
+  // link over as an Android intent pinned to this app, which has no fragment
+  const m = url.trim().match(/\/j\/(0x[0-9a-fA-F]{40})\/(\d{1,2})[#?](.+)$/);
   if (!m) return null;
-  const [, circle, seatStr, fragment] = m;
+  const [, circle, seatStr, tail] = m;
+  // a redirector may add its own query before the #: the # part wins
+  const fragment = tail.includes("#") ? tail.slice(tail.indexOf("#") + 1) : tail;
   const params: Record<string, string> = {};
   for (const part of fragment.split("&")) {
     const eq = part.indexOf("=");

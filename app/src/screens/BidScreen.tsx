@@ -4,7 +4,7 @@ import { View } from "react-native";
 
 import { explain } from "../errors";
 import { money, span, when } from "../format";
-import { commitBid, loadSnapshot, potOf, type Snapshot } from "../kitty";
+import { commitBid, depositOf, loadSnapshot, potOf, type Snapshot } from "../kitty";
 import type { ScreenProps } from "../nav";
 import { useMe } from "../session";
 import { color, radius, space } from "../theme";
@@ -45,7 +45,20 @@ export function BidScreen({ route, navigation }: ScreenProps<"Bid">) {
   // paying (SRS 7.7).
   const gross = potOf(r);
   const discount = (gross * BigInt(bps)) / 10_000n;
-  let holdback = round < n ? (r.contribution * BigInt(n - round) * BigInt(r.holdbackBps)) / 10_000n : 0n;
+  // Mirrors Circle._holdbackFor: the circle's own share, raised for stages with a
+  // credit limit so that what they could still owe after the pot stays covered.
+  let holdback = 0n;
+  if (round < n) {
+    const left = BigInt(n - round);
+    holdback = (r.contribution * left * BigInt(r.holdbackBps)) / 10_000n;
+    const mine = snap.me ? snap.members[snap.me.seat] : undefined;
+    if (mine && mine.limitMonths !== 255) {
+      const deposit = depositOf(r, mine.stage === "Wary" ? 200 : 100);
+      const owed = r.contribution * left;
+      const cover = deposit + r.contribution * BigInt(mine.limitMonths);
+      if (owed > cover && owed - cover > holdback) holdback = owed - cover;
+    }
+  }
   if (holdback > gross - discount) holdback = gross - discount;
   const takeNow = gross - discount - holdback;
 
@@ -65,7 +78,12 @@ export function BidScreen({ route, navigation }: ScreenProps<"Bid">) {
   return (
     <Screen
       onBack={() => navigation.goBack()}
-      footer={<Button label={`Seal my offer: give up ${money(discount)}`} busy={busy} onPress={seal} />}
+      footer={
+        <>
+          {error && <Notice tone="error" onClose={() => setError(null)}>{error}</Notice>}
+          <Button label={`Seal my offer: give up ${money(discount)}`} busy={busy} onPress={seal} />
+        </>
+      }
     >
       <Title>Want the pot sooner?</Title>
       <Body style={{ color: color.slate }}>
@@ -104,7 +122,6 @@ export function BidScreen({ route, navigation }: ScreenProps<"Bid">) {
         Your offer stays sealed until {when(snap.due)}. After that you have {span(r.revealWindow)} to open it here, or it won't count.
         You also need to have paid this round.
       </Notice>
-      {error && <Notice tone="error" onClose={() => setError(null)}>{error}</Notice>}
     </Screen>
   );
 }

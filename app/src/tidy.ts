@@ -1,6 +1,6 @@
 import type { Address } from "viem";
 
-import { cancelCircle, loadSnapshot, withdraw, type Signer, type Snapshot } from "./kitty";
+import { cancelCircle, loadSnapshot, recordFinish, withdraw, type Signer, type Snapshot } from "./kitty";
 import { getCircle, saveCircle } from "./store";
 
 // A circle that can never start shouldn't wait for anyone to notice. Once
@@ -8,13 +8,16 @@ import { getCircle, saveCircle } from "./store";
 // calls it off and collects their deposit, with no prompt (both are in the
 // no-prompt list, SRS 15.4). Fully collected called-off circles leave Home.
 
-export type TidyStep = "cancel" | "withdraw" | "archive" | null;
+export type TidyStep = "cancel" | "withdraw" | "record" | "archive" | null;
 
 /** Pure: what this member's phone should do next for a circle. */
 export function tidyStep(s: Snapshot): TidyStep {
   if (!s.me) return null;
   if (s.state === "forming") return s.chainNow >= Number(s.rules.joinDeadline) ? "cancel" : null;
   if (s.state === "cancelled") return s.me.withdrawable > 0n ? "withdraw" : "archive";
+  // with nothing to collect there's no withdraw to write the finished circle
+  // into the record, which would keep it counted as open (circles-at-once)
+  if (s.state === "completed" && s.me.unrecorded) return "record";
   return null;
 }
 
@@ -32,6 +35,8 @@ export async function tidyCircle(s: Signer, snap: Snapshot): Promise<{ calledOff
     } else if (step === "withdraw") {
       returned = current.me?.withdrawable ?? 0n;
       await withdraw(s, current.address);
+    } else if (step === "record") {
+      await recordFinish(s, current.address);
     } else {
       await archive(s.address, current.address);
       break;

@@ -5,7 +5,7 @@ import { Linking, View } from "react-native";
 import { BottomNav } from "../Brand";
 import { CatCompanion, CatStageGuide } from "../CatCompanion";
 import { explorerAddress } from "../chain";
-import { explain } from "../errors";
+import { explain, passkeyStep } from "../errors";
 import { initials, money, shortAddress, when } from "../format";
 import { House } from "../House";
 import { pieceAdded, PIECES } from "../house";
@@ -67,7 +67,7 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
   const [standingError, setStandingError] = useState(false);
   const [showCat, setShowCatState] = useState(true);
   const [paying, setPaying] = useState<string | null>(null);
-  const [payError, setPayError] = useState<string | null>(null);
+  const [payNotice, setPayNotice] = useState<{ tone: "good" | "error"; text: string } | null>(null);
   useEffect(() => { getShowCat().then(setShowCatState).catch(() => {}); }, []);
   const [items, setItems] = useState<{ ref: CircleRef; snap: Snapshot | null }[]>([]);
   const [copied, setCopied] = useState(false);
@@ -101,20 +101,21 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
 
   async function payBack(circle: CircleRef, amount: bigint) {
     setPaying(circle.address);
-    setPayError(null);
+    setPayNotice(null);
     try {
       // paying back moves money: a fresh fingerprint (SRS 15.4)
-      await repay(await confirm(), circle.address, amount);
+      await repay(await passkeyStep(confirm()), circle.address, amount);
+      setPayNotice({ tone: "good", text: `Paid back ${money(amount)} to the members of ${circle.title}.` });
       await load();
     } catch (e) {
-      setPayError(explain(e));
+      setPayNotice({ tone: "error", text: explain(e) });
     } finally {
       setPaying(null);
     }
   }
 
   return (
-    <Screen refreshing={refreshing} onRefresh={load} onBack={() => navigation.goBack()} footer={<BottomNav active="Account" onHome={() => navigation.navigate("Home")} onJoin={() => navigation.navigate("Paste")} onAccount={() => {}} />}>
+    <Screen refreshing={refreshing} onRefresh={load} onBack={() => navigation.goBack()} footer={<BottomNav active="Account" onHome={() => navigation.popTo("Home")} onJoin={() => navigation.navigate("Paste")} onAccount={() => {}} />}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: space.md, marginTop: space.sm }}>
         <Bead label={initials(profile?.name ?? "?")} size={64} />
         <View style={{ flex: 1 }}>
@@ -149,7 +150,7 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
               <Small>The {money(amount)} goes to the members who lost it. Until it's paid, you can't join a new circle.</Small>
             </View>
           ))}
-          {payError && <Notice tone="error">{payError}</Notice>}
+          {payNotice && <Notice tone={payNotice.tone} onClose={() => setPayNotice(null)}>{payNotice.text}</Notice>}
           <Section title="What this means for you">
             <Small>These are your terms in the next circle you join.</Small>
             <List>

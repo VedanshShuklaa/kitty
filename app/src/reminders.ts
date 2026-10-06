@@ -143,3 +143,14 @@ export async function syncReminders(circle: string, wanted: Reminder[], offset: 
     });
   }
 }
+
+/**
+ * Reschedules one circle's reminders from a snapshot the screen already has,
+ * converting chain times to phone times from the snapshot's own clock reading.
+ * Home calls this for every circle it loads, so a member who never opens a
+ * circle during a round still gets that round's reminders.
+ */
+export function syncFromSnapshot(s: Snapshot, title: string, cat: string | null = null): Promise<void> {
+  const offset = s.chainNow - Date.now() / 1000;
+  return syncReminders(s.address, remindersFor(s, title, s.chainNow, cat), offset);
+}

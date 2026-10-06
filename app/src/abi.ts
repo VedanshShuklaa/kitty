@@ -8,6 +8,7 @@ export const factoryAbi = parseAbi([
   RULES,
   "function createCircle(Rules rules, address[] inviteSigners) returns (address)",
   "function predictCircle(address organizer) view returns (address)",
+  "function isCircle(address circle) view returns (bool)",
   "function minPeriod() view returns (uint32)",
   "error BadRules()",
 ]);

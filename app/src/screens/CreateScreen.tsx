@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import type { Address } from "viem";
 
-import { explain } from "../errors";
+import { explain, passkeyStep } from "../errors";
 import { money, parseMoney, span } from "../format";
 import { CADENCES, CREATE_STEPS, createCircle, joinAsOrganizer, type Cadence, type CircleDraft } from "../kitty";
 import type { ScreenProps } from "../nav";
@@ -33,6 +33,10 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
   const [maxBid, setMaxBid] = useState(3_000);
   const [earn, setEarn] = useState(true);
   const [run, setRun] = useState<Run | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  // set synchronously so a double tap can't start two flows before the first re-render
+  const [starting, setStarting] = useState(false);
+  const startingRef = useRef(false);
 
   const myName = profile?.name ?? "You";
   const names = [myName, ...others.map((s) => s.trim())];
@@ -49,6 +53,10 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
   const draft: CircleDraft = { title: title.trim(), names, contribution: contribution ?? 0n, cadence, startIn, maxBidBps: maxBid, yieldOn: earn };
 
   async function submit() {
+    if (startingRef.current) return;
+    startingRef.current = true;
+    setStarting(true);
+    setFormError(null);
     let current = CREATE_STEPS[0].id;
     let circle: Address | undefined = run?.circle;
     const refFor = (c: Address): CircleRef => ({ address: c, title: draft.title, names, seat: 0, organizer: true, addedAt: Date.now() });
@@ -61,8 +69,21 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
     };
     try {
       // creating a circle commits money and sets up obligations for other
-      // people, so it takes a fresh fingerprint (SRS 15.4)
-      const s = await confirm();
+      // people, so it takes a fresh fingerprint (SRS 15.4). A cancelled prompt is a
+      // note on the form, not a failed run; but once the circle exists the run
+      // screen stays, so it can't be created a second time.
+      let s;
+      try {
+        s = await passkeyStep(confirm());
+      } catch (e) {
+        if (circle && run) {
+          setRun({ active: run.active, failed: true, error: explain(e), circle });
+        } else {
+          setRun(null);
+          setFormError(explain(e));
+        }
+        return;
+      }
       if (circle) {
         await joinAsOrganizer(s, circle, step);
       } else {
@@ -77,6 +98,9 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
     } catch (e) {
       const created = current === "approve" || current === "deposit";
       setRun({ active: current, failed: true, error: explain(e), circle: created ? circle : undefined });
+    } finally {
+      startingRef.current = false;
+      setStarting(false);
     }
   }
 
@@ -91,8 +115,8 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
         footer={
           run.failed ? (
             <>
-              <Button label={run.circle ? "Finish setting up" : "Try again"} onPress={submit} />
-              {!run.circle && <Button label="Back to the form" tone="quiet" onPress={() => setRun(null)} />}
+              <Button label={run.circle ? "Finish setting up" : "Try again"} busy={starting} onPress={submit} />
+              {!run.circle && <Button label="Back to the form" tone="quiet" disabled={starting} onPress={() => setRun(null)} />}
             </>
           ) : undefined
         }
@@ -113,8 +137,9 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
       onBack={() => navigation.goBack()}
       footer={
         <>
+          {formError && <Notice tone="error" onClose={() => setFormError(null)}>{formError}</Notice>}
           {problem && <Small style={{ textAlign: "center" }}>{problem}</Small>}
-          <Button label="Create circle" disabled={!!problem} onPress={submit} />
+          <Button label="Create circle" busy={starting} disabled={!!problem || starting} onPress={submit} />
         </>
       }
     >

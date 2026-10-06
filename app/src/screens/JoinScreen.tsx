@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
-import { explain } from "../errors";
-import { money } from "../format";
-import { depositOf, JOIN_STEPS, joinCircle, joinTerms, loadSnapshot, type Snapshot, type Terms } from "../kitty";
+import { explain, passkeyStep } from "../errors";
+import { money, shortAddress } from "../format";
+import { depositOf, isKittyCircle, JOIN_STEPS, joinCircle, joinTerms, loadSnapshot, NOT_A_CIRCLE, type Snapshot, type Terms } from "../kitty";
 import { parseInvite } from "../links";
 import type { ScreenProps } from "../nav";
 import { nameAt, rulesInWords } from "../phase";
@@ -23,13 +23,26 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [run, setRun] = useState<{ active: string; failed: boolean; error?: string } | null>(null);
   const [showCat, setShowCat] = useState(true);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
+  const startingRef = useRef(false);
+  // null until the factory has been asked; an invite names any address it likes
+  const [isCircle, setIsCircle] = useState<boolean | null>(null);
+  const [offset, setOffset] = useState(0); // chain clock minus phone clock, in seconds
   useEffect(() => { getShowCat().then(setShowCat).catch(() => {}); }, []);
 
   const load = useCallback(async () => {
     if (!invite) return;
     setLoadError(null);
-    try { setSnap(await loadSnapshot(invite.circle, me)); }
-    catch (e) { setLoadError(explain(e)); }
+    try {
+      // nothing from the address is read, shown or saved until Kitty's factory vouches for it
+      const ok = await isKittyCircle(invite.circle);
+      setIsCircle(ok);
+      if (!ok) return;
+      const s = await loadSnapshot(invite.circle, me);
+      setOffset(s.chainNow - Date.now() / 1000);
+      setSnap(s);
+    } catch (e) { setLoadError(explain(e)); }
   }, [invite, me]);
 
   useEffect(() => { void load(); }, [load]);
@@ -38,13 +51,13 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
   // deposit, place in the order and offer window; show all of it first.
   const [terms, setTerms] = useState<Terms | null>(null);
   const [termsError, setTermsError] = useState(false);
+  const [termsTry, setTermsTry] = useState(0); // bumped by "Try again": the contribution alone never changes
   const contribution = snap?.rules.contribution;
   useEffect(() => {
     if (contribution === undefined) return;
     setTermsError(false);
     joinTerms(me, contribution).then(setTerms).catch(() => setTermsError(true));
-  }, [me, contribution]);
-  const nowSec = Math.floor(Date.now() / 1000);
+  }, [me, contribution, termsTry]);
   const deposit = snap && terms ? depositOf(snap.rules, terms.depositX100) : 0n;
 
   // A member who reinstalled can come back through their invite link: the
@@ -53,7 +66,7 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
   // Kitty's storage if it isn't there yet. Restore after sign-in does the
   // same from the passkey alone (FR-RST-01).
   useEffect(() => {
-    if (!invite || !snap?.me) return;
+    if (!invite || !snap?.me || isCircle !== true) return;
     const mine = snap.me;
     getCircle(me, invite.circle).then(async (known) => {
       const ref = known ?? {
@@ -67,7 +80,7 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
       if (!known) await saveCircle(me, ref);
       if (signer && invite.roster) await syncCircle(signer, ref, invite.roster).catch(() => {});
     });
-  }, [invite, snap, me, signer]);
+  }, [invite, snap, me, signer, isCircle]);
 
   if (!invite) {
     return (
@@ -78,16 +91,37 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
     );
   }
 
+  if (isCircle === false) {
+    return (
+      <Screen onBack={() => navigation.goBack()}>
+        <Title>This isn't a Kitty circle</Title>
+        <Notice tone="error">{NOT_A_CIRCLE}</Notice>
+        <Body>Don't join from this link. Ask the organizer to send the invite again, and open it straight from WhatsApp.</Body>
+      </Screen>
+    );
+  }
+
   const names = invite.names;
   const who = nameAt(names, invite.seat);
   const organizer = nameAt(names, 0);
 
   async function join() {
-    if (!invite) return;
+    if (!invite || startingRef.current) return;
+    startingRef.current = true;
+    setStarting(true);
+    setFormError(null);
     let current = JOIN_STEPS[0].id;
     try {
-      // joining commits a deposit and every round's payment: a fresh fingerprint (SRS 15.4)
-      const s = await confirm();
+      // joining commits a deposit and every round's payment: a fresh fingerprint (SRS 15.4).
+      // A cancelled or failed prompt is a note on the form, not a failed run.
+      let s;
+      try {
+        s = await passkeyStep(confirm());
+      } catch (e) {
+        setRun(null);
+        setFormError(explain(e));
+        return;
+      }
       await joinCircle(s, invite, (id) => {
         current = id;
         setRun({ active: id, failed: false });
@@ -99,6 +133,9 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
       navigation.replace("Circle", { address: invite.circle });
     } catch (e) {
       setRun({ active: current, failed: true, error: explain(e) });
+    } finally {
+      startingRef.current = false;
+      setStarting(false);
     }
   }
 
@@ -109,7 +146,16 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
       state: (i < at ? "done" : i === at ? (run.failed ? "failed" : "active") : "todo") as StepState,
     }));
     return (
-      <Screen footer={run.failed ? <Button label="Try again" onPress={join} /> : undefined}>
+      <Screen
+        footer={
+          run.failed ? (
+            <>
+              <Button label="Try again" busy={starting} onPress={join} />
+              <Button label="Back to the invite" tone="quiet" disabled={starting} onPress={() => setRun(null)} />
+            </>
+          ) : undefined
+        }
+      >
         <Title>Joining {invite.title}</Title>
         <Small>Your phone may ask for your fingerprint or screen lock.</Small>
         <View style={{ marginTop: space.md }}>
@@ -120,7 +166,8 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
     );
   }
 
-  const now = nowSec;
+  // the circle's own clock, so a phone with the wrong time doesn't misjudge the join deadline
+  const now = Math.floor(Date.now() / 1000 + offset);
   let blocker: string | null = null;
   let already = false;
   if (snap) {
@@ -156,7 +203,10 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
         already ? (
           <Button label="Open the circle" onPress={() => navigation.replace("Circle", { address: invite.circle })} />
         ) : snap && terms && !blocker ? (
-          <Button label={`Join and put down ${money(deposit)}`} onPress={join} />
+          <>
+            {formError && <Notice tone="error" onClose={() => setFormError(null)}>{formError}</Notice>}
+            <Button label={`Join and put down ${money(deposit)}`} busy={starting} onPress={join} />
+          </>
         ) : undefined
       }
     >
@@ -165,6 +215,11 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
         <Small>{organizer} invited you to</Small>
         <Title>{invite.title}</Title>
         <Body>A place for {who}, with people you know.</Body>
+        {snap && (
+          <Small selectable>
+            The names come from the link. The circle was started by {shortAddress(snap.organizer)}. Check with {organizer} that this is theirs.
+          </Small>
+        )}
         {snap && <View style={{ marginTop: space.sm, gap: space.sm }}>
           <Heading>{money(snap.rules.contribution)} each round</Heading>
           <Small>{snap.rules.memberCount} people · {snap.rules.memberCount} rounds</Small>
@@ -180,7 +235,7 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
       {snap && !already && !blocker && termsError && (
         <>
           <Notice tone="error">Couldn't check your terms for this circle. Check your connection and try again.</Notice>
-          <Button label="Try again" tone="quiet" onPress={load} />
+          <Button label="Try again" tone="quiet" onPress={() => setTermsTry((t) => t + 1)} />
         </>
       )}
 

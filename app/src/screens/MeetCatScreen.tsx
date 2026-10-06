@@ -36,7 +36,9 @@ export function MeetCatScreen({ navigation }: ScreenProps<"MeetCat">) {
     setSaveError(null);
     try {
       await nameCat(catName);
-      navigation.replace("Home");
+      // opened from Account, she goes back there; the first time, Home replaces this screen
+      if (navigation.canGoBack()) navigation.goBack();
+      else navigation.replace("Home");
     } catch (error) { setSaveError(explain(error)); }
     finally { setBusy(false); }
   }

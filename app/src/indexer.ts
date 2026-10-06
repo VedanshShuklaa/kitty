@@ -90,7 +90,7 @@ export async function feedOf(circle: Address, limit = 25): Promise<Activity[]> {
   };
   const d = await gql<{ Activity: Row[] }>(
     `query Feed($c: String!, $n: Int!) {
-      Activity(where: { circle_id: { _eq: $c } }, order_by: [{ at: desc }, { id: desc }], limit: $n) {
+      Activity(where: { circle_id: { _eq: $c }, kind: { _nin: ["PaidBack", "Credited", "PaidDebt"] } }, order_by: [{ at: desc }, { block: desc }, { logIndex: desc }], limit: $n) {
         id kind actor round amount fromStake fromPool shortfall bps at txHash
       }
     }`,
@@ -124,7 +124,7 @@ export async function transfersOf(me: Address, limit = 10): Promise<Transfer[]> 
   type Row = { id: string; from: string; to: string; token: Transfer["token"]; amountUsd: string; route: Transfer["route"]; at: string; txHash: Hex };
   const d = await gql<{ Transfer: Row[] }>(
     `query Money($me: String!, $n: Int!) {
-      Transfer(where: { _or: [{ from: { _eq: $me } }, { to: { _eq: $me } }] }, order_by: [{ at: desc }, { id: desc }], limit: $n) {
+      Transfer(where: { _or: [{ from: { _eq: $me } }, { to: { _eq: $me } }] }, order_by: [{ at: desc }, { block: desc }, { logIndex: desc }], limit: $n) {
         id from to token amountUsd route at txHash
       }
     }`,

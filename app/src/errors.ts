@@ -24,7 +24,35 @@ const CONTRACT: Record<string, string> = {
   MaxFrequencyExceeded: "The test-dollar tap is busy. Try again in a minute.",
 };
 
+/** The name of the contract error behind a failed call ("TooEarly", "WrongState", ...), or null if it wasn't a revert. */
+export function revertName(e: unknown): string | null {
+  if (!(e instanceof BaseError)) return null;
+  const reverted = e.walk((x) => x instanceof ContractFunctionRevertedError);
+  return reverted instanceof ContractFunctionRevertedError ? (reverted.data?.errorName ?? null) : null;
+}
+
 export type ErrorContext = "faucet" | "passkey" | undefined;
+
+/**
+ * Runs a passkey prompt (`confirm()` / `need()`), and turns only its failures
+ * into the passkey wording. Everything after the prompt is explained plainly,
+ * so a network or contract error is never blamed on the passkey.
+ */
+export async function passkeyStep<T>(prompt: Promise<T>): Promise<T> {
+  try {
+    return await prompt;
+  } catch (e) {
+    throw new PasskeyFailed(explain(e, "passkey"));
+  }
+}
+
+/** A failed or cancelled passkey prompt; the message is already plain words. */
+export class PasskeyFailed extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "PasskeyFailed";
+  }
+}
 
 export function explain(e: unknown, context?: ErrorContext): string {
   // Passkey errors from Mera carry a code and wrap the platform error in `cause`.
@@ -53,7 +81,7 @@ export function explain(e: unknown, context?: ErrorContext): string {
     }
     const detail = `${e.shortMessage} ${e.details ?? ""}`;
     if (/insufficient funds|balance/i.test(detail)) {
-      return "Your account needs a top-up before it can do this. Tap Get test dollars on the home screen.";
+      return "Your account needs a top-up before it can do this. Tap Add test dollars on the home screen.";
     }
     if (/fetch|network|timeout|timed out|HTTP request failed/i.test(detail)) {
       return "Couldn't reach the network. Check your connection and try again.";

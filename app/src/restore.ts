@@ -52,6 +52,8 @@ export async function restoreCircles(s: Signer): Promise<Restored> {
       organizer,
       addedAt: known?.addedAt ?? Date.now(),
       synced: known?.synced || !!roster,
+      // a circle the member archived on this phone stays archived
+      ...(known?.archived ? { archived: true } : {}),
     };
     if (ref.title !== FALLBACK_TITLE) named++;
     await saveCircle(s.address, ref);
@@ -62,18 +64,20 @@ export async function restoreCircles(s: Signer): Promise<Restored> {
 /**
  * Puts this phone's knowledge of a circle into Kitty's storage, once: the
  * organizer stores the sealed roster, a member stores their wrapped copy of
- * the roster key. Best effort; a later visit retries.
+ * the roster key. Best effort; a later visit retries. Resolves true only when
+ * something was saved (so callers re-read the circle only then).
  */
-export async function syncCircle(s: Signer, ref: CircleRef, rosterKey: Hex | null = null): Promise<void> {
-  if (ref.synced) return;
+export async function syncCircle(s: Signer, ref: CircleRef, rosterKey: Hex | null = null): Promise<boolean> {
+  if (ref.synced) return false;
   if (ref.organizer) {
-    if (ref.names.length === 0) return;
+    if (ref.names.length === 0) return false;
     await putRoster(s, ref.address, { title: ref.title, names: ref.names });
   } else {
-    if (!rosterKey) return;
+    if (!rosterKey) return false;
     await putMemberKey(s, ref.address, hexToBytes(rosterKey));
   }
   await saveCircle(s.address, { ...ref, synced: true });
+  return true;
 }
 
 /** The roster key to put in an organizer's invite links. */

@@ -16,6 +16,7 @@ const NO_PROMPT = new Set([
   "reveal",
   "close", // hand out the pot
   "withdraw", // collect your own balance
+  "record", // write a finished circle into the record
   "cancel", // call off a circle that never started: everyone gets their deposit back
   "claim", // take money someone sent you by link
 ]);

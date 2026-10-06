@@ -1,12 +1,12 @@
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Linking, Pressable, Share, StyleSheet, View } from "react-native";
 import type { Address } from "viem";
 
 import { explorerTx } from "../chain";
-import { explain } from "../errors";
-import { initials, money, parseMoney, shortAddress } from "../format";
+import { explain, passkeyStep } from "../errors";
+import { groupedAddress, initials, money, parseMoney, shortAddress } from "../format";
 import { loadRates, localEstimate, type Rates } from "../fx";
 import { membersOf } from "../indexer";
 import { loadSnapshot } from "../kitty";
@@ -55,7 +55,9 @@ export function SendScreen({ route, navigation }: ScreenProps<"Send">) {
   const { address, confirm } = useMe();
   const { profile } = useSession();
   const [list, setList] = useState<Person[] | null>(null);
-  const [to, setTo] = useState<{ address: Address; name: string } | null>(null);
+  // `name` is only ever one the member already knows (picked from their circles);
+  // a name carried by a link or code is never trusted, so it is not kept at all
+  const [to, setTo] = useState<{ address: Address; name: string | null } | null>(null);
   const [pasting, setPasting] = useState(false);
   const [pasted, setPasted] = useState("");
   const [amount, setAmount] = useState("");
@@ -64,7 +66,9 @@ export function SendScreen({ route, navigation }: ScreenProps<"Send">) {
   const [rates, setRates] = useState<Rates | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState<{ settled: Settled; link?: string } | null>(null);
+  // the receipt is a snapshot of what was sent, not of the form (which stays editable)
+  const [done, setDone] = useState<{ settled: Settled; link?: string; to: string | null; usd: bigint; arrival: Arrival } | null>(null);
+  const sending = useRef(false);
 
   useEffect(() => {
     people(address).then(setList).catch(() => setList([]));
@@ -73,11 +77,18 @@ export function SendScreen({ route, navigation }: ScreenProps<"Send">) {
   }, [address]);
 
   // a scanned code or an opened pay link arrives as route params
-  const paramTo = route.params?.to;
-  const paramName = route.params?.name;
+  const params = route.params;
   useEffect(() => {
-    if (paramTo) setTo({ address: paramTo, name: paramName ?? shortAddress(paramTo) });
-  }, [paramTo, paramName]);
+    // never replaces a recipient the member already picked; the carried name is dropped
+    if (params?.to) {
+      const address = params.to;
+      setTo((cur) => cur ?? { address, name: null });
+    }
+  }, [params]);
+
+  // who the recipient is, by what the member already knows: their circles' people
+  const person = to ? list?.find((p) => p.address.toLowerCase() === to.address.toLowerCase()) : undefined;
+  const toName = person?.name ?? to?.name ?? null;
 
   const usd = parseMoney(amount);
   const local = usd ? localEstimate(usd, profile?.country, rates) : null;
@@ -85,39 +96,43 @@ export function SendScreen({ route, navigation }: ScreenProps<"Send">) {
   const payee = parsePayee(pasted);
 
   async function go(byLink: boolean) {
-    if (!usd || problem || (!byLink && !to)) return;
+    if (!usd || problem || (!byLink && !to) || sending.current) return;
+    sending.current = true;
     const tappedAt = Date.now();
+    const sent = { usd, arrival, to: toName ?? (to ? shortAddress(to.address) : null) };
     setBusy(true);
     setError(null);
     try {
-      const s = await confirm(); // FR-SES-01: a send always takes a fresh fingerprint
+      // FR-SES-01: a send always takes a fresh fingerprint; only this step is a passkey step
+      const s = await passkeyStep(confirm());
       if (byLink) {
         const { url, settled } = await createSendLink(s, usd, profile?.name ?? "A friend", tappedAt);
-        setDone({ settled, link: url });
+        setDone({ ...sent, settled, link: url });
       } else if (to) {
-        setDone({ settled: await sendMoney(s, to.address, usd, arrival, tappedAt) });
+        setDone({ ...sent, settled: await sendMoney(s, to.address, usd, arrival, tappedAt) });
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (e) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-      setError(e instanceof SendFailed ? e.message : `${explain(e, "passkey")} No money left your account.`);
+      setError(e instanceof SendFailed ? e.message : `${explain(e)} No money left your account.`);
     } finally {
+      sending.current = false;
       setBusy(false);
     }
   }
 
   if (done) {
-    const { settled, link } = done;
+    const { settled, link, usd: sentUsd, arrival: sentArrival, to: sentTo } = done;
     return (
-      <Screen footer={<Button label="Done" onPress={() => navigation.navigate("Home")} />}>
+      <Screen footer={<Button label="Done" onPress={() => navigation.popTo("Home")} />}>
         <View style={styles.hero}>
-          <Small>{link ? "Your link is ready" : `Sent to ${to?.name}`}</Small>
-          <Amount>{money(usd ?? 0n)}</Amount>
+          <Small>{link ? "Your link is ready" : `Sent to ${sentTo ?? "them"}`}</Small>
+          <Amount>{money(sentUsd)}</Amount>
           <Body>
             Settled in {(settled.ms / 1000).toFixed(1)} s, {(settled.afterSigning / 1000).toFixed(1)} s after your fingerprint.
           </Body>
           {!link && (
-            <Small>{arrival === "cashOut" ? "It arrived ready to cash out, through Agora's Instant Settlement." : "It arrived as dollars."}</Small>
+            <Small>{sentArrival === "cashOut" ? "It arrived ready to cash out, through Agora's Instant Settlement." : "It arrived as dollars."}</Small>
           )}
         </View>
         {link && (
@@ -128,7 +143,7 @@ export function SendScreen({ route, navigation }: ScreenProps<"Send">) {
             </Notice>
             <Button
               label="Share the link"
-              onPress={() => Share.share({ message: `${profile?.name ?? "I"} sent you ${money(usd ?? 0n)} on Kitty: ${link}` }).catch(() => {})}
+              onPress={() => Share.share({ message: `${profile?.name ?? "I"} sent you ${money(sentUsd)} on Kitty: ${link}` }).catch(() => {})}
             />
           </>
         )}
@@ -142,9 +157,10 @@ export function SendScreen({ route, navigation }: ScreenProps<"Send">) {
       onBack={() => navigation.goBack()}
       footer={
         <>
+          {error && <Notice tone="error" onClose={() => setError(null)}>{error}</Notice>}
           {to && problem && amount !== "" && <Small style={{ textAlign: "center" }}>{problem}</Small>}
           <Button
-            label={to && usd && !problem ? `Send ${money(usd)} to ${to.name}` : "Send"}
+            label={to && usd && !problem ? `Send ${money(usd)} to ${toName ?? shortAddress(to.address)}` : "Send"}
             busy={busy}
             disabled={!to || !!problem || busy}
             onPress={() => go(false)}
@@ -159,10 +175,19 @@ export function SendScreen({ route, navigation }: ScreenProps<"Send">) {
         {to ? (
           <List>
             <Row last>
-              <Bead label={initials(to.name)} tone="mist" />
+              <Bead label={initials(toName ?? "?")} tone="mist" />
               <View style={{ flex: 1 }}>
-                <Body>{to.name}</Body>
-                <Small>{shortAddress(to.address)}</Small>
+                {toName ? (
+                  <>
+                    <Body>{toName}</Body>
+                    <Small>{shortAddress(to.address)}</Small>
+                  </>
+                ) : (
+                  <>
+                    <Body selectable>{groupedAddress(to.address)}</Body>
+                    <Small>Not one of your circle members. Check with them that this is their address before you send.</Small>
+                  </>
+                )}
               </View>
               <Button label="Change" tone="quiet" size="row" onPress={() => setTo(null)} />
             </Row>
@@ -203,7 +228,7 @@ export function SendScreen({ route, navigation }: ScreenProps<"Send">) {
                 />
                 <Button label="Paste from clipboard" tone="quiet" onPress={async () => setPasted(await Clipboard.getStringAsync())} />
                 {pasted !== "" && !payee && <Small style={{ color: color.clay }}>That isn't a Kitty pay link.</Small>}
-                {payee && <Button label="Use this" onPress={() => setTo({ address: payee.address, name: payee.name ?? shortAddress(payee.address) })} />}
+                {payee && <Button label="Use this" onPress={() => setTo({ address: payee.address, name: null })} />}
               </>
             )}
           </>
@@ -211,7 +236,7 @@ export function SendScreen({ route, navigation }: ScreenProps<"Send">) {
       </Section>
 
       <Section title="How much?">
-        <Field label="Amount" prefix="$" keyboardType="decimal-pad" value={amount} onChangeText={setAmount} />
+        <Field label="Amount" prefix="$" keyboardType="decimal-pad" value={amount} onChangeText={setAmount} editable={!busy} />
         <Small>
           {local ? `${local} (approximate). ` : ""}
           {bal ? `You have ${money(bal.dollars)} in dollars.` : ""}
@@ -226,8 +251,6 @@ export function SendScreen({ route, navigation }: ScreenProps<"Send">) {
             : "It goes through Agora's Instant Settlement and lands in the form a local cash-out partner takes, at a fixed 1:1 price, in one step."}
         </Small>
       </Section>
-
-      {error && <Notice tone="error" onClose={() => setError(null)}>{error}</Notice>}
 
       <View style={styles.link}>
         <Heading>No Kitty code?</Heading>

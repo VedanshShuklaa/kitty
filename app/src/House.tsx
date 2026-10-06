@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 import { AccessibilityInfo, Animated, View } from "react-native";
 import Svg, { Circle, Ellipse, G, Line, Path, Rect } from "react-native-svg";
 
@@ -132,7 +132,7 @@ function Resident({ r, index, count }: { r: Resident; index: number; count: numb
  * order. `react` makes this member's cat hop once (after they pay), never
  * with Reduce motion on.
  */
-export function House({ pieces, residents, react }: { pieces: number; residents: Resident[]; react?: boolean }) {
+export const House = memo(function House({ pieces, residents, react }: { pieces: number; residents: Resident[]; react?: boolean }) {
   const hop = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (!react) return;
@@ -182,4 +182,4 @@ export function House({ pieces, residents, react }: { pieces: number; residents:
       )}
     </View>
   );
-}
+});
