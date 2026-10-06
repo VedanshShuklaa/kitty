@@ -7,11 +7,33 @@ import { json } from "./_lib/kv.js";
 //
 //   POST /api/graphql  { query, variables }
 
+// The schema is cyclic (circle -> members -> circle ...), so a deep query
+// costs the indexer far more than its length suggests. The app's deepest
+// query nests 4 levels and its longest is well under 1,000 characters.
+const MAX_DEPTH = 6;
+const MAX_LENGTH = 3_000;
+
+function depth(q: string): number {
+  let d = 0;
+  let max = 0;
+  for (const c of q) {
+    if (c === "{") max = Math.max(max, ++d);
+    else if (c === "}") d--;
+  }
+  return max;
+}
+
 export async function POST(req: Request): Promise<Response> {
   const upstream = process.env.INDEXER_URL;
   if (!upstream) return json({ errors: [{ message: "Indexer not configured." }] }, 503);
   const body = (await req.json().catch(() => null)) as { query?: unknown; variables?: unknown } | null;
-  if (!body || typeof body.query !== "string" || body.query.length > 8_000 || /\b(mutation|subscription)\b/i.test(body.query)) {
+  if (
+    !body ||
+    typeof body.query !== "string" ||
+    body.query.length > MAX_LENGTH ||
+    depth(body.query) > MAX_DEPTH ||
+    /\b(mutation|subscription)\b/i.test(body.query)
+  ) {
     return json({ errors: [{ message: "Only queries are allowed." }] }, 400);
   }
   try {

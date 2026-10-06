@@ -40,7 +40,7 @@ export async function GET(req: Request): Promise<Response> {
 
   const svg = catSvg(owner, stage);
   // her stage can change with any circle's next write; a minute is plenty
-  const cache = { "cache-control": "public, max-age=60" };
+  const cache = { "cache-control": "public, max-age=60, s-maxage=60, stale-while-revalidate=300" };
   if (url.searchParams.get("svg")) return new Response(svg, { headers: { "content-type": "image/svg+xml", ...cache } });
 
   const { coat, markings } = traitsOf(owner);

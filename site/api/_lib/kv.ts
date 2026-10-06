@@ -23,6 +23,38 @@ async function redis<T>(command: (string | number)[]): Promise<T> {
 export const kvGet = (key: string) => redis<string | null>(["GET", key]);
 export const kvSet = (key: string, value: string) => redis<string>(["SET", key, value]);
 
+// INCR and the first EXPIRE in one round trip, so a burst can't leave a
+// counter that never expires
+const COUNT = "local n = redis.call('INCR', KEYS[1]) if n == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end return n";
+
+/**
+ * Fixed-window rate limit: true while `key` has been used at most `max` times
+ * in the current `windowSec`. A store outage lets the request through: these
+ * limits guard testnet gas and free storage, not anyone's money.
+ */
+export async function limit(key: string, max: number, windowSec: number): Promise<boolean> {
+  try {
+    return (await redis<number>(["EVAL", COUNT, 1, `rl:${key}`, windowSec])) <= max;
+  } catch {
+    return true;
+  }
+}
+
+/** True the first time `key` is claimed in `windowSec` (SET NX EX); false while it is held. */
+export async function once(key: string, windowSec: number): Promise<boolean> {
+  try {
+    return (await redis<string | null>(["SET", `rl:${key}`, "1", "NX", "EX", windowSec])) === "OK";
+  } catch {
+    return true;
+  }
+}
+
+export const kvDel = (key: string) => redis<number>(["DEL", key]).catch(() => 0);
+
+/** The caller's IP as Vercel's edge reports it (it overwrites any client-sent value). */
+export const clientIp = (req: Request) =>
+  req.headers.get("x-real-ip") ?? req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+
 /** A sealed blob from the phone: AES-256-GCM, hex. Nothing else is accepted. */
 export type Sealed = { v: 1; iv: Hex; ct: Hex };
 

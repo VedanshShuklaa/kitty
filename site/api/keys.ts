@@ -1,4 +1,4 @@
-import { addressParam, isSealed, json, kvGet, kvSet, signedBy } from "./_lib/kv.js";
+import { addressParam, clientIp, isSealed, json, kvGet, kvSet, limit, signedBy } from "./_lib/kv.js";
 
 // Each member's copy of a circle's roster key, wrapped under a key only their
 // passkey can derive (FR-KEY-03). It is what lets a member who cleared their
@@ -22,6 +22,7 @@ export async function PUT(req: Request): Promise<Response> {
   const member = addressParam(url, "member");
   const body = (await req.json().catch(() => null)) as { blob?: unknown; at?: unknown; sig?: unknown } | null;
   if (!circle || !member || !body || !isSealed(body.blob)) return json({ error: "Bad request." }, 400);
+  if (!(await limit(`write:keys:${clientIp(req)}`, 120, 3600))) return json({ error: "Too many changes. Try again later." }, 429);
   if (!(await signedBy(member, "key", `${circle}:${member}`, body.blob, body.at, body.sig))) {
     return json({ error: "Not signed by this member." }, 403);
   }

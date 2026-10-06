@@ -1,6 +1,6 @@
 import { parseAbi } from "viem";
 
-import { addressParam, isSealed, json, kvGet, kvSet, publicClient, signedBy } from "./_lib/kv.js";
+import { addressParam, clientIp, isSealed, json, kvGet, kvSet, limit, publicClient, signedBy } from "./_lib/kv.js";
 
 // A circle's roster: its title and member names, sealed on the organizer's
 // phone under the circle's roster key (FR-KEY-03). Anyone may read the
@@ -23,6 +23,7 @@ export async function PUT(req: Request): Promise<Response> {
   const circle = addressParam(new URL(req.url), "circle");
   const body = (await req.json().catch(() => null)) as { blob?: unknown; at?: unknown; sig?: unknown } | null;
   if (!circle || !body || !isSealed(body.blob)) return json({ error: "Bad request." }, 400);
+  if (!(await limit(`write:roster:${clientIp(req)}`, 120, 3600))) return json({ error: "Too many changes. Try again later." }, 429);
 
   let organizer;
   try {

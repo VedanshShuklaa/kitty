@@ -49,23 +49,7 @@
       <li>If it still opens here, tap Open in Kitty.</li>
     </ol>
   </main>
-<script>
-  // The invite key and names live after the #, which never reaches a server.
-  // This page only reads them to greet the invitee and hand them to the app.
-  (function () {
-    var hash = location.hash.slice(1), params = {};
-    hash.split("&").forEach(function (p) { var i = p.indexOf("="); if (i > 0) params[p.slice(0, i)] = p.slice(i + 1); });
-    try {
-      var meta = JSON.parse(decodeURIComponent(params.m || ""));
-      var seat = Number(location.pathname.split("/")[3]);
-      if (meta.t) document.getElementById("title").textContent = meta.t;
-      if (meta.n && meta.n[0]) {
-        var who = meta.n[seat] ? meta.n[seat] + ", " : "";
-        document.getElementById("lead").textContent = who + meta.n[0] + " invited you to join this savings circle on Kitty.";
-      }
-    } catch (e) {}
-    document.getElementById("open").href = "kitty:/" + location.pathname + location.hash;
-  })();
-</script>
+<script src="/js/open.js"></script>
+<script src="/js/invite.js"></script>
 </body>
 </html>

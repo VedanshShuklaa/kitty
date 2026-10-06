@@ -18,11 +18,13 @@ export async function GET(): Promise<Response> {
   if (prior && now - prior.at < MAX_AGE) return answer(prior, now);
 
   try {
-    const res = await fetch("https://open.er-api.com/v6/latest/USD");
+    const res = await fetch("https://open.er-api.com/v6/latest/USD", { signal: AbortSignal.timeout(5_000) });
     const body = (await res.json()) as { result?: string; rates?: Record<string, number> };
     if (body.result !== "success" || !body.rates) throw new Error("rates unavailable");
     const all = body.rates;
-    const fresh: Rates = { at: now, rates: Object.fromEntries(CURRENCIES.filter((c) => all[c]).map((c) => [c, all[c]])) };
+    // only sane numbers get cached for 12 hours
+    const ok = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v) && v > 0;
+    const fresh: Rates = { at: now, rates: Object.fromEntries(CURRENCIES.filter((c) => ok(all[c])).map((c) => [c, all[c]])) };
     await kvSet("fx:usd", JSON.stringify(fresh)).catch(() => {});
     return answer(fresh, now);
   } catch {
