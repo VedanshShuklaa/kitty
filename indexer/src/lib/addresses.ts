@@ -24,6 +24,6 @@ export const VAULTS = new Set([
   "0x068d6e51408c49a17558786e8a06074ff32fd75b",
 ]);
 
-// "Feed the Kitty": the standing record and the cats (5 Oct)
-export const KITTY_RECORD = "0x6403d2764a5b2a08716e5ac02ce2c31b900983e6";
-export const KITTY_CATS = "0xd8fed7bc100c55e6eb31eddfa4b6d1b8e6c209aa";
+// "Feed the Kitty": the standing record and the cats, as in deployments/10143.json
+export const KITTY_RECORD = "0x1917a3812c61fc5fb6cee680224bc485e1ee4b7a"; // 5 Oct, people filter
+export const KITTY_CATS = "0xbacf87e4c7c6c7ed9e1be5f3f6b6482d3aa1007b";

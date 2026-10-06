@@ -8,5 +8,9 @@ const YEAR = 365n * 24n * 3600n;
  */
 export function aprBps(from: bigint, to: bigint, seconds: bigint): number {
   if (from <= 0n || seconds < 86_400n) return 0;
-  return Number(((to - from) * 10_000n * YEAR) / (from * seconds));
+  const bps = ((to - from) * 10_000n * YEAR) / (from * seconds);
+  // EarnRate.aprBps is a 32-bit Postgres INTEGER: a wild share price must clamp, not stall the indexer
+  return Number(bps > MAX_BPS ? MAX_BPS : bps < -MAX_BPS ? -MAX_BPS : bps);
 }
+
+const MAX_BPS = 2_000_000_000n;

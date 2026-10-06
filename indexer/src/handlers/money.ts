@@ -57,6 +57,7 @@ indexer.onEvent({ contract: "AgoraPair", event: "Swap" }, async ({ event, contex
     route: sender === to ? "Convert" : toCashOut ? "CashOut" : "Dollars",
     at: t,
     block: event.block.number,
+    logIndex: event.logIndex,
     txHash: event.transaction.hash,
   });
   await bumpDay(context, t, { swaps: 1 });
@@ -88,6 +89,7 @@ indexer.onEvent(
       route: from === FAUCET || from === ZERO ? "Faucet" : "Dollars",
       at: BigInt(event.block.timestamp),
       block: event.block.number,
+      logIndex: event.logIndex,
       txHash: event.transaction.hash,
     });
   },

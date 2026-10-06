@@ -10,6 +10,11 @@ type Ctx = EvmOnEventContext;
 
 const WEEK = 7n * 86_400n;
 const ONE = 1_000000n;
+// A deposit prices a share as amountIn / shares, and the vault rounds shares to
+// whole units: on a few units of shares that rounding is a large share of the
+// price (3 wei in, 1 share out reads as 3.0). From ten shares up it is at most
+// one part in ten million, so smaller deposits are not a price signal.
+const MIN_SHARES = 10n * ONE;
 
 async function point(context: Ctx, chainId: number, source: string, id: string, price: bigint, at: bigint, block: number) {
   context.YieldPoint.set({ id: `${chainId}-${id}`, chainId, source, sharePrice: price, at, block });
@@ -50,7 +55,7 @@ async function point(context: Ctx, chainId: number, source: string, id: string, 
 // Upshift's earnAUSD vault on mainnet: each deposit prices a share.
 indexer.onEvent({ contract: "EarnAUSD", event: "Deposit" }, async ({ event, context }) => {
   const { amountIn, shares } = event.params;
-  if (shares === 0n) return;
+  if (shares < MIN_SHARES) return;
   await point(
     context,
     143,
@@ -69,7 +74,8 @@ indexer.onEvent({ contract: "KittyEarnVault", event: "Accrued" }, async ({ event
   await point(
     context,
     10143,
-    "KittyEarnVault",
+    // five deployed vaults, each with its own price: one source would mix them
+    `KittyEarnVault-${event.srcAddress}`,
     `${event.transaction.hash}-${event.logIndex}`,
     (totalAssets * ONE) / totalShares,
     BigInt(event.block.timestamp),

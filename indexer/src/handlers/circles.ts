@@ -13,6 +13,8 @@ type Line = Partial<Omit<Activity, "id" | "circle_id" | "at" | "block" | "txHash
 const at = (e: Ev) => BigInt(e.block.timestamp);
 const memberId = (circle: string, who: string) => `${circle}-${who}`;
 const roundId = (circle: string, index: number) => `${circle}-${index}`;
+// a member is covered or defaults at most once a round, so the id is the key PotPaid looks up
+const coverId = (circle: string, index: number, who: string) => `${circle}-${index}-${who}`;
 
 function feed(context: Ctx, e: Ev, kind: string, line: Line = {}, circle = e.srcAddress): void {
   context.Activity.set({
@@ -28,6 +30,7 @@ function feed(context: Ctx, e: Ev, kind: string, line: Line = {}, circle = e.src
     bps: line.bps,
     at: at(e),
     block: e.block.number,
+    logIndex: e.logIndex,
     txHash: e.transaction.hash,
   });
 }
@@ -59,7 +62,7 @@ async function round(context: Ctx, circle: string, index: number): Promise<Round
   const r = await context.Round.get(roundId(circle, index));
   if (r) return r;
   const c = await context.Circle.getOrThrow(circle);
-  return newRound(circle, index, c.firstDue + BigInt((index - 1) * c.period));
+  return newRound(circle, index, c.firstDue + c.period * BigInt(index - 1));
 }
 
 // ------------------------------------------------------------ the factory
@@ -83,7 +86,7 @@ indexer.onEvent({ contract: "CircleFactory", event: "CircleCreated" }, async ({ 
     yieldOn: r[5],
     contribution: r[6],
     firstDue: r[7],
-    period: Number(r[8]),
+    period: r[8],
     joinDeadline: r[12],
     state: "Forming",
     joined: 0,
@@ -164,6 +167,8 @@ indexer.onEvent({ contract: "Circle", event: "Contributed" }, async ({ event, co
   const t = at(event);
   const late = event.params.late;
   const paid = event.params.paid;
+  // the contribution is cash plus any credit and released holdback that covered part of it
+  const whole = paid + event.params.creditUsed + event.params.holdbackReleased;
   const index = Number(event.params.round);
 
   const m = await context.Member.getOrThrow(memberId(circle, who));
@@ -171,7 +176,7 @@ indexer.onEvent({ contract: "Circle", event: "Contributed" }, async ({ event, co
     ...m,
     paidOnTime: m.paidOnTime + (late ? 0 : 1),
     paidLate: m.paidLate + (late ? 1 : 0),
-    contributed: m.contributed + paid,
+    contributed: m.contributed + whole,
   });
   const a = await account(context, who, t);
   const streak = late ? 0 : a.onTimeStreak + 1;
@@ -181,7 +186,7 @@ indexer.onEvent({ contract: "Circle", event: "Contributed" }, async ({ event, co
       ...a,
       paidOnTime: a.paidOnTime + (late ? 0 : 1),
       paidLate: a.paidLate + (late ? 1 : 0),
-      totalContributed: a.totalContributed + paid,
+      totalContributed: a.totalContributed + whole,
       onTimeStreak: streak,
       bestStreak: Math.max(a.bestStreak, streak),
     },
@@ -190,7 +195,7 @@ indexer.onEvent({ contract: "Circle", event: "Contributed" }, async ({ event, co
   if (!late) await keep(context, who, "Yarn", circle, event);
   if (streak >= 3) await keep(context, who, "Wand", circle, event);
   const c = await context.Circle.getOrThrow(circle);
-  context.Circle.set({ ...c, totalContributed: c.totalContributed + paid });
+  context.Circle.set({ ...c, totalContributed: c.totalContributed + whole });
   const r = await round(context, circle, index);
   context.Round.set({ ...r, payments: r.payments + 1 });
 
@@ -207,7 +212,7 @@ indexer.onEvent({ contract: "Circle", event: "Contributed" }, async ({ event, co
     at: t,
     txHash: event.transaction.hash,
   });
-  await bumpDay(context, t, { payments: 1, contributed: paid });
+  await bumpDay(context, t, { payments: 1, contributed: whole });
   // bps carries the late flag on a payment: 1 if it came in after the due time
   feed(context, event, "Paid", { actor: who, round: index, amount: paid, bps: late ? 1 : 0 });
 });
@@ -270,8 +275,9 @@ indexer.onEvent({ contract: "Circle", event: "Covered" }, async ({ event, contex
   const { fromStake, fromPool, shortfall } = event.params;
   const covered = fromStake + fromPool;
 
+  // FR-TRU-17: the whole round is owed, covered or not (Circle.closeRound adds the contribution)
   const m = await context.Member.getOrThrow(memberId(circle, who));
-  context.Member.set({ ...m, standing: "Behind", arrears: m.arrears + covered, timesCovered: m.timesCovered + 1 });
+  context.Member.set({ ...m, standing: "Behind", arrears: m.arrears + covered + shortfall, timesCovered: m.timesCovered + 1 });
   const a = await account(context, who, t);
   saveAccount(context, { ...a, timesCovered: a.timesCovered + 1, onTimeStreak: 0 }, t);
   const c = await context.Circle.getOrThrow(circle);
@@ -280,7 +286,7 @@ indexer.onEvent({ contract: "Circle", event: "Covered" }, async ({ event, contex
   context.Round.set({ ...r, covered: r.covered + covered, shortfall: r.shortfall + shortfall });
 
   context.Cover.set({
-    id: logId(event),
+    id: coverId(circle, index, who),
     circle_id: circle,
     member_id: m.id,
     round: index,
@@ -304,7 +310,8 @@ indexer.onEvent({ contract: "Circle", event: "Defaulted" }, async ({ event, cont
   const covered = fromStake + fromHoldback + fromPool;
 
   const m = await context.Member.getOrThrow(memberId(circle, who));
-  context.Member.set({ ...m, standing: "Defaulted" });
+  // the contract folds a defaulting member's arrears into what they owe (_foldArrears)
+  context.Member.set({ ...m, standing: "Defaulted", arrears: 0n });
   const a = await account(context, who, t);
   // a default with nothing left unpaid is cleared the moment it happens
   saveAccount(
@@ -324,7 +331,7 @@ indexer.onEvent({ contract: "Circle", event: "Defaulted" }, async ({ event, cont
   context.Round.set({ ...r, covered: r.covered + covered, shortfall: r.shortfall + shortfall });
 
   context.Cover.set({
-    id: logId(event),
+    id: coverId(circle, index, who),
     circle_id: circle,
     member_id: m.id,
     round: index,
@@ -347,11 +354,8 @@ indexer.onEvent({ contract: "Circle", event: "Defaulted" }, async ({ event, cont
 });
 
 indexer.onEvent({ contract: "Circle", event: "DefaultFilled" }, async ({ event, context }) => {
-  const t = at(event);
-  if (event.params.shortfall === 0n) {
-    const a = await account(context, event.params.member, t);
-    saveAccount(context, { ...a, openDefaults: Math.max(0, a.openDefaults - 1), lastDefaultClearedAt: t }, t);
-  }
+  // Circle.closeRound emits this with a literal 0 shortfall in every later round, so
+  // it says nothing about the debt: a default clears when KittyRecord's DebtChanged hits 0
   feed(context, event, "DefaultFilled", {
     actor: event.params.member,
     round: Number(event.params.round),
@@ -370,7 +374,15 @@ indexer.onEvent({ contract: "Circle", event: "PotPaid" }, async ({ event, contex
   const { gross, paid, discount, holdback, arrearsRepaid } = event.params;
 
   const m = await context.Member.getOrThrow(memberId(circle, who));
-  const arrears = m.arrears > arrearsRepaid ? m.arrears - arrearsRepaid : 0n;
+  let arrears = m.arrears;
+  if (m.standing === "Behind") {
+    // Circle.closeRound: what this winner's own miss kept from this very pot was only
+    // ever their own, so it comes off first; then the pot repays the rest
+    const miss = await context.Cover.get(coverId(circle, index, who));
+    const self = miss?.kind === "Missed" ? miss.shortfall : 0n;
+    arrears = arrears > self ? arrears - self : 0n;
+    arrears = arrears > arrearsRepaid ? arrears - arrearsRepaid : 0n;
+  }
   context.Member.set({
     ...m,
     received: true,
@@ -423,14 +435,14 @@ indexer.onEvent({ contract: "Circle", event: "RoundClosed" }, async ({ event, co
   }
   if (index < c.memberCount) {
     context.Circle.set({ ...c, currentRound: index + 1 });
-    context.Round.set(newRound(circle, index + 1, c.firstDue + BigInt(index * c.period)));
+    context.Round.set(newRound(circle, index + 1, c.firstDue + c.period * BigInt(index)));
   }
 });
 
 // ------------------------------------------------------------ the end
 
 /**
- * Completed: each member who kept their place finishes a cycle, and anyone
+ * Completed: each member in good standing finishes a cycle, and anyone
  * they hadn't finished a circle with before counts as a new counterparty.
  */
 indexer.onEvent({ contract: "Circle", event: "Completed" }, async ({ event, context }) => {
@@ -444,7 +456,12 @@ indexer.onEvent({ contract: "Circle", event: "Completed" }, async ({ event, cont
   const accounts = await Promise.all(members.map((m) => account(context, m.address, t)));
 
   for (const [i, m] of members.entries()) {
-    if (m.standing === "Defaulted") continue;
+    if (m.standing !== "Good") {
+      // still Behind at the end: the contract folds the unpaid arrears into a default
+      // instead of recording a finished circle, so no cycle, box or new counterparties
+      if (m.arrears > 0n) context.Member.set({ ...m, arrears: 0n });
+      continue;
+    }
     const a = accounts[i];
     let fresh = 0;
     for (const other of members) {

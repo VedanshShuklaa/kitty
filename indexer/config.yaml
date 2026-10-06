@@ -92,9 +92,9 @@ chains:
       - name: AgoraPair
         address: "0x1Aa8958Aa34cEC8096EF4381cb335effe977b0ae"
       - name: KittyRecord
-        address:
-          - "0x6403D2764a5B2a08716e5aC02cE2C31B900983E6"
-          - "0x1917a3812c61FC5FB6CeE680224BC485E1EE4b7A" # 5 Oct, people filter
+        # only the current record: the 5 Oct experimental one (0x6403...) kept its
+        # own Account.stage/debt history and raced this one on the same rows
+        address: "0x1917a3812c61FC5FB6CeE680224BC485E1EE4b7A" # 5 Oct, people filter
         start_block: 68288159
       - name: KittyCats
         address:

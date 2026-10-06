@@ -17,7 +17,7 @@ type Circle {
   poolShareBps: Int!
   holdbackBps: Int!
   yieldOn: Boolean!
-  period: Int!
+  period: BigInt! # uint32 in the factory with no upper bound: too big for a Postgres INTEGER column
   firstDue: BigInt!
   joinDeadline: BigInt!
   state: String! # Forming | Active | Completed | Cancelled
@@ -162,7 +162,7 @@ type Bid {
 }
 
 type Cover {
-  id: ID! # `${tx}-${logIndex}`
+  id: ID! # `${circle}-${round}-${member}`: a member is covered or defaults once a round
   circle: Circle!
   member: Member!
   round: Int!
@@ -200,6 +200,7 @@ type Activity {
   bps: Int # a bid's discount, in basis points
   at: BigInt! @index
   block: Int!
+  logIndex: Int! # order within the block; sort by (at, block, logIndex), never by id
   txHash: String!
 }
 
@@ -215,13 +216,14 @@ type Transfer {
   route: String! # Dollars | CashOut | Convert | Faucet
   at: BigInt! @index
   block: Int!
+  logIndex: Int! # order within the block; sort by (at, block, logIndex), never by id
   txHash: String!
 }
 
 type YieldPoint {
   id: ID! # `${chainId}-${tx}-${logIndex}`
   chainId: Int!
-  source: String! # earnAUSD (mainnet) | KittyEarnVault (testnet, simulated)
+  source: String! # earnAUSD (mainnet) | KittyEarnVault-<vault address> (testnet, simulated)
   sharePrice: BigInt! # assets per share, 6 decimals (1_000000 = 1.0)
   at: BigInt! @index
   block: Int!

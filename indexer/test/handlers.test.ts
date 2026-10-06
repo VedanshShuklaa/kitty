@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createTestIndexer } from "envio";
 
-import { AUSD, CTK, FAUCET, KITTY_RECORD, PAIR } from "../src/lib/addresses";
+import { AUSD, CTK, FAUCET, KITTY_RECORD, PAIR, VAULTS } from "../src/lib/addresses";
 import { aprBps } from "../src/lib/rate";
 
 // SRS 15.6 tests: factory registration, the record across two circles
@@ -374,5 +374,224 @@ describe("Feed the Kitty", () => {
       },
     });
     expect((await indexer.Circle.getOrThrow(C1)).housePieces).toBe(0);
+  });
+});
+
+// ------------------------------------------------------------ review fixes
+
+describe("review fixes", () => {
+  const circle3 = (extra: unknown[]) => [
+    created(C1, ANA, 3, 1),
+    joined(C1, ANA, 0, 2),
+    joined(C1, BEN, 1, 3),
+    joined(C1, CAL, 2, 4),
+    ev(C1, "Activated", { firstDue: BigInt(T0 + 2_000) }, 4),
+    ...extra,
+  ];
+  const run = async (simulate: unknown[]) => {
+    const indexer = createTestIndexer();
+    await indexer.process({ chains: { 10143: { startBlock: B0, simulate: simulate as never } } });
+    return indexer;
+  };
+  const rec = (event: string, params: Record<string, unknown>, block: number) => ({
+    contract: "KittyRecord" as const,
+    event,
+    srcAddress: KITTY_RECORD,
+    params,
+    block: at(block),
+    transaction: tx(),
+  });
+
+  it("#1 does not clear an open default on DefaultFilled with shortfall 0, only when the debt reaches 0", async () => {
+    const defaulted = ev(C1, "Defaulted", { member: CAL, round: 1n, obligation: 30_000000n, fromStake: 5_000000n, fromHoldback: 0n, fromPool: 0n, shortfall: 25_000000n }, 5);
+    // closeRound emits DefaultFilled(m, round, amt, 0) in every later round: the 0 is a literal
+    const filled = ev(C1, "DefaultFilled", { member: CAL, round: 2n, filled: 2_000000n, shortfall: 0n }, 6);
+    let indexer = await run(circle3([defaulted, filled]));
+    expect(await indexer.Account.getOrThrow(CAL)).toMatchObject({ defaults: 1, openDefaults: 1 });
+
+    indexer = await run(circle3([defaulted, filled, rec("DebtChanged", { account: CAL, debt: 0n }, 1_200_001)]));
+    const cal = await indexer.Account.getOrThrow(CAL);
+    expect(cal.openDefaults).toBe(0);
+    expect(cal.lastDefaultClearedAt).toBe(BigInt(T0 + 1_200_001 * 10));
+  });
+
+  it("#2 stamps every feed row and transfer with its log index", async () => {
+    const indexer = createTestIndexer();
+    const approve = {
+      contract: "AgoraPair" as const,
+      event: "SetApprovedSwapper" as const,
+      srcAddress: PAIR,
+      params: { approvedSwapper: ANA, isApproved: true },
+      block: at(1),
+      transaction: tx(),
+    };
+    const send = {
+      contract: "KittyAccount" as const,
+      event: "Transfer" as const,
+      srcAddress: AUSD,
+      params: { from: ANA, to: BEN, value: 5_000000n },
+      block: at(2),
+      transaction: tx(),
+      logIndex: 7,
+    };
+    await indexer.process({
+      chains: {
+        10143: {
+          startBlock: B0,
+          simulate: [
+            approve,
+            send,
+            { ...created(C1, ANA, 2, 3), logIndex: 12 },
+            { ...joined(C1, ANA, 0, 4), logIndex: 3 },
+            { ...ev(C1, "Repaid", { member: ANA, amount: 1n }, 5), logIndex: 21 },
+            { ...ev(C1, "ArrearsCredited", { from: ANA, to: BEN, amount: 1n }, 5), logIndex: 22 },
+            { ...ev(C1, "DebtPaidElsewhere", { member: ANA, circle: C2, amount: 1n }, 5), logIndex: 23 },
+          ] as never,
+        },
+      },
+    });
+    const feed = await indexer.Activity.getAll();
+    const byKind = Object.fromEntries(feed.map((a) => [a.kind, a.logIndex]));
+    expect(byKind).toMatchObject({ Created: 12, Joined: 3, PaidBack: 21, Credited: 22, PaidDebt: 23 });
+    const [t] = await indexer.Transfer.getAll();
+    expect(t.logIndex).toBe(7);
+  });
+
+  it("#3 keeps a share price per earn vault, so two vaults never share one rate", async () => {
+    const V1 = "0x068d6e51408c49a17558786e8a06074ff32fd75b"; // both are in config.yaml
+    const V2 = "0x8fd0e8eb4db03aed08c14fe686d10d59d9d5a31f";
+    const accrued = (vault: string, assets: bigint, shares: bigint, day: number) => ({
+      contract: "KittyEarnVault" as const,
+      event: "Accrued" as const,
+      srcAddress: vault,
+      params: { amount: 1n, totalAssets: assets, totalShares: shares },
+      block: { number: 68_000_000 + day, timestamp: T0 + day * 86_400 },
+      transaction: tx(),
+    });
+    const indexer = await run([
+      accrued(V1, 1_000_000000n, 1_000_000000n, 0),
+      accrued(V2, 5_000_000000n, 1_000_000000n, 0), // a much higher price in an unrelated vault
+      accrued(V1, 1_010_000000n, 1_000_000000n, 10),
+    ]);
+    const rates = await indexer.EarnRate.getAll();
+    expect(rates.map((r) => r.id).sort()).toEqual([`KittyEarnVault-${V1}`, `KittyEarnVault-${V2}`]);
+    const r1 = await indexer.EarnRate.getOrThrow(`KittyEarnVault-${V1}`);
+    expect(r1.aprBps).toBeGreaterThan(0);
+    expect((await indexer.YieldPoint.getAll()).filter((p) => p.source === `KittyEarnVault-${V1}`)).toHaveLength(2);
+  });
+
+  it("#4 ignores dust deposits, whose rounded share price would spike the rate", async () => {
+    const indexer = createTestIndexer();
+    const deposit = (amountIn: bigint, shares: bigint, day: number) => ({
+      contract: "EarnAUSD" as const,
+      event: "Deposit" as const,
+      params: { assetIn: AUSD, amountIn, shares, senderAddr: ANA, receiverAddr: ANA },
+      block: { number: 32_439_200 + day, timestamp: T0 + day * 86_400 },
+      transaction: tx(),
+    });
+    await indexer.process({
+      chains: {
+        143: {
+          startBlock: 32_439_119,
+          simulate: [
+            deposit(1_000_000000n, 1_000_000000n, 0),
+            deposit(1n, 1n, 4), // price 1.0
+            deposit(3n, 1n, 9), // 1 wei of shares: rounds to price 3.0
+          ] as never,
+        },
+      },
+    });
+    const rate = await indexer.EarnRate.getOrThrow("earnAUSD");
+    expect(rate.points).toBe(1);
+    expect(rate.sharePrice).toBe(1_000000n);
+    expect(rate.aprBps).toBe(0);
+  });
+
+  it("#5 stores a circle's period as a bigint and clamps the rate to a 32-bit integer", async () => {
+    const indexer = await run([
+      { ...created(C1, ANA, 2, 1), params: { circle: C1, organizer: ANA, rules: { ...rules(2), 8: 4_294_967_295n }, inviteSigners: [] } },
+    ]);
+    expect((await indexer.Circle.getOrThrow(C1)).period).toBe(4_294_967_295n);
+    expect(aprBps(1n, 10n ** 30n, 86_400n)).toBe(2_000_000_000);
+    // a fall can't pass -100% a year, so the floor is never the clamp
+    expect(aprBps(10n ** 30n, 1n, 86_400n)).toBeGreaterThan(-2_000_000_000);
+  });
+
+  it("#6 owes the whole missed round, not just what deposits and the pool covered", async () => {
+    const miss = (round: number, fromStake: bigint, fromPool: bigint, shortfall: bigint, b: number) =>
+      ev(C1, "Covered", { member: BEN, round: BigInt(round), fromStake, fromPool, shortfall }, b);
+    // round 1: fully covered; round 2: 4 short; round 3: all 10 short, and Ben, still behind, takes the pot
+    let indexer = await run(circle3([miss(1, 10_000000n, 0n, 0n, 5), miss(2, 3_000000n, 3_000000n, 4_000000n, 6)]));
+    expect(await indexer.Member.getOrThrow(`${C1}-${BEN}`)).toMatchObject({ standing: "Behind", arrears: 20_000000n });
+
+    const third = [
+      miss(1, 10_000000n, 0n, 0n, 5),
+      miss(2, 3_000000n, 3_000000n, 4_000000n, 6),
+      miss(3, 0n, 0n, 10_000000n, 7),
+      ev(C1, "PotPaid", { recipient: BEN, round: 3n, gross: 20_000000n, paid: 14_000000n, discount: 0n, holdback: 0n, arrearsRepaid: 6_000000n }, 7),
+    ];
+    // 30 owed, 10 of it kept from this very pot (the contract's `self`), 6 repaid out of it
+    indexer = await run(circle3(third));
+    expect(await indexer.Member.getOrThrow(`${C1}-${BEN}`)).toMatchObject({ standing: "Behind", arrears: 14_000000n, received: true });
+
+    // a Behind winner whose pot clears everything is Good again
+    indexer = await run(
+      circle3([
+        miss(1, 10_000000n, 0n, 0n, 5),
+        ev(C1, "PotPaid", { recipient: BEN, round: 1n, gross: 20_000000n, paid: 10_000000n, discount: 0n, holdback: 0n, arrearsRepaid: 10_000000n }, 6),
+      ]),
+    );
+    expect(await indexer.Member.getOrThrow(`${C1}-${BEN}`)).toMatchObject({ standing: "Good", arrears: 0n });
+  });
+
+  it("#6 drops a member's arrears when the contract folds them into a default", async () => {
+    const indexer = await run(
+      circle3([
+        ev(C1, "Covered", { member: CAL, round: 1n, fromStake: 10_000000n, fromPool: 0n, shortfall: 0n }, 5),
+        ev(C1, "Defaulted", { member: CAL, round: 2n, obligation: 20_000000n, fromStake: 0n, fromHoldback: 0n, fromPool: 0n, shortfall: 20_000000n }, 6),
+      ]),
+    );
+    expect(await indexer.Member.getOrThrow(`${C1}-${CAL}`)).toMatchObject({ standing: "Defaulted", arrears: 0n });
+  });
+
+  it("#7 doesn't count a member still Behind at the end as having finished", async () => {
+    const indexer = await run([
+      created(C1, ANA, 2, 1),
+      joined(C1, ANA, 0, 2),
+      joined(C1, BEN, 1, 3),
+      ev(C1, "Activated", { firstDue: BigInt(T0 + 2_000) }, 3),
+      paid(C1, ANA, 1, 4),
+      paid(C1, BEN, 1, 4),
+      pot(C1, ANA, 1, 5),
+      closed(C1, 1, 5),
+      paid(C1, ANA, 2, 6),
+      ev(C1, "Covered", { member: BEN, round: 2n, fromStake: 10_000000n, fromPool: 0n, shortfall: 0n }, 7),
+      pot(C1, BEN, 2, 7), // nothing was repaid out of the pot
+      closed(C1, 2, 7),
+      ev(C1, "Completed", { at: BigInt(T0 + 5_000) }, 7),
+    ]);
+    expect((await indexer.Account.getOrThrow(ANA)).circlesCompleted).toBe(1);
+    expect((await indexer.Account.getOrThrow(BEN)).circlesCompleted).toBe(0);
+    const boxes = (await indexer.Keepsake.getAll()).filter((k) => k.kind === "Box").map((k) => k.account_id);
+    expect(boxes).toEqual([ANA]);
+    // the contract folds the unpaid arrears into a default at the end
+    expect((await indexer.Member.getOrThrow(`${C1}-${BEN}`)).arrears).toBe(0n);
+  });
+
+  it("#8 counts the whole contribution: cash, credit and released holdback", async () => {
+    const indexer = await run(
+      circle3([
+        ev(C1, "Contributed", { member: BEN, round: 1n, paid: 4_000000n, creditUsed: 3_000000n, holdbackReleased: 3_000000n, late: false, autopay: false }, 5),
+      ]),
+    );
+    expect((await indexer.Member.getOrThrow(`${C1}-${BEN}`)).contributed).toBe(10_000000n);
+    expect((await indexer.Account.getOrThrow(BEN)).totalContributed).toBe(10_000000n);
+    expect((await indexer.Circle.getOrThrow(C1)).totalContributed).toBe(10_000000n);
+  });
+
+  it("#10 knows the current vaults and record", () => {
+    expect(KITTY_RECORD).toBe("0x1917a3812c61fc5fb6cee680224bc485e1ee4b7a");
+    expect(VAULTS.has("0x7953f85f2147b5edcf72a4d68df9ee92491adc2e")).toBe(true); // current StakeVault
+    expect(VAULTS.has("0x068d6e51408c49a17558786e8a06074ff32fd75b")).toBe(true); // current earn vault
   });
 });

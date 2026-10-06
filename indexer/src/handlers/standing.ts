@@ -33,6 +33,7 @@ indexer.onEvent({ contract: "Circle", event: "Repaid" }, async ({ event, context
     bps: undefined,
     at: at(event),
     block: event.block.number,
+    logIndex: event.logIndex,
     txHash: event.transaction.hash,
   });
 });
@@ -52,6 +53,7 @@ indexer.onEvent({ contract: "Circle", event: "DebtPaidElsewhere" }, async ({ eve
     bps: undefined,
     at: at(event),
     block: event.block.number,
+    logIndex: event.logIndex,
     txHash: event.transaction.hash,
   });
 });
@@ -71,6 +73,7 @@ indexer.onEvent({ contract: "Circle", event: "ArrearsCredited" }, async ({ event
     bps: undefined,
     at: at(event),
     block: event.block.number,
+    logIndex: event.logIndex,
     txHash: event.transaction.hash,
   });
 });
@@ -95,7 +98,13 @@ indexer.onEvent({ contract: "KittyRecord", event: "StageChanged" }, async ({ eve
 indexer.onEvent({ contract: "KittyRecord", event: "DebtChanged" }, async ({ event, context }) => {
   const t = at(event);
   const a = await account(context, event.params.account, t);
-  saveAccount(context, { ...a, debt: event.params.debt }, t);
+  // a debt of zero means every default is paid off, however many were open
+  const cleared = event.params.debt === 0n;
+  saveAccount(
+    context,
+    { ...a, debt: event.params.debt, openDefaults: cleared ? 0 : a.openDefaults, lastDefaultClearedAt: cleared ? t : a.lastDefaultClearedAt },
+    t,
+  );
 });
 
 indexer.onEvent({ contract: "KittyCats", event: "Adopted" }, async ({ event, context }) => {
