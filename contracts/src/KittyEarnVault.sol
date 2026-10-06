@@ -29,6 +29,11 @@ contract KittyEarnVault is IYieldAdapter, Ownable {
     uint32 public speedUp = 1; // 4_320 credits a month of yield every 10 minutes
     uint64 public lastAccrual;
     mapping(address => uint256) public sharesOf;
+    /// Only Kitty's StakeVault deposits. The simulated yield is paid from the
+    /// team's reserve, which an open vault would let anyone farm; and with no
+    /// shares out, a first depositor could take one share, donate to lift its
+    /// price, and round StakeVault's next deposit down to zero shares.
+    mapping(address => bool) public isDepositor;
 
     struct PendingClaim {
         uint256 assets;
@@ -49,6 +54,7 @@ contract KittyEarnVault is IYieldAdapter, Ownable {
     event ReserveFunded(address indexed from, uint256 amount);
     event RateSet(uint32 aprBps, uint32 speedUp);
     event InstantRedemptionFeeSet(uint16 bps);
+    event DepositorSet(address indexed depositor, bool allowed);
 
     constructor(IERC20 asset_, address owner_) Ownable(owner_) {
         asset = asset_;
@@ -106,14 +112,22 @@ contract KittyEarnVault is IYieldAdapter, Ownable {
     }
 
     function setInstantRedemptionFeeBps(uint16 bps) external onlyOwner {
-        require(bps <= 10_000, "fee too high");
+        // mainnet's is 20 bps; anything near 100% would let the owner keep a
+        // yield circle's collateral
+        require(bps <= 100, "fee too high");
         instantRedemptionFeeBps = bps;
         emit InstantRedemptionFeeSet(bps);
+    }
+
+    function setDepositor(address depositor, bool allowed) external onlyOwner {
+        isDepositor[depositor] = allowed;
+        emit DepositorSet(depositor, allowed);
     }
 
     // ------------------------------------------------- ITokenizedVault shape
 
     function deposit(address assetIn, uint256 amountIn, address receiver) external returns (uint256 shares) {
+        require(isDepositor[msg.sender], "not a depositor");
         require(assetIn == address(asset), "bad asset");
         _accrue();
         uint256 ta = totalAssets();

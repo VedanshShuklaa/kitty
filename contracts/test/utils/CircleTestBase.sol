@@ -41,6 +41,7 @@ abstract contract CircleTestBase is Test {
         // the adapter is wired for every suite; circles only use it with yieldOn
         earn = new KittyEarnVault(ausd, owner);
         vm.startPrank(owner);
+        earn.setDepositor(address(vault), true);
         vault.setAdapter(earn);
         vault.setFactory(address(factory));
         record.addFactory(address(factory));

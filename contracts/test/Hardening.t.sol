@@ -165,6 +165,80 @@ contract HardeningTest is CircleTestBase {
     }
 }
 
+/// @notice Review fixes, 5 Oct: a frozen recipient, a round opened late, the
+/// grace boundary, and the earn vault's fee ceiling.
+contract ReviewFixesTest is CircleTestBase {
+    // Agora can freeze an address. closeRound pushed the pot to the winner, so
+    // a frozen winner reverted every attempt and locked every member's stake.
+    function test_frozenWinnerGetsCreditAndTheCircleGoesOn() public {
+        (address circle, address[] memory m) = _createAndFill(_rules(3));
+        vm.warp(Circle(circle).dueTime(1) - 1);
+        for (uint256 i = 0; i < 3; i++) {
+            _pay(circle, m[i], 1);
+        }
+        ausd.setFrozen(m[0], true); // seat 0 is first in line
+        _close(circle, 1);
+        assertEq(Circle(circle).recipientOf(1), m[0]);
+        (,,, uint256 credit) = Circle(circle).standingOf(m[0]);
+        uint256 holdback = vault.balanceOf(circle, m[0], IStakeVault.Kind.Holdback);
+        assertEq(credit, 3 * uint256(CONTRIBUTION) - holdback, "the pot waits as credit");
+        assertEq(Circle(circle).currentRound(), 2);
+    }
+
+    // Round r+1 only opens when round r closes. A close that came after
+    // due(r+1) + grace used to leave no window at all: everyone was covered as
+    // a miss. A late-opened round now gets a full commit window from opening.
+    function test_lateOpenedRoundGetsAFullWindow() public {
+        Rules memory r = _rules(3);
+        (address circle, address[] memory m) = _createAndFill(r);
+        uint64 scheduled2 = Circle(circle).dueTime(2);
+        vm.warp(Circle(circle).dueTime(1) - 1);
+        for (uint256 i = 0; i < 3; i++) {
+            _pay(circle, m[i], 1);
+        }
+        uint64 late = scheduled2 + r.grace + 1 hours;
+        vm.warp(late);
+        Circle(circle).closeRound(1);
+        assertEq(Circle(circle).dueTime(2), late + r.commitWindow, "due moves with the late opening");
+        vm.warp(late + r.commitWindow - 1);
+        _pay(circle, m[1], 2); // on time: not late, not covered
+        (ICircle.Standing st,,,) = Circle(circle).standingOf(m[1]);
+        assertEq(uint8(st), uint8(ICircle.Standing.Good));
+        vm.expectRevert(ICircle.TooEarly.selector);
+        Circle(circle).closeRound(2);
+    }
+
+    // An on-time close leaves the schedule alone.
+    function test_onTimeCloseKeepsTheSchedule() public {
+        (address circle, address[] memory m) = _createAndFill(_rules(3));
+        uint64 scheduled2 = Circle(circle).dueTime(2);
+        _payAllAndClose(circle, m, 1);
+        assertEq(Circle(circle).dueTime(2), scheduled2);
+    }
+
+    // At exactly due + grace both a payment and the close were legal, so the
+    // order inside a block decided whether a payer was covered as a miss.
+    function test_paymentWindowEndsWhenCloseOpens() public {
+        (address circle, address[] memory m) = _createAndFill(_rules(3));
+        Rules memory r = Circle(circle).rules();
+        vm.warp(Circle(circle).dueTime(1) + r.grace);
+        vm.prank(m[0]);
+        vm.expectRevert(ICircle.TooLate.selector);
+        Circle(circle).contribute(1);
+        Circle(circle).closeRound(1);
+    }
+
+    // A 100% instant-redemption fee would let the owner keep a yield circle's
+    // collateral; mainnet's is 20 bps.
+    function test_earnVaultFeeCappedAtOnePercent() public {
+        vm.startPrank(owner);
+        earn.setInstantRedemptionFeeBps(100);
+        vm.expectRevert(bytes("fee too high"));
+        earn.setInstantRedemptionFeeBps(101);
+        vm.stopPrank();
+    }
+}
+
 /// @notice TC-0-07 in unit form, plus a regression: assets owed to a queued
 /// redemption were still counted in totalAssets(), so everyone else's shares
 /// were overvalued and the queue could be left unpayable.
@@ -181,6 +255,47 @@ contract KittyEarnVaultTest is CircleTestBase {
             vm.prank(who[i]);
             ausd.approve(address(earn), type(uint256).max);
         }
+        vm.startPrank(owner);
+        earn.setDepositor(alice, true);
+        earn.setDepositor(bob, true);
+        vm.stopPrank();
+    }
+
+    /// Regression: deposits were open to anyone. With no shares out, a first
+    /// depositor could take 1 share, donate AUSD to lift the share price, and
+    /// round StakeVault's next deposit down to zero shares, keeping a yield
+    /// circle's collateral; anyone could also farm the simulated-yield reserve.
+    function test_onlyDepositorsCanDeposit() public {
+        address mallory = makeAddr("mallory");
+        ausd.mint(mallory, 10_000000);
+        vm.startPrank(mallory);
+        ausd.approve(address(earn), type(uint256).max);
+        vm.expectRevert(bytes("not a depositor"));
+        earn.deposit(address(ausd), 1, mallory);
+        vm.stopPrank();
+
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", alice));
+        earn.setDepositor(mallory, true);
+
+        vm.prank(owner);
+        earn.setDepositor(alice, false);
+        vm.prank(alice);
+        vm.expectRevert(bytes("not a depositor"));
+        earn.deposit(address(ausd), 1_000000, alice);
+    }
+
+    /// A donation with no shares out can't be captured: it goes to the first
+    /// real depositor's shares.
+    function test_donationBeforeFirstDepositGoesToDepositor() public {
+        address mallory = makeAddr("mallory");
+        ausd.mint(mallory, 500_000000);
+        vm.prank(mallory);
+        ausd.transfer(address(earn), 500_000000);
+        vm.prank(alice);
+        uint256 shares = earn.deposit(address(ausd), 70_000000, alice);
+        assertEq(shares, 70_000000);
+        assertEq(earn.totalAssetsOf(alice), 570_000000);
     }
 
     function test_instantRedeemCharges20bps() public {

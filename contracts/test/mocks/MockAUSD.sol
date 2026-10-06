@@ -15,4 +15,16 @@ contract MockAUSD is ERC20 {
     function mint(address to, uint256 amount) external {
         _mint(to, amount);
     }
+
+    /// Agora's AUSD can freeze an address: no transfer to or from it goes through.
+    mapping(address => bool) public frozen;
+
+    function setFrozen(address who, bool on) external {
+        frozen[who] = on;
+    }
+
+    function _update(address from, address to, uint256 value) internal override {
+        require(!frozen[from] && !frozen[to], "frozen");
+        super._update(from, to, value);
+    }
 }

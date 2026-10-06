@@ -241,13 +241,14 @@ contract CircleCoreTest is Test {
         vm.prank(members[0]);
         Circle(circle).contribute(1);
 
-        vm.warp(r.firstDue + r.grace);
+        vm.warp(r.firstDue + r.grace - 1);
         vm.expectEmit(true, true, false, true, circle);
         emit ICircle.Contributed(members[1], 1, CONTRIBUTION, 0, 0, true, false);
         vm.prank(members[1]);
         Circle(circle).contribute(1);
 
-        vm.warp(r.firstDue + r.grace + 1);
+        // the second the round can close, payments for it have stopped
+        vm.warp(r.firstDue + r.grace);
         vm.prank(members[2]);
         vm.expectRevert(ICircle.TooLate.selector);
         Circle(circle).contribute(1);
@@ -311,13 +312,14 @@ contract CircleCoreTest is Test {
     function test_TC1_09_coveredMiss() public {
         (address circle, address[] memory members,) = _createAndFill(3);
         Rules memory r = Circle(circle).rules();
-        vm.warp(r.firstDue + r.grace);
+        vm.warp(r.firstDue + r.grace - 1);
         // members[1] and [2] pay; members[0] (organizer) misses entirely
         vm.prank(members[1]);
         Circle(circle).contribute(1);
         vm.prank(members[2]);
         Circle(circle).contribute(1);
 
+        vm.warp(r.firstDue + r.grace);
         uint256 stakeBefore = vault.balanceOf(circle, members[0], IStakeVault.Kind.Stake);
         Circle(circle).closeRound(1);
         (ICircle.Standing st,, uint256 arrears,) = Circle(circle).standingOf(members[0]);
@@ -330,11 +332,12 @@ contract CircleCoreTest is Test {
     function test_TC1_10_payArrearsRestoresGood() public {
         (address circle, address[] memory members,) = _createAndFill(3);
         Rules memory r = Circle(circle).rules();
-        vm.warp(r.firstDue + r.grace);
+        vm.warp(r.firstDue + r.grace - 1);
         vm.prank(members[1]);
         Circle(circle).contribute(1);
         vm.prank(members[2]);
         Circle(circle).contribute(1);
+        vm.warp(r.firstDue + r.grace);
         Circle(circle).closeRound(1);
 
         (,, uint256 arrears,) = Circle(circle).standingOf(members[0]);

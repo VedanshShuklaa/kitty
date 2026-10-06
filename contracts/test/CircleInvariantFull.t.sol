@@ -64,6 +64,7 @@ contract FullInvariantHandler is Test {
         record = realRecord ? IKittyRecord(address(new KittyRecord(address(this), 0))) : new OpenRecord();
         factory = new CircleFactory(ausd, vault, record, 300, address(this));
         earn = new KittyEarnVault(ausd, address(this));
+        earn.setDepositor(address(vault), true);
         vault.setAdapter(earn);
         vault.setFactory(address(factory));
         record.addFactory(address(factory));

@@ -38,6 +38,9 @@ contract Circle is ICircle, ReentrancyGuard {
     Rules private _rules;
     State private _state;
     uint32 private _currentRound;
+    // when the current round opened (activation, or the previous close);
+    // shares the slot above, so keeping it costs next to nothing
+    uint64 private _openedAt;
     uint256 public pot;
     uint256 public pool;
     uint256 public defaultReserve;
@@ -152,6 +155,7 @@ contract Circle is ICircle, ReentrancyGuard {
         if (filledSeats == _rules.memberCount) {
             _state = State.Active;
             _currentRound = 1;
+            _openedAt = uint64(block.timestamp);
             emit Activated(_rules.firstDue);
         }
     }
@@ -204,7 +208,8 @@ contract Circle is ICircle, ReentrancyGuard {
         if (_standingOf[member] == Standing.Defaulted) revert NotEligible();
 
         uint64 due_ = dueTime(round);
-        if (block.timestamp > due_ + _rules.grace) revert TooLate();
+        // ends the second closeRound opens, so the two never overlap
+        if (block.timestamp >= due_ + _rules.grace) revert TooLate();
         bool late = block.timestamp > due_;
         if (late) _seat[member].late += 1;
 
@@ -343,7 +348,7 @@ contract Circle is ICircle, ReentrancyGuard {
         if (_state != State.Active || round != _currentRound) revert WrongRound();
         uint64 due_ = dueTime(round);
         if (block.timestamp < due_) revert TooEarly();
-        if (block.timestamp > due_ + _rules.revealWindow) revert TooLate();
+        if (block.timestamp > due_ + _rules.revealWindow || block.timestamp >= due_ + _rules.grace) revert TooLate();
         if (discountBps > _rules.maxBidBps) revert BidTooHigh();
         bytes32 commitment = keccak256(abi.encode(block.chainid, address(this), round, msg.sender, discountBps, salt));
         if (commitment != _commitmentOf[round][msg.sender] || commitment == bytes32(0)) revert BadReveal();
@@ -535,7 +540,10 @@ contract Circle is ICircle, ReentrancyGuard {
             uint256 paid = gross - discount - holdbackAmt - arrearsRepaid;
             _receivedOf[winner] = true;
             _recipientOf[round] = winner;
-            if (paid > 0) ausd.safeTransfer(winner, paid);
+            // a frozen recipient (AUSD's issuer can freeze an address) must not
+            // stop the round for everyone: their pot waits as credit, which
+            // pays their next rounds and is collected at the end
+            if (paid > 0 && !ausd.trySafeTransfer(winner, paid)) _creditOf[winner] += paid;
             emit PotPaid(winner, round, gross, paid, discount, holdbackAmt, arrearsRepaid);
         }
 
@@ -548,6 +556,7 @@ contract Circle is ICircle, ReentrancyGuard {
             emit Completed(uint64(block.timestamp));
         } else {
             _currentRound = round + 1;
+            _openedAt = uint64(block.timestamp);
         }
     }
 
@@ -768,7 +777,9 @@ contract Circle is ICircle, ReentrancyGuard {
             }
         }
         if (k == 0) {
-            pool += amt;
+            // after settlement the pool is never split again: keep it theirs
+            if (_settled) _creditOf[m] += amt;
+            else pool += amt;
             return;
         }
         uint256 per = amt / k;
@@ -911,8 +922,14 @@ contract Circle is ICircle, ReentrancyGuard {
         return _currentRound;
     }
 
+    /// @notice A round's due time. A round only opens when the one before it
+    /// closes, so if that close came late, the round gets a full commit window
+    /// from when it opened instead of a window that has already passed.
     function dueTime(uint32 round) public view returns (uint64) {
-        return _rules.firstDue + uint64(round - 1) * _rules.period;
+        uint64 scheduled = _rules.firstDue + uint64(round - 1) * _rules.period;
+        if (round != _currentRound) return scheduled;
+        uint64 fromOpen = _openedAt + _rules.commitWindow;
+        return fromOpen > scheduled ? fromOpen : scheduled;
     }
 
     function amountDue(address member, uint32 round)

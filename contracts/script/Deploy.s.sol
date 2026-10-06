@@ -40,6 +40,7 @@ contract Deploy is Script {
 
         KittyEarnVault earnVault = new KittyEarnVault(IERC20(AUSD_TESTNET), deployer);
         StakeVault vault = new StakeVault(IERC20(AUSD_TESTNET), deployer);
+        earnVault.setDepositor(address(vault), true); // nobody else can deposit
         vault.setAdapter(earnVault); // before the factory: one-time wiring
         // the record outlives factory redeploys: reuse it when KITTY_RECORD is set
         KittyRecord record = KittyRecord(vm.envOr("KITTY_RECORD", address(0)));
