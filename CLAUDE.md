@@ -733,3 +733,24 @@ User's cat/standing UI committed (`1ff8f65`; tsc + 63 jest). APK EAS 27d90c2c at
 invite and money pages now pink with the app logo (old indigo/marigold ring gone); favicon.ico/png, apple-touch-icon,
 192/512 icons + webmanifest, og.png social image, all from `app/assets/kitty-icon.png`. Deployed and verified live.
 `output/` (design screenshots) left untracked. Next: phone test of the new APK.
+
+**2026-10-06 — Full-repo security and bug review (ECC reviewers), fixes in, NOT deployed or committed.**
+Six ECC review agents (contracts, site/api, key handling, app logic, UI, indexer) plus my own pass; fixes by me
+and two ECC implementer agents. Contracts (`contracts/audit/README.md` "Manual review"): earn vault deposits
+limited to StakeVault (inflation/reserve farming), frozen pot winner credited instead of bricking `closeRound`,
+a late-opened round's `dueTime` moves to `openedAt + commitWindow`, payments/reveals stop when close opens,
+fee cap 100 bps, post-settle repay to credit. 129/130 forge (fork skip), gas: closeRound 779k, join 167k.
+Left open (design): standing farmable by small-circle Sybil rings; cross-circle goodwill forgiveness.
+Site: sponsor rate limits (per address 10 min, 25/IP/day, 200/day) + send lock; write rate limits on
+profile/keys/roster; GraphQL depth/length caps; CSP + `Permissions-Policy: publickey-credentials-*=()`
+(the site is the passkey RP); page scripts moved to `site/public/js/`; "Open in Kitty" is now an Android
+intent pinned to `xyz.kitty.app` (the app parsers accept `?` as well as `#`). App: factory `isCircle` check
+before join, per-account tx queue (`serial`), shared top-up, bounded Agora approvals at swap time, crash-proof
+send links, no 30-link key reuse, payee blocklist, `recordFinish` tidy step, auto-reveal, ~26 UI fixes
+(notices in footers, popTo, double-tap guards, profile-overwrite guard, decimal comma). 70 jest, tsc,
+Android export OK, preview checks clean. Indexer: 11 fixes (feed order via `logIndex`, `period` BigInt,
+openDefaults, arrears, per-vault APR), 23 vitest; schema changed, so the hosted indexer needs a full resync.
+`services/` keeper is real now (`pnpm --filter services keeper`).
+Next (needs the user): commit; redeploy contracts (Deploy.s.sol with KITTY_RECORD/KITTY_CATS set to keep
+standings), update `indexer/config.yaml` + push (Envio resync) + repoint `INDEXER_URL`; `cd site && vercel
+--prod`; new EAS build + `/download`; delete unused `TIER_ATTESTOR_*` Vercel env.
