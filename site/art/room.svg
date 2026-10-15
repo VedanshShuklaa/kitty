@@ -1,0 +1,186 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1200" width="1600" height="1200">
+  <!-- Kitty's room. Shares its 1600x1200 box with the cat SVG on the landing page:
+       the cushion is drawn there, centred at (800, 840); keep (800, 840) clear here. -->
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FCEDE3"/>
+      <stop offset="1" stop-color="#F7DACB"/>
+    </linearGradient>
+    <linearGradient id="wallSide" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#F3CDBE"/>
+      <stop offset="1" stop-color="#F8DED0" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.3" cy="0.42" r="0.55">
+      <stop offset="0" stop-color="#FFF6EC" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#FFF6EC" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E7C3E2"/>
+      <stop offset="0.45" stop-color="#F6D4DF"/>
+      <stop offset="1" stop-color="#FDE9D7"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.35" cy="0.25" r="0.6">
+      <stop offset="0" stop-color="#FFFBF2"/>
+      <stop offset="1" stop-color="#FFFBF2" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F1CDAE"/>
+      <stop offset="1" stop-color="#E6B48E"/>
+    </linearGradient>
+    <linearGradient id="beam" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFF8EE" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#FFF8EE" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="patch" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FFF4E4" stop-opacity="0.65"/>
+      <stop offset="1" stop-color="#FFF4E4" stop-opacity="0.1"/>
+    </linearGradient>
+    <radialGradient id="shadow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#9A4F4A" stop-opacity="0.32"/>
+      <stop offset="0.6" stop-color="#9A4F4A" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#9A4F4A" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="yarn" cx="0.38" cy="0.32" r="0.75">
+      <stop offset="0" stop-color="#F9A9CA"/>
+      <stop offset="0.55" stop-color="#EA77A8"/>
+      <stop offset="1" stop-color="#C64B82"/>
+    </radialGradient>
+    <linearGradient id="bowl" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EE7FAF"/>
+      <stop offset="1" stop-color="#C7437D"/>
+    </linearGradient>
+    <linearGradient id="bowlSide" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.28"/>
+      <stop offset="0.35" stop-color="#FFFFFF" stop-opacity="0"/>
+      <stop offset="1" stop-color="#7E1E4C" stop-opacity="0.18"/>
+    </linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EECBA9"/>
+      <stop offset="1" stop-color="#DDAE85"/>
+    </linearGradient>
+    <linearGradient id="pot" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#F2B7AE"/>
+      <stop offset="1" stop-color="#D98B83"/>
+    </linearGradient>
+    <linearGradient id="leaf" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#A3C69B"/>
+      <stop offset="1" stop-color="#6E9D72"/>
+    </linearGradient>
+    <linearGradient id="leafDark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#86AF84"/>
+      <stop offset="1" stop-color="#5A8862"/>
+    </linearGradient>
+    <radialGradient id="vignette" cx="0.5" cy="0.55" r="0.75">
+      <stop offset="0.6" stop-color="#C98A78" stop-opacity="0"/>
+      <stop offset="1" stop-color="#C98A78" stop-opacity="0.22"/>
+    </radialGradient>
+    <clipPath id="floorClip"><rect y="770" width="1600" height="430"/></clipPath>
+    <clipPath id="glassClip"><path d="M196,712 V440 A169,169 0 0 1 534,440 V712 Z"/></clipPath>
+  </defs>
+
+  <!-- wall -->
+  <rect width="1600" height="790" fill="url(#wall)"/>
+  <rect width="140" height="790" fill="url(#wallSide)"/>
+  <rect x="1460" width="140" height="790" fill="url(#wallSide)" transform="matrix(-1 0 0 1 3060 0)"/>
+  <rect width="1600" height="790" fill="url(#glow)"/>
+
+  <!-- arched window -->
+  <path d="M160,742 V440 A205,205 0 0 1 570,440 V742 Z" fill="#EFD0C0"/>
+  <path d="M170,736 V440 A195,195 0 0 1 560,440 V736 Z" fill="#FFF8F1"/>
+  <path d="M196,712 V440 A169,169 0 0 1 534,440 V712 Z" fill="url(#glass)"/>
+  <g clip-path="url(#glassClip)">
+    <circle cx="300" cy="360" r="160" fill="url(#sun)"/>
+    <!-- far trees and roofs, soft -->
+    <path d="M196,640 Q240,585 290,610 Q330,560 380,600 Q430,570 470,610 Q510,590 534,615 V712 H196 Z" fill="#E9B9CB" opacity="0.55"/>
+    <path d="M196,670 Q260,640 320,660 Q400,630 470,662 Q505,650 534,660 V712 H196 Z" fill="#DFA6BD" opacity="0.5"/>
+  </g>
+  <path d="M365,272 V712 M196,520 H534" stroke="#FFF8F1" stroke-width="14"/>
+  <path d="M248,345 Q300,380 365,382 Q430,380 482,345" fill="none" stroke="#FFF8F1" stroke-width="10"/>
+  <!-- sill -->
+  <rect x="140" y="728" width="450" height="30" rx="8" fill="#FFF6EE"/>
+  <rect x="140" y="752" width="450" height="10" rx="5" fill="#EBCBBB"/>
+
+  <!-- framed picture, right wall -->
+  <rect x="1158" y="238" width="208" height="236" rx="14" fill="#E3BC98"/>
+  <rect x="1172" y="252" width="180" height="208" rx="8" fill="#FFF8F1"/>
+  <rect x="1190" y="270" width="144" height="172" rx="4" fill="#FBEDE6"/>
+  <path d="M1262,328 C1236,306 1220,326 1230,342 C1238,355 1262,368 1262,368 C1262,368 1286,355 1294,342 C1304,326 1288,306 1262,328 Z" fill="#EC7BAD"/>
+  <path d="M1262,368 V430" stroke="#7FA77D" stroke-width="5" stroke-linecap="round"/>
+  <path d="M1262,412 C1240,402 1226,388 1226,374 C1244,378 1258,392 1262,412 Z M1262,402 C1284,392 1298,378 1300,364 C1280,368 1266,382 1262,402 Z" fill="url(#leaf)"/>
+
+  <!-- cabinet, right -->
+  <rect x="1404" y="520" width="230" height="262" rx="10" fill="url(#wood)"/>
+  <rect x="1394" y="508" width="250" height="20" rx="8" fill="#F3D6BA"/>
+  <path d="M1420,600 H1600 M1420,690 H1600" stroke="#D2A07A" stroke-width="3"/>
+  <rect x="1470" y="636" width="44" height="10" rx="5" fill="#C8936C"/>
+  <rect x="1470" y="726" width="44" height="10" rx="5" fill="#C8936C"/>
+  <!-- small vase on the cabinet -->
+  <path d="M1480,508 C1468,470 1476,452 1494,448 H1512 C1530,452 1538,470 1526,508 Z" fill="#F4B9CF"/>
+  <path d="M1503,448 C1500,420 1490,400 1476,386 M1503,448 C1508,416 1520,398 1534,388" stroke="#7FA77D" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <circle cx="1474" cy="382" r="12" fill="#EC7BAD"/>
+  <circle cx="1536" cy="384" r="10" fill="#F6A9C9"/>
+
+  <!-- floor -->
+  <rect y="770" width="1600" height="430" fill="url(#floor)"/>
+  <g clip-path="url(#floorClip)" stroke="#DCA987" stroke-width="3" opacity="0.7">
+    <path d="M800,420 L-900,1200 M800,420 L-420,1200 M800,420 L60,1200 M800,420 L540,1200 M800,420 L1060,1200 M800,420 L1540,1200 M800,420 L2020,1200 M800,420 L2500,1200"/>
+    <path d="M0,868 H1600 M0,1000 H1600 M0,1150 H1600" opacity="0.55"/>
+  </g>
+  <rect y="762" width="1600" height="16" fill="#FFF3E8"/>
+  <rect y="776" width="1600" height="5" fill="#E7C3AA"/>
+
+  <!-- light from the window -->
+  <path d="M196,712 L534,712 L1010,1060 L380,1060 Z" fill="url(#patch)" opacity="0.7"/>
+  <path d="M196,440 L534,440 L1100,1200 L250,1200 Z" fill="url(#beam)" opacity="0.35"/>
+
+  <!-- plant in the corner -->
+  <ellipse cx="96" cy="842" rx="90" ry="16" fill="url(#shadow)"/>
+  <g>
+    <path d="M96,650 C70,560 20,520 -10,505 C30,560 50,610 80,660 Z" fill="url(#leafDark)"/>
+    <path d="M100,650 C110,550 150,480 205,452 C180,520 150,590 118,660 Z" fill="url(#leaf)"/>
+    <path d="M92,660 C40,610 -10,610 -40,622 C10,640 50,660 86,676 Z" fill="url(#leaf)"/>
+    <path d="M108,660 C160,600 220,590 250,600 C210,625 160,650 116,676 Z" fill="url(#leafDark)"/>
+    <path d="M98,656 C92,560 104,480 128,420 C140,500 128,580 112,660 Z" fill="url(#leafDark)"/>
+    <path d="M100,664 C70,610 30,575 10,566 C40,610 60,640 92,676 Z" fill="url(#leaf)" opacity="0.9"/>
+  </g>
+  <path d="M38,680 H158 L146,830 Q96,846 50,830 Z" fill="url(#pot)"/>
+  <rect x="30" y="668" width="136" height="26" rx="10" fill="#F5C3BB"/>
+
+  <!-- cushion's contact shadow (the cushion itself lives in the cat SVG) -->
+  <ellipse cx="800" cy="912" rx="330" ry="58" fill="url(#shadow)"/>
+
+  <!-- yarn ball -->
+  <ellipse cx="428" cy="992" rx="96" ry="20" fill="url(#shadow)"/>
+  <path d="M470,990 C540,1010 600,1040 590,1080 C580,1115 520,1100 540,1070 C556,1046 620,1050 680,1090" fill="none" stroke="#E46B9F" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="420" cy="930" r="74" fill="url(#yarn)"/>
+  <g fill="none" stroke-linecap="round">
+    <path d="M362,888 C400,870 450,880 482,912" stroke="#C94A82" stroke-width="5" opacity="0.55"/>
+    <path d="M352,918 C392,898 456,906 492,944" stroke="#C94A82" stroke-width="5" opacity="0.55"/>
+    <path d="M356,950 C396,932 452,940 482,972" stroke="#C94A82" stroke-width="5" opacity="0.55"/>
+    <path d="M396,860 C376,890 372,950 404,1000" stroke="#FBC2DA" stroke-width="5" opacity="0.8"/>
+    <path d="M430,858 C410,900 414,960 446,1000" stroke="#FBC2DA" stroke-width="4" opacity="0.6"/>
+    <path d="M378,880 C400,872 420,872 440,878" stroke="#FFE0EC" stroke-width="6" opacity="0.8"/>
+  </g>
+
+  <!-- food bowl -->
+  <ellipse cx="1176" cy="978" rx="122" ry="22" fill="url(#shadow)"/>
+  <path d="M1080,912 H1272 L1250,968 Q1176,994 1102,968 Z" fill="url(#bowl)"/>
+  <path d="M1080,912 H1272 L1250,968 Q1176,994 1102,968 Z" fill="url(#bowlSide)"/>
+  <ellipse cx="1176" cy="912" rx="96" ry="22" fill="#F6A3C6"/>
+  <ellipse cx="1176" cy="914" rx="82" ry="16" fill="#8E2A56"/>
+  <g fill="#B87644">
+    <ellipse cx="1130" cy="906" rx="13" ry="9"/><ellipse cx="1156" cy="900" rx="13" ry="9"/>
+    <ellipse cx="1184" cy="898" rx="13" ry="9"/><ellipse cx="1210" cy="904" rx="13" ry="9"/>
+    <ellipse cx="1142" cy="914" rx="13" ry="9"/><ellipse cx="1170" cy="912" rx="13" ry="9"/>
+    <ellipse cx="1198" cy="914" rx="13" ry="9"/><ellipse cx="1226" cy="914" rx="12" ry="8"/>
+    <ellipse cx="1170" cy="890" rx="12" ry="8"/><ellipse cx="1196" cy="888" rx="11" ry="8"/>
+  </g>
+  <g fill="#D6955E">
+    <ellipse cx="1150" cy="896" rx="6" ry="4"/><ellipse cx="1180" cy="892" rx="6" ry="4"/>
+    <ellipse cx="1206" cy="898" rx="6" ry="4"/><ellipse cx="1164" cy="906" rx="6" ry="4"/>
+    <ellipse cx="1192" cy="906" rx="6" ry="4"/><ellipse cx="1136" cy="902" rx="5" ry="3"/>
+  </g>
+  <path d="M1176,930 L1192,946 L1176,962 L1160,946 Z" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="6" stroke-linejoin="round"/>
+
+  <rect width="1600" height="1200" fill="url(#vignette)"/>
+</svg>

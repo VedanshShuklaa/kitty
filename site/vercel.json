@@ -54,7 +54,7 @@
   "redirects": [
     {
       "source": "/download",
-      "destination": "https://expo.dev/artifacts/eas/ul_6-G4kSf6X9rUgxDpIvxRBltN3ikFGQ0itmfBBFPQ.apk",
+      "destination": "https://github.com/VedanshShuklaa/kitty/releases/latest/download/kitty.apk",
       "permanent": false
     }
   ]
