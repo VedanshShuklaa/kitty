@@ -898,3 +898,9 @@ reverting). UI_GUIDE motion rule rewritten (cats only). 83 jest, tsc, Android ex
 Video replaced: `Kitty-demo-stuff/demo-claude/upgrade/exports/kitty-upgrade.mp4` (37 s): before (main) → after wipes of
 four screens, then idle/pet/dinner close-ups. Not checked: frame rate on a real low-end Android.
 Next: phone test of the living cats (preview APK), then commit, APK release, post.
+
+**2026-11-10 — Redesign + living cats released.** Committed on `design/website-inspired-app` (34e6a07 app, c7d212c docs/demo
+kit, b0fe49d log) and pushed (branch only; main untouched, so no Envio/Vercel redeploy). EAS preview build 5346ae50 → GitHub
+Release `apk-5346ae50` (latest, SHA-256 9f565ba8…f450, signing cert matches assetlinks). `/download` verified to serve it.
+Also made `Kitty-demo-stuff/demo-claude/upgrade/exports/kitty-cat-poses.mp4` (six poses alive) and `kitty-cat-coats.png`.
+Next: phone test (cat smoothness on a low-end Android, tap-to-pet, dinner after a real payment); merge to main when happy.
