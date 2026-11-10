@@ -1,6 +1,6 @@
 import * as Clipboard from "expo-clipboard";
 import { useCallback, useEffect, useState } from "react";
-import { Linking, View } from "react-native";
+import { Linking, StyleSheet, View } from "react-native";
 
 import { BottomNav } from "../Brand";
 import { CatCompanion, CatStageGuide } from "../CatCompanion";
@@ -16,7 +16,7 @@ import type { ScreenProps } from "../nav";
 import { useMe, useSession } from "../session";
 import { termsInWords, type Progress } from "../standing";
 import { getShowCat, listCircles, setShowCat, type CircleRef } from "../store";
-import { color, font, space } from "../theme";
+import { color, font, radius, space } from "../theme";
 import { Bead, Body, Button, Check, Heading, List, Notice, Row, Screen, Section, Small, Tag, Title } from "../ui";
 
 type Words = { label: string; tone: "leaf" | "clay" | "slate" | "marigold"; clean: boolean };
@@ -116,10 +116,11 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
 
   return (
     <Screen refreshing={refreshing} onRefresh={load} onBack={() => navigation.goBack()} footer={<BottomNav active="Account" onHome={() => navigation.popTo("Home")} onJoin={() => navigation.navigate("Paste")} onAccount={() => {}} />}>
-      <View style={{ flexDirection: "row", alignItems: "center", gap: space.md, marginTop: space.sm }}>
-        <Bead label={initials(profile?.name ?? "?")} size={64} />
+      <Title>Account</Title>
+      <View style={styles.identity}>
+        <Bead label={initials(profile?.name ?? "?")} tone="mist" size={48} />
         <View style={{ flex: 1 }}>
-          <Title>{profile?.name}</Title>
+          <Heading>{profile?.name}</Heading>
           <Small>
             {!loaded ? "Checking your circles…" : items.length === 0
               ? "No circles yet"
@@ -287,9 +288,8 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
               }}
             />
           </Row>
-          <Row last onPress={() => Linking.openURL(explorerAddress(address))}>
+          <Row last external onPress={() => Linking.openURL(explorerAddress(address))}>
             <Body style={{ flex: 1 }}>See it on the public record</Body>
-            <Body style={{ color: color.slate }}>›</Body>
           </Row>
         </List>
       </Section>
@@ -302,3 +302,7 @@ export function MeScreen({ navigation }: ScreenProps<"Me">) {
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  identity: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, backgroundColor: color.pinkTile, borderRadius: radius.card },
+});

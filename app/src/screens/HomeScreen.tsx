@@ -1,9 +1,10 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Pressable, StyleSheet, View } from "react-native";
 import type { Address } from "viem";
 
-import { BottomNav, KittyLogo } from "../Brand";
+import { BottomNav, KittyLogo, KittyWordmark } from "../Brand";
 import { Cat } from "../Cat";
 import { explain } from "../errors";
 import { moneyLine } from "../feed";
@@ -230,15 +231,12 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
       footer={<BottomNav active="Home" onHome={() => {}} onJoin={() => navigation.navigate("Paste")} onAccount={() => navigation.navigate("Me")} />}
     >
       <View style={styles.header}>
-        <KittyLogo />
-        <View style={{ flex: 1, gap: 2 }}>
-          <Small>Good to see you</Small>
-          <Title>Hello, {profile?.name || "friend"}</Title>
-        </View>
+        <View style={{ flex: 1 }}><KittyWordmark /></View>
         <Pressable onPress={() => navigation.navigate("Me")} accessibilityRole="button" accessibilityLabel="Your account" style={styles.account}>
           <Bead label={initials(profile?.name ?? "?")} tone="mist" size={44} />
         </Pressable>
       </View>
+      <Title style={styles.greeting}>Hello, {profile?.name || "friend"}.</Title>
 
       {onboarding && "seconds" in onboarding && (
         <Notice tone="good">Your account is ready. It was set up on the network {onboarding.seconds.toFixed(1)} s after your fingerprint.</Notice>
@@ -247,10 +245,10 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
 
       <View style={styles.balance}>
         <View style={styles.between}>
-          <Body>Your money</Body>
+          <Body>Available test dollars</Body>
           <Tag label="Test dollars" tone="marigold" />
         </View>
-        <Amount selectable>{bal === null ? "—" : money(bal.dollars)}</Amount>
+        <Amount selectable style={{ color: color.pink }}>{bal === null ? "—" : money(bal.dollars)}</Amount>
         {bal && bal.cashOut > 0n && <Small>plus {money(bal.cashOut)} ready to cash out</Small>}
         {local && <Small>{local} in all (approximate)</Small>}
         <Small>This is practice money, not real savings.</Small>
@@ -266,22 +264,6 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
         </Notice>
       )}
       {standingError && <Notice tone="error">Couldn't update your cat's standing.{stage ? " Showing her last loaded stage." : " Pull down to try again."}</Notice>}
-      {stage && mood && (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={showCat ? `${mood.line}. ${mood.detail} Open your cat on Account.` : `Standing: ${STAGE_NAME[stage]}. See your terms on Account.`}
-          onPress={() => navigation.navigate("Me")}
-          style={({ pressed }) => [styles.cat, pressed && { backgroundColor: color.pinkSoft }]}
-        >
-          {showCat && <Cat owner={address} stage={stage} size={124} hidden bowl={mood.bowl} mood={mood.expression} react={!!fed} />}
-          <View style={{ flex: 1, minWidth: 140, gap: space.xs }}>
-            <Small style={{ color: color.pink, fontFamily: font.bodyBold }}>{showCat ? profile?.catName || "Your cat" : "Your standing"} · {STAGE_NAME[stage]}</Small>
-            <Body style={{ fontFamily: font.bodyBold }}>{showCat ? mood.line : STAGE_NAME[stage]}</Body>
-            <Small>{showCat ? mood.detail : "Your standing sets your terms in a circle."}</Small>
-            <Small style={{ color: color.pink, fontFamily: font.bodyBold }}>{showCat ? "Visit your cat" : "See your terms"} ›</Small>
-          </View>
-        </Pressable>
-      )}
       {loadError && (
         <View style={{ gap: space.sm }}>
           <Notice tone="error">We couldn't update your balance or circles. Check your connection and try again.</Notice>
@@ -359,7 +341,7 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
                       : "Could not update"}
                   </Small>
                 </View>
-                <Body style={{ color: color.slate }}>›</Body>
+                <Ionicons name="chevron-forward" size={22} color={color.pink} accessibilityElementsHidden importantForAccessibility="no" />
               </View>
               <Body style={{ fontFamily: font.bodyMedium, color: color.pink }}>{snap ? summary(snap) : "Open circle to try again"}</Body>
               {(active || forming) && (
@@ -377,6 +359,22 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
           );
         })
       )}
+      {stage && mood && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={showCat ? `${mood.line}. ${mood.detail} Open your cat on Account.` : `Standing: ${STAGE_NAME[stage]}. See your terms on Account.`}
+          onPress={() => navigation.navigate("Me")}
+          style={({ pressed }) => [styles.cat, pressed && { backgroundColor: color.pinkSoft }]}
+        >
+          {showCat && <Cat owner={address} stage={stage} size={124} hidden bowl={mood.bowl} mood={mood.expression} react={!!fed} />}
+          <View style={{ flex: 1, minWidth: 140, gap: space.xs }}>
+            <Small style={{ color: color.pink, fontFamily: font.bodyBold }}>{showCat ? profile?.catName || "Your cat" : "Your standing"} · {STAGE_NAME[stage]}</Small>
+            <Body style={{ fontFamily: font.bodyBold }}>{showCat ? mood.line : STAGE_NAME[stage]}</Body>
+            <Small>{showCat ? mood.detail : "Your standing sets your terms in a circle."}</Small>
+            <Small style={{ color: color.pink, fontFamily: font.bodyBold }}>{showCat ? "Visit your cat" : "See your terms"}</Small>
+          </View>
+        </Pressable>
+      )}
       <View style={styles.help}>
         <Heading>Save together. Take turns.</Heading>
         <Small>Everyone pays into the circle. Each round, one person receives the pot. Check the rules before you join.</Small>
@@ -387,12 +385,13 @@ export function HomeScreen({ navigation }: ScreenProps<"Home">) {
 
 const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: space.md },
+  greeting: { fontFamily: font.displayHeavy, fontSize: 30, lineHeight: 36 },
   account: { minWidth: 48, minHeight: 48, alignItems: "center", justifyContent: "center" },
   between: { flexDirection: "row", flexWrap: "wrap", gap: space.sm, justifyContent: "space-between", alignItems: "center" },
   balance: { backgroundColor: color.pinkSoft, borderRadius: radius.hero, padding: space.lg, gap: space.sm },
   actions: { flexDirection: "row", gap: space.sm },
-  circle: { backgroundColor: color.surface, borderRadius: radius.card, padding: space.md, gap: space.md, borderWidth: 1, borderColor: color.line },
-  empty: { padding: space.lg, gap: space.sm, alignItems: "center", backgroundColor: color.surface, borderRadius: radius.card },
-  cat: { flexWrap: "wrap", flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, backgroundColor: color.surface, borderRadius: radius.card, borderWidth: 1, borderColor: color.line },
-  help: { gap: space.xs, padding: space.md, backgroundColor: color.cream, borderRadius: radius.card },
+  circle: { backgroundColor: color.pinkTile, borderRadius: radius.card, padding: space.md, gap: space.md },
+  empty: { padding: space.lg, gap: space.sm, alignItems: "center", backgroundColor: color.pinkTile, borderRadius: radius.card },
+  cat: { flexWrap: "wrap", flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, backgroundColor: color.room, borderRadius: radius.card },
+  help: { gap: space.xs, padding: space.md, backgroundColor: color.pinkTile, borderRadius: radius.card },
 });

@@ -1,7 +1,10 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Haptics from "expo-haptics";
 import { Children, useEffect, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -56,23 +59,40 @@ type ButtonProps = {
   a11yLabel?: string;
 };
 
+// Press feedback: a quick ease-out squeeze on touch, a slightly slower release.
+// Transform only, so it never moves layout; it is feedback, not decoration.
+function usePressScale(to = 0.97) {
+  const [scale] = useState(() => new Animated.Value(1));
+  const go = (v: number, ms: number) =>
+    Animated.timing(scale, { toValue: v, duration: ms, easing: Easing.bezier(0.23, 1, 0.32, 1), useNativeDriver: Platform.OS !== "web" }).start();
+  return { scale, onPressIn: () => go(to, 100), onPressOut: () => go(1, 160) };
+}
+
 export function Button({ label, onPress, tone = "primary", size = "full", busy, disabled, style, a11yLabel }: ButtonProps) {
   const off = disabled || busy;
+  const press = usePressScale();
+  // the caller's style places the button; the squeeze wraps it so it never fights the press style
   return (
+    <Animated.View style={[{ transform: [{ scale: press.scale }] }, style]}>
     <Pressable
+      onPressIn={press.onPressIn}
+      onPressOut={press.onPressOut}
       accessibilityRole="button"
       accessibilityLabel={a11yLabel ?? label}
       accessibilityState={{ disabled: !!off, busy: !!busy }}
+      aria-busy={!!busy}
       disabled={off}
       onPress={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
         onPress();
       }}
-      style={({ pressed }) => [b.base, b[tone], size === "row" && b.row, off && b.off, pressed && b.pressed, style]}
+      // flexGrow fills the wrapper, so paired buttons in a row share one height
+      style={({ pressed }) => [b.base, b[tone], size === "row" && b.row, off && b.off, pressed && b.pressed, { flexGrow: 1 }]}
     >
       {busy && <ActivityIndicator color={tone === "quiet" ? color.pink : color.surface} />}
       <Text style={[b.label, tone !== "quiet" && { color: color.surface }]}>{busy ? "Please wait…" : label}</Text>
     </Pressable>
+    </Animated.View>
   );
 }
 
@@ -83,7 +103,7 @@ const b = StyleSheet.create({
   quiet: { backgroundColor: color.surface, borderWidth: 1, borderColor: color.line },
   row: { minHeight: 48, paddingVertical: space.sm },
   off: { opacity: 0.45 },
-  pressed: { transform: [{ scale: 0.985 }], opacity: 0.9 },
+  pressed: { opacity: 0.92 },
   label: { fontFamily: font.bodyBold, fontSize: 16, color: color.indigo, textAlign: "center", flexShrink: 1 },
 });
 
@@ -91,9 +111,11 @@ const b = StyleSheet.create({
 
 /** FR-APP-04: every screen carries a quiet testnet marker. */
 export function TestnetMarker({ onIndigo }: { onIndigo?: boolean }) {
+  // the dot centres on the first line, which grows with the system text size
+  const { fontScale } = useWindowDimensions();
   return (
     <View style={s.marker} accessibilityLabel="Test dollars on Monad testnet">
-      <View style={s.markerDot} />
+      <View style={[s.markerDot, { marginTop: (16 * fontScale - 6) / 2 }]} />
       <Text style={[s.markerText, onIndigo && { color: color.onIndigoMuted }]}>Test dollars on Monad testnet</Text>
     </View>
   );
@@ -118,7 +140,8 @@ export function Screen({ children, footer, onBack, right, refreshing, onRefresh 
       <View style={s.top}>
         {onBack ? (
           <Pressable onPress={onBack} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back" style={s.back}>
-            <Text style={s.backText}>‹ Back</Text>
+            <Ionicons name="chevron-back" size={22} color={color.ink} accessibilityElementsHidden importantForAccessibility="no" />
+            <Text style={s.backText}>Back</Text>
           </Pressable>
         ) : (
           <TestnetMarker />
@@ -147,14 +170,14 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: color.paper },
   frame: { flex: 1, width: "100%", maxWidth: 600, alignSelf: "center" },
   top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: space.md, paddingVertical: space.sm, minHeight: 48 },
-  back: { minHeight: 48, paddingRight: space.md, justifyContent: "center" },
+  back: { minHeight: 48, paddingRight: space.md, marginLeft: -6, flexDirection: "row", alignItems: "center", gap: 2 },
   backText: { fontFamily: font.bodyBold, fontSize: 16, color: color.indigo },
   content: { paddingHorizontal: space.md, paddingTop: space.sm, paddingBottom: space.xl, gap: space.md },
   inlineFooter: { gap: space.sm, marginTop: space.sm },
   footer: { paddingHorizontal: space.md, paddingTop: space.sm, paddingBottom: space.sm, gap: space.sm, backgroundColor: color.paper, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: color.line },
-  marker: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1 },
+  marker: { flexDirection: "row", alignItems: "flex-start", gap: 6, flexShrink: 1 },
   markerDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: color.marigold },
-  markerText: { fontFamily: font.bodyMedium, fontSize: 12, color: color.slate, flexShrink: 1 },
+  markerText: { fontFamily: font.bodyMedium, fontSize: 12, lineHeight: 16, color: color.slate, flexShrink: 1 },
 });
 
 // ------------------------------------------------------------------ input
@@ -203,6 +226,7 @@ export function Choice<T extends string | number>({
             key={String(o.value)}
             accessibilityRole="radio"
             accessibilityState={{ checked: on }}
+            aria-checked={on}
             onPress={() => {
               Haptics.selectionAsync().catch(() => {});
               onChange(o.value);
@@ -229,14 +253,16 @@ export function Check({ label, value, onChange }: { label: string; value: boolea
   return (
     <Pressable
       accessibilityRole="checkbox"
+      accessibilityLabel={label}
       accessibilityState={{ checked: value }}
+      aria-checked={value}
       onPress={() => {
         Haptics.selectionAsync().catch(() => {});
         onChange(!value);
       }}
       style={{ minHeight: 48, flexDirection: "row", alignItems: "center", gap: space.sm, paddingVertical: space.sm }}
     >
-      <View style={[k.box, value && k.on]}>{value && <Text style={k.tick}>✓</Text>}</View>
+      <View style={[k.box, value && k.on]}>{value && <Ionicons name="checkmark" size={18} color={color.surface} accessibilityElementsHidden importantForAccessibility="no" />}</View>
       <Body style={{ flex: 1 }}>{label}</Body>
     </Pressable>
   );
@@ -245,7 +271,6 @@ export function Check({ label, value, onChange }: { label: string; value: boolea
 const k = StyleSheet.create({
   box: { width: 24, height: 24, borderRadius: 7, borderWidth: 1.5, borderColor: color.slate, alignItems: "center", justifyContent: "center", backgroundColor: color.surface },
   on: { backgroundColor: color.pink, borderColor: color.pink },
-  tick: { color: color.surface, fontFamily: font.bodyBold, fontSize: 14, lineHeight: 16 },
 });
 
 // ---------------------------------------------------------------- notices
@@ -279,7 +304,7 @@ export function Notice({ tone, children, onClose }: { tone: "error" | "good" | "
         hitSlop={8}
         style={{ minWidth: 48, minHeight: 48, marginTop: -13, alignItems: "center", justifyContent: "center" }}
       >
-        <Text style={{ fontFamily: font.bodyBold, fontSize: 20, lineHeight: 22, color: fg }}>×</Text>
+        <Ionicons name="close" size={22} color={fg} accessibilityElementsHidden importantForAccessibility="no" />
       </Pressable>
     </View>
   );
@@ -309,9 +334,11 @@ export function Steps({ steps }: { steps: { label: string; state: StepState }[] 
             {st.state === "active" ? (
               <ActivityIndicator size="small" color={color.pink} />
             ) : (
-              <Text style={[p.num, (st.state === "done" || st.state === "failed") && { color: color.surface }]}>
-                {st.state === "done" ? "✓" : st.state === "failed" ? "!" : i + 1}
-              </Text>
+              st.state === "done" || st.state === "failed" ? (
+                <Ionicons name={st.state === "done" ? "checkmark" : "alert"} size={20} color={color.surface} accessibilityElementsHidden importantForAccessibility="no" />
+              ) : (
+                <Text style={p.num}>{i + 1}</Text>
+              )
             )}
           </View>
           <Body style={[{ flex: 1 }, st.state === "todo" && { color: color.slate }]}>{st.label}</Body>
@@ -342,25 +369,28 @@ export function Section({ title, children, right }: { title: string; children: R
 
 /** A group of rows on one surface, separated by hairlines. */
 export function List({ children }: { children: ReactNode }) {
-  return <View style={{ backgroundColor: color.surface, borderRadius: radius.card, overflow: "hidden" }}>{children}</View>;
+  return <View style={{ backgroundColor: color.surface, borderRadius: radius.card, borderWidth: 1, borderColor: color.line, overflow: "hidden" }}>{children}</View>;
 }
 
-export function Row({ children, onPress, last }: { children: ReactNode; onPress?: () => void; last?: boolean }) {
+/** A pressable row ends in a chevron; pass `external` when it leaves the app. */
+export function Row({ children, onPress, last, external }: { children: ReactNode; onPress?: () => void; last?: boolean; external?: boolean }) {
   const style = [
     { flexDirection: "row" as const, alignItems: "center" as const, gap: space.md, paddingHorizontal: space.md, paddingVertical: 14 },
     !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: color.line },
   ];
   if (!onPress) return <View style={style}>{children}</View>;
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [style, pressed && { backgroundColor: color.paper }]}>
+    <Pressable accessibilityRole={external ? "link" : "button"} onPress={onPress} style={({ pressed }) => [style, pressed && { backgroundColor: color.pinkTile }]}>
       {children}
+      <Ionicons name={external ? "open-outline" : "chevron-forward"} size={20} color={color.slate} accessibilityElementsHidden importantForAccessibility="no" />
     </Pressable>
   );
 }
 
-export function Bead({ label, tone = "indigo", size = 36 }: { label: string; tone?: "indigo" | "leaf" | "marigold" | "clay" | "mist"; size?: number }) {
-  const bg = { indigo: color.indigo, leaf: color.leaf, marigold: color.marigold, clay: color.clay, mist: color.indigoMist }[tone];
-  const fg = tone === "marigold" || tone === "mist" ? color.indigo : color.surface;
+export function Bead({ label, tone = "indigo", size = 36 }: { label: string; tone?: "indigo" | "leaf" | "marigold" | "clay" | "mist" | "paper"; size?: number }) {
+  // "paper" is for beads that sit on a pink panel, where "mist" would vanish
+  const bg = { indigo: color.indigo, leaf: color.leaf, marigold: color.marigold, clay: color.clay, mist: color.indigoMist, paper: color.surface }[tone];
+  const fg = tone === "marigold" || tone === "mist" || tone === "paper" ? color.indigo : color.surface;
   return (
     // initials beside a written name: decorative, so screen readers skip them
     <View
@@ -375,7 +405,7 @@ export function Bead({ label, tone = "indigo", size = 36 }: { label: string; ton
 
 export function Tag({ label, tone }: { label: string; tone: "leaf" | "clay" | "slate" | "marigold" }) {
   const fg = { leaf: color.leaf, clay: color.clay, slate: color.slate, marigold: color.pink }[tone];
-  const bg = { leaf: color.leafSoft, clay: color.claySoft, slate: color.paper, marigold: color.marigoldSoft }[tone];
+  const bg = { leaf: color.leafSoft, clay: color.claySoft, slate: color.mist, marigold: color.marigoldSoft }[tone];
   return (
     <View style={{ maxWidth: "55%", flexShrink: 1, backgroundColor: bg, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: space.xs }}>
       <Text style={{ fontFamily: font.bodyBold, fontSize: 14, lineHeight: 18, color: fg }}>{label}</Text>
@@ -405,5 +435,36 @@ export function LinkText({ label, onPress }: { label: string; onPress: () => voi
     <Pressable onPress={onPress} accessibilityRole="link" accessibilityLabel={label} style={{ minHeight: 48, justifyContent: "center", alignSelf: "flex-start" }}>
       <Text style={[t.small, { color: color.ink, textDecorationLine: "underline" }]}>{label}</Text>
     </Pressable>
+  );
+}
+
+/**
+ * The three surfaces screens group things on: "hero" for the one money
+ * summary a screen leads with, "tile" for a quiet group, "outline" for a
+ * white group that sits on the page (a code, a form section). Never nest them.
+ */
+export function Panel({ tone = "tile", children, style }: { tone?: "hero" | "tile" | "outline"; children: ReactNode; style?: StyleProp<ViewStyle> }) {
+  return <View style={[pn.base, pn[tone], style]}>{children}</View>;
+}
+
+const pn = StyleSheet.create({
+  base: { gap: space.sm },
+  hero: { backgroundColor: color.pinkSoft, borderRadius: radius.hero, padding: space.lg },
+  tile: { backgroundColor: color.pinkTile, borderRadius: radius.card, padding: space.md },
+  outline: { backgroundColor: color.surface, borderRadius: radius.card, borderWidth: 1, borderColor: color.line, padding: space.md },
+});
+
+/** Short labelled figures side by side (each round, people, deposit). They wrap; values are never truncated. */
+export function Facts({ items }: { items: { label: string; value: string }[] }) {
+  return (
+    <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: space.lg, rowGap: space.sm }}>
+      {items.map((it) => (
+        // four figures sit as a 2×2 grid; two or three share one line
+        <View key={it.label} accessible accessibilityLabel={`${it.label}: ${it.value}`} style={{ minWidth: 72, maxWidth: "100%", flexShrink: 1, flexGrow: 1, flexBasis: items.length === 4 ? "40%" : undefined, gap: 2 }}>
+          <Text style={[t.small, { color: color.indigoSoft }]}>{it.label}</Text>
+          <Text style={[t.heading, { fontVariant: ["tabular-nums"] }]}>{it.value}</Text>
+        </View>
+      ))}
+    </View>
   );
 }

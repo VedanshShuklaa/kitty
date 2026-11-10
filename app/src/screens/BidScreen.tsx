@@ -7,8 +7,8 @@ import { money, span, when } from "../format";
 import { commitBid, depositOf, loadSnapshot, potOf, type Snapshot } from "../kitty";
 import type { ScreenProps } from "../nav";
 import { useMe } from "../session";
-import { color, radius, space } from "../theme";
-import { Amount, Body, Button, Notice, Screen, Small, Title } from "../ui";
+import { color, font, space } from "../theme";
+import { Amount, Body, Button, Notice, Panel, Screen, Small, Title } from "../ui";
 
 export function BidScreen({ route, navigation }: ScreenProps<"Bid">) {
   const { address, round } = route.params;
@@ -91,10 +91,10 @@ export function BidScreen({ route, navigation }: ScreenProps<"Bid">) {
         everyone else.
       </Body>
 
-      <View style={{ backgroundColor: color.surface, borderRadius: radius.card, padding: space.lg, gap: space.sm }}>
-        <Small>You'd get now</Small>
-        <Amount>{money(takeNow)}</Amount>
-        {holdback > 0n && <Small>plus {money(holdback)} back over the next rounds, as you keep paying.</Small>}
+      <Panel tone="hero">
+        <Body style={{ color: color.indigoSoft }}>You'd get now</Body>
+        <Amount style={{ color: color.pink }}>{money(takeNow)}</Amount>
+        {holdback > 0n && <Small style={{ color: color.indigoSoft }}>plus {money(holdback)} back over the next rounds, as you keep paying.</Small>}
         <Slider
           style={{ marginTop: space.md, height: 48 }}
           disabled={busy}
@@ -108,20 +108,22 @@ export function BidScreen({ route, navigation }: ScreenProps<"Bid">) {
           thumbTintColor={color.pink}
           accessibilityLabel="How much of the pot to give up"
         />
-        <Body>
+        <Body style={{ fontFamily: font.bodyBold }}>
           Give up {money(discount)} ({(bps / 100).toFixed(bps % 100 ? 1 : 0)}%)
         </Body>
         <View style={{ flexDirection: "row", gap: space.sm }}>
           <Button label="Give up less" tone="quiet" disabled={bps <= 50 || busy} onPress={() => setBps(Math.max(50, bps - 50))} style={{ flex: 1 }} />
           <Button label="Give up more" tone="quiet" disabled={bps >= r.maxBidBps || busy} onPress={() => setBps(Math.min(r.maxBidBps, bps + 50))} style={{ flex: 1 }} />
         </View>
-        <Small>Adjust by 0.5% with the buttons, or use the slider. This estimate assumes everyone pays.</Small>
-      </View>
+        <Small style={{ color: color.indigoSoft }}>Adjust by 0.5% with the buttons, or use the slider. This estimate assumes everyone pays.</Small>
+      </Panel>
 
-      <Notice tone="info">
-        Your offer stays sealed until {when(snap.due)}. After that you have {span(r.revealWindow)} to open it here, or it won't count.
-        You also need to have paid this round.
-      </Notice>
+      <Panel tone="outline">
+        <Body>
+          Your offer stays sealed until {when(snap.due)}. After that you have {span(r.revealWindow)} to open it here, or it won't count.
+          You also need to have paid this round.
+        </Body>
+      </Panel>
     </Screen>
   );
 }

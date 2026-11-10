@@ -1,7 +1,8 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { useEffect, useRef, useState } from "react";
-import { Linking, Pressable, Share, StyleSheet, View } from "react-native";
+import { Linking, Share, StyleSheet, View } from "react-native";
 import type { Address } from "viem";
 
 import { explorerTx } from "../chain";
@@ -15,8 +16,8 @@ import type { ScreenProps } from "../nav";
 import { nameAt } from "../phase";
 import { useMe, useSession } from "../session";
 import { listCircles } from "../store";
-import { color, radius, space } from "../theme";
-import { Amount, Bead, Body, Button, Choice, Field, Heading, LinkText, List, Notice, Row, Screen, Section, Small, Title } from "../ui";
+import { color, font, space } from "../theme";
+import { Amount, Bead, Body, Button, Choice, Field, Heading, LinkText, List, Notice, Panel, Row, Screen, Section, Small, Title } from "../ui";
 
 // FR-SND-01..04: pick a person, type an amount, choose how it arrives, confirm
 // with a fingerprint. One transaction, timed from the tap to a receipt at the
@@ -125,16 +126,19 @@ export function SendScreen({ route, navigation }: ScreenProps<"Send">) {
     const { settled, link, usd: sentUsd, arrival: sentArrival, to: sentTo } = done;
     return (
       <Screen footer={<Button label="Done" onPress={() => navigation.popTo("Home")} />}>
-        <View style={styles.hero}>
-          <Small>{link ? "Your link is ready" : `Sent to ${sentTo ?? "them"}`}</Small>
-          <Amount>{money(sentUsd)}</Amount>
+        <Panel tone="hero" style={{ marginTop: space.sm }}>
+          <View style={styles.status}>
+            <Ionicons name="checkmark-circle" size={24} color={color.leaf} accessibilityElementsHidden importantForAccessibility="no" />
+            <Body style={{ flex: 1, fontFamily: font.bodyBold, color: color.leaf }}>{link ? "Your link is ready" : `Sent to ${sentTo ?? "them"}`}</Body>
+          </View>
+          <Amount style={{ color: color.pink }}>{money(sentUsd)}</Amount>
           <Body>
             Settled in {(settled.ms / 1000).toFixed(1)} s, {(settled.afterSigning / 1000).toFixed(1)} s after your fingerprint.
           </Body>
           {!link && (
-            <Small>{sentArrival === "cashOut" ? "It arrived ready to cash out, through Agora's Instant Settlement." : "It arrived as dollars."}</Small>
+            <Small style={{ color: color.indigoSoft }}>{sentArrival === "cashOut" ? "It arrived ready to cash out, through Agora's Instant Settlement." : "It arrived as dollars."}</Small>
           )}
-        </View>
+        </Panel>
         {link && (
           <>
             <Notice tone="info">
@@ -205,7 +209,6 @@ export function SendScreen({ route, navigation }: ScreenProps<"Send">) {
                       <Body>{p.name}</Body>
                       {p.circle ? <Small>{p.circle}</Small> : null}
                     </View>
-                    <Body style={{ color: color.slate }}>›</Body>
                   </Row>
                 ))}
               </List>
@@ -252,7 +255,7 @@ export function SendScreen({ route, navigation }: ScreenProps<"Send">) {
         </Small>
       </Section>
 
-      <View style={styles.link}>
+      <Panel tone="tile" style={{ marginTop: space.sm }}>
         <Heading>No Kitty code?</Heading>
         <Small>Send by link instead. Whoever opens it can collect the money, and you can take it back until they do.</Small>
         <Button
@@ -262,12 +265,11 @@ export function SendScreen({ route, navigation }: ScreenProps<"Send">) {
           disabled={!!problem || busy}
           onPress={() => go(true)}
         />
-      </View>
+      </Panel>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  hero: { backgroundColor: color.pinkSoft, borderRadius: radius.hero, padding: space.lg, gap: space.sm, marginTop: space.sm },
-  link: { backgroundColor: color.cream, borderRadius: radius.card, padding: space.md, gap: space.sm },
+  status: { flexDirection: "row", alignItems: "center", gap: space.sm },
 });

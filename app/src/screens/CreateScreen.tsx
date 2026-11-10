@@ -1,16 +1,17 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { useRef, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, View } from "react-native";
 import type { Address } from "viem";
 
 import { explain, passkeyStep } from "../errors";
-import { money, parseMoney, span } from "../format";
+import { initials, money, parseMoney, span } from "../format";
 import { CADENCES, CREATE_STEPS, createCircle, joinAsOrganizer, type Cadence, type CircleDraft } from "../kitty";
 import type { ScreenProps } from "../nav";
 import { syncCircle } from "../restore";
 import { useMe, useSession } from "../session";
 import { saveCircle, type CircleRef } from "../store";
 import { color, font, radius, space } from "../theme";
-import { Body, Button, Check, Choice, Field, Heading, Notice, Screen, Section, Small, Steps, Title, type StepState } from "../ui";
+import { Bead, Body, Button, Check, Choice, Facts, Field, Heading, Notice, Panel, Screen, Section, Small, Steps, Title, type StepState } from "../ui";
 
 const QUICK = ["5", "10", "20", "50"];
 const BIDDING = [
@@ -123,9 +124,9 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
       >
         <Title>Setting up {draft.title}</Title>
         <Small>Your phone may ask for your fingerprint or screen lock.</Small>
-        <View style={{ marginTop: space.md }}>
+        <Panel tone="tile" style={{ marginTop: space.sm, paddingVertical: space.lg }}>
           <Steps steps={steps} />
-        </View>
+        </Panel>
         {run.error && <Notice tone="error">{run.error}</Notice>}
       </Screen>
     );
@@ -146,13 +147,14 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
       <Title>Start a circle</Title>
       <Small>Choose who saves with you, how much, and how often.</Small>
 
-      <Field label="Name your circle" placeholder="Market Friday susu" value={title} onChangeText={setTitle} maxLength={40} />
+      <Field label="Name your circle" placeholder="Friday Circle" value={title} onChangeText={setTitle} maxLength={40} />
 
       <Section title="Who's in?" right={<Small>{n} people, {n} rounds</Small>}>
         <View style={{ gap: space.sm }}>
           <View style={nameRow}>
-            <Body style={{ flex: 1, fontFamily: font.bodyMedium }}>{myName}</Body>
-            <Small>You go first</Small>
+            <Bead label={initials(myName)} tone="paper" size={36} />
+            <Body style={{ flex: 1, fontFamily: font.bodyBold }}>{myName}</Body>
+            <Small style={{ color: color.indigoSoft }}>You go first</Small>
           </View>
           {others.map((o, i) => (
             <View key={i} style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
@@ -174,7 +176,7 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
                   onPress={() => setOthers(others.filter((_, j) => j !== i))}
                   style={{ marginTop: 26, minWidth: 48, minHeight: 48, alignItems: "center", justifyContent: "center", padding: space.sm }}
                 >
-                  <Text style={{ fontFamily: font.bodyBold, fontSize: 20, color: color.slate }}>×</Text>
+                  <Ionicons name="close-circle-outline" size={26} color={color.slate} accessibilityElementsHidden importantForAccessibility="no" />
                 </Pressable>
               )}
             </View>
@@ -226,15 +228,23 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
       </Section>
 
       {contribution && contribution > 0n ? (
-        <View style={{ backgroundColor: color.indigoMist, borderRadius: radius.card, padding: space.md, gap: space.xs, marginTop: space.sm }}>
+        <Panel tone="hero" style={{ marginTop: space.sm, gap: space.md }}>
           <Heading>Check your circle</Heading>
+          <Facts
+            items={[
+              { label: "Each round", value: money(contribution) },
+              { label: "Pot", value: money(contribution * BigInt(n)) },
+              { label: "Rounds", value: String(n) },
+              { label: "How often", value: c.label },
+            ]}
+          />
           <Body>
             Each round, all {n} of you put in {money(contribution)}, {c.every}. One person takes the{" "}
             {money(contribution * BigInt(n))} pot, in an order set by how much each person's cat trusts them. Everyone also puts down a {money(contribution)} deposit when they join
             {" "}(two rounds' worth for anyone whose cat is wary), and gets it back at the end, less any missed payments
             covered by that deposit.
           </Body>
-        </View>
+        </Panel>
       ) : null}
     </Screen>
   );
@@ -243,8 +253,9 @@ export function CreateScreen({ navigation }: ScreenProps<"Create">) {
 const nameRow = {
   flexDirection: "row" as const,
   alignItems: "center" as const,
-  backgroundColor: color.surface,
+  gap: space.md,
+  backgroundColor: color.pinkTile,
   borderRadius: radius.control,
   paddingHorizontal: space.md,
-  minHeight: 52,
+  minHeight: 56,
 };

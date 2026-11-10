@@ -1,0 +1,377 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-20T15:06:59.500648+00:00",
+  "title": "Design System: Kitty App",
+  "extensions": {
+    "colorMeta": {
+      "pink": {
+        "role": "primary",
+        "displayName": "Pink",
+        "tonalRamp": [
+          "oklch(15% 0.1772 0.33)",
+          "oklch(27% 0.1772 0.33)",
+          "oklch(38% 0.1772 0.33)",
+          "oklch(50% 0.1772 0.33)",
+          "oklch(61% 0.1772 0.33)",
+          "oklch(73% 0.1772 0.33)",
+          "oklch(84% 0.1772 0.33)",
+          "oklch(95% 0.1772 0.33)"
+        ]
+      },
+      "pink-soft": {
+        "role": "primary",
+        "displayName": "Pink Soft",
+        "tonalRamp": [
+          "oklch(15% 0.0282 349.46)",
+          "oklch(27% 0.0282 349.46)",
+          "oklch(38% 0.0282 349.46)",
+          "oklch(50% 0.0282 349.46)",
+          "oklch(61% 0.0282 349.46)",
+          "oklch(73% 0.0282 349.46)",
+          "oklch(84% 0.0282 349.46)",
+          "oklch(95% 0.0282 349.46)"
+        ]
+      },
+      "pink-tile": {
+        "role": "primary",
+        "displayName": "Pink Tile",
+        "tonalRamp": [
+          "oklch(15% 0.0170 349.48)",
+          "oklch(27% 0.0170 349.48)",
+          "oklch(38% 0.0170 349.48)",
+          "oklch(50% 0.0170 349.48)",
+          "oklch(61% 0.0170 349.48)",
+          "oklch(73% 0.0170 349.48)",
+          "oklch(84% 0.0170 349.48)",
+          "oklch(95% 0.0170 349.48)"
+        ]
+      },
+      "pink-bright": {
+        "role": "primary",
+        "displayName": "Pink Bright",
+        "tonalRamp": [
+          "oklch(15% 0.1492 353.58)",
+          "oklch(27% 0.1492 353.58)",
+          "oklch(38% 0.1492 353.58)",
+          "oklch(50% 0.1492 353.58)",
+          "oklch(61% 0.1492 353.58)",
+          "oklch(73% 0.1492 353.58)",
+          "oklch(84% 0.1492 353.58)",
+          "oklch(95% 0.1492 353.58)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "tonalRamp": [
+          "oklch(15% 0.0284 339.21)",
+          "oklch(27% 0.0284 339.21)",
+          "oklch(38% 0.0284 339.21)",
+          "oklch(50% 0.0284 339.21)",
+          "oklch(61% 0.0284 339.21)",
+          "oklch(73% 0.0284 339.21)",
+          "oklch(84% 0.0284 339.21)",
+          "oklch(95% 0.0284 339.21)"
+        ]
+      },
+      "muted-ink": {
+        "role": "neutral",
+        "displayName": "Muted Ink",
+        "tonalRamp": [
+          "oklch(15% 0.0443 350.61)",
+          "oklch(27% 0.0443 350.61)",
+          "oklch(38% 0.0443 350.61)",
+          "oklch(50% 0.0443 350.61)",
+          "oklch(61% 0.0443 350.61)",
+          "oklch(73% 0.0443 350.61)",
+          "oklch(84% 0.0443 350.61)",
+          "oklch(95% 0.0443 350.61)"
+        ]
+      },
+      "slate": {
+        "role": "neutral",
+        "displayName": "Slate",
+        "tonalRamp": [
+          "oklch(15% 0.0224 339.19)",
+          "oklch(27% 0.0224 339.19)",
+          "oklch(38% 0.0224 339.19)",
+          "oklch(50% 0.0224 339.19)",
+          "oklch(61% 0.0224 339.19)",
+          "oklch(73% 0.0224 339.19)",
+          "oklch(84% 0.0224 339.19)",
+          "oklch(95% 0.0224 339.19)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "tonalRamp": [
+          "oklch(15% 0.0000 89.88)",
+          "oklch(27% 0.0000 89.88)",
+          "oklch(38% 0.0000 89.88)",
+          "oklch(50% 0.0000 89.88)",
+          "oklch(61% 0.0000 89.88)",
+          "oklch(73% 0.0000 89.88)",
+          "oklch(84% 0.0000 89.88)",
+          "oklch(95% 0.0000 89.88)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Line",
+        "tonalRamp": [
+          "oklch(15% 0.0127 345.51)",
+          "oklch(27% 0.0127 345.51)",
+          "oklch(38% 0.0127 345.51)",
+          "oklch(50% 0.0127 345.51)",
+          "oklch(61% 0.0127 345.51)",
+          "oklch(73% 0.0127 345.51)",
+          "oklch(84% 0.0127 345.51)",
+          "oklch(95% 0.0127 345.51)"
+        ]
+      },
+      "room": {
+        "role": "secondary",
+        "displayName": "Room",
+        "tonalRamp": [
+          "oklch(15% 0.0316 53.48)",
+          "oklch(27% 0.0316 53.48)",
+          "oklch(38% 0.0316 53.48)",
+          "oklch(50% 0.0316 53.48)",
+          "oklch(61% 0.0316 53.48)",
+          "oklch(73% 0.0316 53.48)",
+          "oklch(84% 0.0316 53.48)",
+          "oklch(95% 0.0316 53.48)"
+        ]
+      },
+      "room-floor": {
+        "role": "secondary",
+        "displayName": "Room Floor",
+        "tonalRamp": [
+          "oklch(15% 0.0689 60.15)",
+          "oklch(27% 0.0689 60.15)",
+          "oklch(38% 0.0689 60.15)",
+          "oklch(50% 0.0689 60.15)",
+          "oklch(61% 0.0689 60.15)",
+          "oklch(73% 0.0689 60.15)",
+          "oklch(84% 0.0689 60.15)",
+          "oklch(95% 0.0689 60.15)"
+        ]
+      },
+      "cream": {
+        "role": "neutral",
+        "displayName": "Cream",
+        "tonalRamp": [
+          "oklch(15% 0.0275 109.11)",
+          "oklch(27% 0.0275 109.11)",
+          "oklch(38% 0.0275 109.11)",
+          "oklch(50% 0.0275 109.11)",
+          "oklch(61% 0.0275 109.11)",
+          "oklch(73% 0.0275 109.11)",
+          "oklch(84% 0.0275 109.11)",
+          "oklch(95% 0.0275 109.11)"
+        ]
+      },
+      "leaf": {
+        "role": "secondary",
+        "displayName": "Leaf",
+        "tonalRamp": [
+          "oklch(15% 0.0804 161.59)",
+          "oklch(27% 0.0804 161.59)",
+          "oklch(38% 0.0804 161.59)",
+          "oklch(50% 0.0804 161.59)",
+          "oklch(61% 0.0804 161.59)",
+          "oklch(73% 0.0804 161.59)",
+          "oklch(84% 0.0804 161.59)",
+          "oklch(95% 0.0804 161.59)"
+        ]
+      },
+      "leaf-soft": {
+        "role": "secondary",
+        "displayName": "Leaf Soft",
+        "tonalRamp": [
+          "oklch(15% 0.0190 157.87)",
+          "oklch(27% 0.0190 157.87)",
+          "oklch(38% 0.0190 157.87)",
+          "oklch(50% 0.0190 157.87)",
+          "oklch(61% 0.0190 157.87)",
+          "oklch(73% 0.0190 157.87)",
+          "oklch(84% 0.0190 157.87)",
+          "oklch(95% 0.0190 157.87)"
+        ]
+      },
+      "clay": {
+        "role": "secondary",
+        "displayName": "Clay",
+        "tonalRamp": [
+          "oklch(15% 0.1564 24.70)",
+          "oklch(27% 0.1564 24.70)",
+          "oklch(38% 0.1564 24.70)",
+          "oklch(50% 0.1564 24.70)",
+          "oklch(61% 0.1564 24.70)",
+          "oklch(73% 0.1564 24.70)",
+          "oklch(84% 0.1564 24.70)",
+          "oklch(95% 0.1564 24.70)"
+        ]
+      },
+      "clay-soft": {
+        "role": "secondary",
+        "displayName": "Clay Soft",
+        "tonalRamp": [
+          "oklch(15% 0.0212 28.33)",
+          "oklch(27% 0.0212 28.33)",
+          "oklch(38% 0.0212 28.33)",
+          "oklch(50% 0.0212 28.33)",
+          "oklch(61% 0.0212 28.33)",
+          "oklch(73% 0.0212 28.33)",
+          "oklch(84% 0.0212 28.33)",
+          "oklch(95% 0.0212 28.33)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "amount": {
+        "displayName": "Amount",
+        "purpose": "Balances and round pots; tabular numerals."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "button-press",
+        "value": "scale(0.985); opacity: 0.9",
+        "purpose": "Immediate press feedback; no timed transition."
+      },
+      {
+        "name": "payment-hop",
+        "value": "translateY(-8px) over 180ms; return over 270ms",
+        "purpose": "One confirmed-payment reaction; reduced-motion-aware."
+      },
+      {
+        "name": "scene-greeting-blink",
+        "value": "1500ms delay; close 110ms; hold 70ms; open 190ms; Easing.inOut(Easing.quad)",
+        "purpose": "One greeting on large welcome and non-Away account scenes; no idle greeting on thumbnails or list cats. Reset on backgrounding, unmount or live reduced-motion enable; skip when reduced motion is enabled."
+      },
+      {
+        "name": "affection-nuzzle",
+        "value": "rotate(-6deg); out 180ms; return 260ms; Easing.inOut(Easing.quad)",
+        "purpose": "One standing-cat head reaction on pet/reaction; never changes standing or financial mood. Welcome animates eyes only."
+      },
+      {
+        "name": "hello-static-feedback",
+        "value": "1800ms",
+        "purpose": "Static heart and “Kitty says hi ♡” with polite live-region text under all motion preferences."
+      },
+      {
+        "name": "pet-static-feedback",
+        "value": "2200ms",
+        "purpose": "Static smile, heart and readable purr response retained when reduced motion skips expressions."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "inline-footer-height",
+        "value": "650px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Shared full-size action; pressed and disabled states match the app.",
+      "html": "<button class=\"ds-button-primary\">Continue</button>",
+      "css": ".ds-button-primary{min-height:56px;border-radius:16px;padding:16px;font-family:Figtree,sans-serif;font-size:16px;font-weight:700;cursor:pointer;background:#AD245F;color:#FFFFFF;border:none;} .ds-button-primary:active{transform:scale(.985);opacity:.9} .ds-button-primary:disabled{opacity:.45;cursor:default} .ds-button-primary:focus-visible{outline:2px solid #AD245F;outline-offset:2px}"
+    },
+    {
+      "name": "Dark Button",
+      "kind": "button",
+      "refersTo": "button-dark",
+      "description": "Shared full-size action; pressed and disabled states match the app.",
+      "html": "<button class=\"ds-button-dark\">Continue</button>",
+      "css": ".ds-button-dark{min-height:56px;border-radius:16px;padding:16px;font-family:Figtree,sans-serif;font-size:16px;font-weight:700;cursor:pointer;background:#32232D;color:#FFFFFF;border:none;} .ds-button-dark:active{transform:scale(.985);opacity:.9} .ds-button-dark:disabled{opacity:.45;cursor:default} .ds-button-dark:focus-visible{outline:2px solid #AD245F;outline-offset:2px}"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Shared full-size action; pressed and disabled states match the app.",
+      "html": "<button class=\"ds-button-quiet\">Continue</button>",
+      "css": ".ds-button-quiet{min-height:56px;border-radius:16px;padding:16px;font-family:Figtree,sans-serif;font-size:16px;font-weight:700;cursor:pointer;background:#FFFFFF;color:#32232D;border:1px solid #E8DEE3;} .ds-button-quiet:active{transform:scale(.985);opacity:.9} .ds-button-quiet:disabled{opacity:.45;cursor:default} .ds-button-quiet:focus-visible{outline:2px solid #AD245F;outline-offset:2px}"
+    },
+    {
+      "name": "Labelled Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Visible label and focused pink stroke.",
+      "html": "<label class=\"ds-field\">Your first name<input placeholder=\"Your first name\" /></label>",
+      "css": ".ds-field{display:grid;gap:4px;color:#32232D;font:500 15px/20px Figtree,sans-serif}.ds-field input{min-height:54px;border:1px solid #E8DEE3;border-radius:16px;padding:0 16px;background:white;color:#32232D;font:400 17px Figtree,sans-serif}.ds-field input::placeholder{color:#71636C}.ds-field input:focus{border:2px solid #AD245F;outline:none}"
+    },
+    {
+      "name": "Selected Choice",
+      "kind": "chip",
+      "refersTo": "choice-selected",
+      "description": "Selected country choice; native radio semantics translated for the panel.",
+      "html": "<button class=\"ds-choice\" role=\"radio\" aria-checked=\"true\">Ghana</button>",
+      "css": ".ds-choice{min-height:48px;padding:12px 16px;border:1px solid #AD245F;border-radius:16px;background:#FCE5EF;color:#AD245F;font:700 15px Figtree,sans-serif;cursor:pointer}.ds-choice:focus-visible{outline:2px solid #AD245F;outline-offset:2px}"
+    },
+    {
+      "name": "Circle Tile",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Task summary with a written next obligation.",
+      "html": "<button class=\"ds-circle\"><strong>Friday Circle</strong><span>Round 2 of 5</span><p>Pay $10 · due in 2 days</p></button>",
+      "css": ".ds-circle{display:grid;gap:4px;text-align:left;width:100%;padding:16px;border:0;border-radius:20px;background:#FDEFF5;color:#32232D;font:400 14px/20px Figtree,sans-serif;cursor:pointer}.ds-circle strong{font:700 18px/24px \"Bricolage Grotesque\",sans-serif}.ds-circle span{color:#71636C}.ds-circle p{margin:12px 0 0;color:#AD245F;font:500 16px/24px Figtree,sans-serif}.ds-circle:active{background:#FCE5EF}.ds-circle:focus-visible{outline:2px solid #AD245F;outline-offset:2px}"
+    },
+    {
+      "name": "Labelled Navigation",
+      "kind": "nav",
+      "refersTo": "nav-active",
+      "description": "Label treatment and active surface; icon-font glyphs are deliberately omitted from this portable specimen.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Main\"><button aria-current=\"page\">Home</button><button>Join circle</button><button>Account</button></nav>",
+      "css": ".ds-nav{display:flex;gap:8px;padding:4px;background:white}.ds-nav button{flex:1;min-height:56px;padding:8px 4px;border:0;border-radius:16px;background:white;color:#71636C;font:700 14px Figtree,sans-serif;cursor:pointer}.ds-nav button[aria-current]{background:#FCE5EF;color:#AD245F}.ds-nav button:active{opacity:.7}.ds-nav button:focus-visible{outline:2px solid #AD245F;outline-offset:2px}"
+    },
+    {
+      "name": "Money Panel",
+      "kind": "card",
+      "refersTo": "hero",
+      "description": "Balance panel with tabular amount and practice-money disclosure.",
+      "html": "<section class=\"ds-money\"><p>Available test dollars</p><strong>$75</strong><small>This is practice money, not real savings.</small></section>",
+      "css": ".ds-money{display:grid;gap:8px;padding:24px;border-radius:28px;background:#FCE5EF;color:#32232D;font:400 16px/24px Figtree,sans-serif}.ds-money p{margin:0}.ds-money strong{color:#AD245F;font:800 40px/44px \"Bricolage Grotesque\",sans-serif;letter-spacing:-1px;font-variant-numeric:tabular-nums}.ds-money small{color:#71636C;font:400 14px/20px Figtree,sans-serif}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The website comes home",
+    "overview": "Kitty extends its established website identity into a small-screen operating app: white space, deep pink actions, blush surfaces, expressive local type and a warm cat room. Friendly shapes frame financial information without obscuring amounts, obligations or next steps.\n\nThe welcome scene uses the website’s shaded pink brand cat. Account and standing surfaces retain the deterministic six-coat companion and six-stage model, using the original website cat’s facial geometry and seated proportions. These are distinct asset roles within one identity. The standing poses use a low supported crouch with staggered forepaws, a box peek with separate draped paws, a tucked loaf and a side recline with distinct shoulder and hip anatomy. This record describes the finished local web Wary and Family correction; native authentication, screen readers and device behavior require separate verification.",
+    "keyCharacteristics": [
+      "White canvas with blush task surfaces.",
+      "Deep pink actions and explicit financial labels.",
+      "Bricolage Grotesque headings paired with Figtree reading text.",
+      "Flat controls, soft corners and warm companion scenery."
+    ],
+    "rules": [
+      {
+        "name": "The Written Status Rule",
+        "body": "Pair every status color or progress bar with readable words or counts.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two Cats Rule",
+        "body": "Use the website brand scene for welcome; preserve the member’s deterministic standing cat on companion surfaces.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use the shared theme and UI primitives for additional app surfaces.",
+      "Do keep amounts, testnet disclosures, obligations and retry language readable.",
+      "Do preserve wrapping, font scaling, labelled controls and at least 48dp interaction targets.",
+      "Do keep standing terms and next steps available when the cat is hidden."
+    ],
+    "donts": [
+      "Don’t substitute the welcome brand cat for a member’s standing cat.",
+      "Don’t turn unknown amounts into zero or report success before confirmation.",
+      "Don’t animate routine navigation or loop decorative balance or cat motion."
+    ]
+  }
+}

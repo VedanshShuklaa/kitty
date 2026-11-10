@@ -1,9 +1,18 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import * as Clipboard from "expo-clipboard";
 import { useState } from "react";
+import { View } from "react-native";
 
 import type { ScreenProps } from "../nav";
 import { routeFor } from "../route";
-import { Body, Button, Field, Notice, Screen, Title } from "../ui";
+import { color } from "../theme";
+import { Body, Button, Field, List, Notice, Row, Screen, Small, Title } from "../ui";
+
+const KINDS = [
+  { icon: "people-outline", title: "An invite", detail: "Opens the circle's rules before you join" },
+  { icon: "wallet-outline", title: "A pay link", detail: "Sends money to the person who shared it" },
+  { icon: "gift-outline", title: "Money sent by link", detail: "Collects it into your account" },
+] as const;
 
 export function PasteScreen({ navigation }: ScreenProps<"Paste">) {
   const [link, setLink] = useState("");
@@ -36,7 +45,18 @@ export function PasteScreen({ navigation }: ScreenProps<"Paste">) {
       }
     >
       <Title>Open a Kitty link</Title>
-      <Body>An invite, a pay link or money sent by link. Tapping it in WhatsApp opens Kitty by itself. If it didn't, copy the link and paste it here.</Body>
+      <Body>Tapping a Kitty link in WhatsApp opens Kitty by itself. If it didn't, copy the link and paste it here.</Body>
+      <List>
+        {KINDS.map((k, i) => (
+          <Row key={k.title} last={i === KINDS.length - 1}>
+            <Ionicons name={k.icon} size={24} color={color.pink} accessibilityElementsHidden importantForAccessibility="no" />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Body>{k.title}</Body>
+              <Small>{k.detail}</Small>
+            </View>
+          </Row>
+        ))}
+      </List>
       <Field
         label="Link"
         placeholder="https://kitty-circle.vercel.app/…"

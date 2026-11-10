@@ -1,10 +1,10 @@
 # Kitty mobile UI guide
 
-Read this before changing any frontend code. This is the implementation contract for Claude, Codex, and human contributors. The current direction is **a friendly pink savings app, with clarity before decoration**. The reference is a clean mobile finance dashboard; it is not permission to add charts, cards, services, or balances that do not exist.
+Read this before changing any frontend code. This is the implementation contract for Claude, Codex, and human contributors. The current direction is **the Kitty website identity brought into a friendly savings app, with clarity before decoration**. The visual reference is `site/public/index.html`: a white canvas, deep pink actions, blush tiles and a warm cat room. This is not permission to add charts, services or balances that do not exist.
 
 ## People and purpose
 
-Kitty helps people who already trust each other save in a rotating circle. Design for a wide range of reading confidence, older Android phones, small displays, expensive mobile data, and interrupted connections. Do not assume one language, currency, financial habit, or device capability across African countries. Validate with people in the actual launch market. English is currently the only implemented language; country selection does not imply localization or local payment support.
+Kitty helps people who already trust each other save in a rotating circle. Design for a wide range of reading confidence, older Android phones, small displays, expensive mobile data, and interrupted connections. Do not assume one language, currency, financial habit, or device capability across countries and communities. Validate with people in the actual launch market. English is currently the only implemented language; country selection does not imply localization or local payment support.
 
 The questions every circle screen must answer are: How much do I pay? When? Who receives next? Who has paid? What happens if someone misses? Keep financial information explicit and calm. The kitty belongs in onboarding and branding, not over a payment confirmation or an error.
 
@@ -23,15 +23,18 @@ Legacy token names (`indigo`, `marigold`, etc.) remain as compatibility aliases.
 
 | Role | Token | Hex | Use |
 |---|---|---|---|
-| Background | `paper` | `#F8F6F7` | Screen canvas |
+| Background | `paper` | `#FFFFFF` | Screen canvas |
 | Surface | `surface` | `#FFFFFF` | Cards and fields |
 | Main text | `ink` | `#32232D` | Balances, headings, body |
 | Primary pink | `pink` | `#AD245F` | Primary buttons, active navigation, selected controls |
 | Soft pink | `pinkSoft` | `#FCE5EF` | Balance and pot summaries |
+| Pink tile | `pinkTile` | `#FDEFF5` | Circle summaries and quiet groups |
+| Warm room | `room` / `roomFloor` | `#F8E1D3` / `#EBBF9C` | Companion scenery only |
 | Bright pink | `pinkBright` | `#EC7BAD` | Decorative details; never small text on white |
 | Logo cream | `cream` | `#FAFBE6` | Logo backdrop and quiet explanation panels |
 | Secondary text | `slate` | `#71636C` | Supporting text |
 | Divider | `line` | `#E8DEE3` | Card boundaries and separators |
+| Neutral tag | `mist` | `#F4EEF1` | Fill behind neutral status tags (e.g. “Shy”) |
 | Paid / success | `leaf` / `leafSoft` | `#246448` / `#E4F2E9` | Always pair with a word such as “Paid” |
 | Error / late | `clay` / `claySoft` | `#AC3434` / `#FCE9E6` | Explain what happened and what to do |
 
@@ -53,7 +56,7 @@ Bricolage Grotesque gives headings a friendly character; Figtree is the reading 
 
 Keep operating-system text scaling enabled. Do not shrink text to fit a long name or amount. Wrap text and let content grow. Important names, amounts, errors and actions must not use single-line truncation. The 12px testnet marker is the exception to the 14px supporting-text floor.
 
-Use the 4 / 8 / 16 / 24 / 32 / 48 spacing scale. Default horizontal screen padding is 16. Controls have 16px corners, cards 22px, hero summaries 28px. Round shapes should group related information, not turn every line into a separate card.
+Use the 4 / 8 / 16 / 24 / 32 / 48 spacing scale. Default horizontal screen padding is 16. Controls have 16px corners, cards 20px, hero summaries 28px. Round shapes should group related information, not turn every line into a separate card.
 
 ## Layout and hierarchy
 
@@ -63,11 +66,13 @@ Home:
 
 ```text
 Test-dollar marker
-Kitty · greeting · account
+Kitty wordmark + account
+Greeting
 Available test dollars + Add test dollars
 Start a circle | Join a circle
 Your circles + attention count
 Circle name, next action, paid/joined progress
+Cat companion and current standing
 How saving together works
 Home | Join circle | Account
 ```
@@ -81,6 +86,7 @@ Pot amount, round, paid count, next recipient
 Current status + due time
 Other available actions
 Members with written payment states
+Circle house and its written meaning
 Invites (when forming), rounds, rules
 Primary payment / collect action
 ```
@@ -90,8 +96,8 @@ Keep the pot summary compact. The previous large decorative bead ring must not d
 ## Controls and accessibility
 
 - Touch targets are at least 48 × 48 logical pixels. Main buttons are at least 56px high, expanding with text.
-- Use `Button`, `Field`, `Label`, `Choice`, `Check`, `Notice`, `Tag`, `Progress` and `LinkText` before adding another control style. A button inside a list row is `size="row"` (48px tall), never a one-off `minHeight`. Links out of the app (the public record) are `LinkText`, which keeps a 48px target.
-- Selected states are pink everywhere: choices, checkboxes, the active tab, the bid slider. Tags are 14px.
+- Use `Button`, `Field`, `Label`, `Choice`, `Check`, `Notice`, `Tag`, `Progress` and `LinkText` before adding another control style. Group with `Panel` (`hero` for the one money summary a screen leads with, `tile` for quiet groups, `outline` for white groups; never nested) and show short labelled figures with `Facts`. Icons are Ionicons, never text glyphs such as ›, × or ✓. A button inside a list row is `size="row"` (48px tall), never a one-off `minHeight`. Links out of the app (the public record) are `LinkText`, which keeps a 48px target.
+- Selected states are pink everywhere: choices, checkboxes, the active tab, the bid slider. Tags are 14px. Keep both native accessibility state and the supported ARIA checked/selected/expanded aliases so the web preview announces these states too; checkbox labels exclude the decorative tick.
 - Progress is `Progress`: a written count beside it, an accessible label and value, 8px tall; `onSoft` on a pink summary.
 - Initials beads are decorative and hidden from screen readers; the written name beside them is what gets read. Each `Steps` row reads as "Step 2, Approving payments: in progress".
 - One clearly dominant action per task. Action labels describe the result: “Pay $10”, “Join and put down $10”, “Create circle”.
@@ -99,7 +105,7 @@ Keep the pot summary compact. The previous large decorative bead ring must not d
 - Choices use radio semantics and checked state. Buttons expose disabled/busy state and remain labelled while waiting.
 - Do not rely on precision dragging: the bid slider also has “Give up less / more” buttons.
 - Preserve back navigation, keyboard access, VoiceOver/TalkBack labels, and visible focus. Test actual native focus order before release.
-- Keep motion optional. No continuous mascot animation, confetti, pulsing controls, or animated balances. Existing ring animation respects reduced motion if reused.
+- Keep motion optional. The cats are the one place with continuous motion (see "Motion" under Standing); nothing else animates continuously: no confetti, pulsing controls, or animated balances. Existing ring animation respects reduced motion if reused.
 
 ## Standing and the cat ("Feed the Kitty", SRS 6.13, FR-TRU-11)
 
@@ -107,16 +113,16 @@ Standing is the member's cat, at one of six stages (Away, Wary, Shy, Friendly, A
 
 - **Terms before money.** Join shows the payout order with everyone's stage and cat face, this member's deposit (two rounds for Wary), when they can make an offer, and what they can owe after the pot, before any money moves.
 - **Every change explained.** Account says what happened, what it changes in the next circle (`termsInWords`), and the way back (`nextStep`). Away always shows the amount owed and one "Pay back" button.
-- **Where she appears.** "Meet your cat" once after the passkey (`MeetCatScreen`, she is named there and the name is sealed with the profile); Home (the card under the balance); the circle's house under the pot summary; Account (cat, keepsakes, album); Join's payout order; member rows ("Cat: Friendly"). Never in payment steps, passkey prompts, confirmations or errors.
+- **Where she appears.** "Meet your cat" once after the passkey (`MeetCatScreen`, she is named there and the name is sealed with the profile); Home (after the circle list); the circle's house after payment status and members; Account (cat, keepsakes, album); Join's payout order; member rows ("Cat: Friendly"). Never in payment steps, passkey prompts, confirmations or errors.
 - **The house** (`House.tsx`, words in `house.ts`): a cardboard box that gains one piece for each round everyone paid with nobody covered, up to twelve, never taken away. The sentence under it carries the meaning; the drawing is hidden from screen readers.
 - **Keepsakes** (`Keepsakes.tsx`): five, each with a rule shown beside it, earned ones in colour. No currency, no shop, nothing random, and they never change trust.
-- **Cat artwork** (`Cat.tsx`): local SVG shapes inspired by the logo's rounded ears, broad cheeks, light muzzle, smile, whiskers and chunky paws. Six deterministic coats (rose, cream, cocoa, smoke, ginger, midnight), three markings. `CatArt` is shared by portraits, thumbnails and full-body house residents. Away is an empty box and pawprints; Wary hides under a bench; Shy peeks out of a box; Friendly sits with her tail up; At home loafs; Family rolls belly-up. `CatFace` uses a pawprint for Away. Keep the seated body compact, the loaf low with tucked paws, and the belly-up pose anatomically readable with four staggered paws. Fur, muzzle, markings, facial ink and whiskers have separate palette roles. Midnight uses blue-charcoal fur, a silver muzzle, muted rose ears and amber irises with dark pupils; do not reuse pale pink for every dark-coat detail. Eye patches are organic, low-contrast fur markings rather than bright circles. Small faces reserve enough space for flattened ears.
-- **Account companion** (`CatCompanion.tsx`): name and current stage, a large portrait nook, a plain next step, then the financial terms. The portrait nook is scenery, separate from the circle's earned house. “How her trust changes” opens a six-stage guide; exploring a stage never changes the member's displayed current standing. No numerical trust meter. Petting briefly changes the expression and shows a heart; it is local, makes no network calls and grants nothing. Away has no pet button.
+- **Cat artwork** (`Cat.tsx`): reuse the website cat's authored skull, tall ears, cheek tufts, small muzzle, round pupils, whiskers and seated body/paw proportions from `brandCat.ts`. Rose follows the source pink gradient values; the other five coats share its geometry and coordinated lighting across fur, head, muzzle, ears and paws. Avoid enlarging the pale muzzle, stretching pupils into ovals or compressing the body. Six deterministic coats (rose, cream, cocoa, smoke, ginger, midnight), three markings. `CatArt` is shared by portraits and full-body house residents; `Head` also supplies thumbnails. Away is an empty box and pawprints; Wary hides under a bench; Shy peeks out of a box; Friendly sits with her tail up; At home loafs; Family rolls belly-up. `CatFace` uses a pawprint for Away. Keep Wary low through the chest with visibly bent, forward-reaching forelegs, a tucked hind thigh and a thin floor-resting tail; Shy drapes two separate paws over the rim. The At home loaf has a continuous shoulder/haunch contour, fully tucked paws and a tail along the near flank. Family reclines belly-up on its side with a longer ribcage, curved forelegs at the shoulders, bent thighs and larger hind feet at the hips. Paw ends belong to visible limbs; avoid four identical circles on the belly. Its thin tail rests outside the torso. The approved Friendly pose, face and palette stay fixed. Body mechanics follow local image-generated concepts: `output/cat-poses/pose-concepts.png`, superseded for Wary and Family by `output/cat-wary-family/pose-concept.png`. Concepts are not bundled in the app. Fur, muzzle, markings, facial ink and whiskers have separate palette roles. Midnight uses blue-charcoal fur, a silver muzzle, muted rose ears and amber irises with dark pupils; do not reuse pale pink for every dark-coat detail. Eye patches are organic, low-contrast fur markings rather than bright circles. Small faces reserve enough space for flattened ears.
+- **Account companion** (`CatCompanion.tsx`): name and current stage, a warm portrait nook and a plain next step before the optional petting interaction, then the financial terms. The portrait nook is scenery, separate from the circle's earned house. “How her trust changes” opens a six-stage guide; exploring a stage never changes the member's displayed current standing. No numerical trust meter. Petting briefly changes the expression and shows a heart; it is local, makes no network calls and grants nothing. Away has no pet button.
 - **Current mood:** Home uses the actual earliest unpaid round for an empty bowl, a covered round for ears back, and paid rounds for a full bowl. A previous payment never overrides another due round. Failed standing reads are explicit; naming never substitutes Shy for an unknown returning account.
 - **Keepsakes:** a wrapping collection of illustrated tiles, each with its rule and “Earned” or “Not yet”. Colour only changes the illustration, not the legibility of the rule.
-- **Motion.** Still poses. After a payment she hops once on the circle's house and on Home's card, and not at all with Reduce motion on. The success notice comes first.
+- **Motion (the cats are alive, like the website cat).** `catLife.ts` is the website's `kitty.js` ported: a speed-capped head turn on critically damped springs with 2.5D parallax (ears, cheeks, eyes, muzzle and whiskers shift at different depths), eyes that lead the head, blinks every 3–6 s (a quarter of them double), ear flicks every 6–12 s, a tail wave, breathing, and an idle look-around between spots in her room (window, picture, yarn, bowl, and the viewer most often), sometimes only a quick glance. `useCatLife.ts` runs it only while she can be seen: the app in front, her screen focused, Reduce Motion off. It runs at up to 60 fps, drops to 30 fps if frames arrive late, then sheds follow-through, tail, breathing and the look-around, as the website does. Reactions are short and end on their own: **pet** (Pet button or a tap on her) is a happy squint, a nuzzle toward the hand, a purr tremble in the whiskers and a heart (at most three at once); **dinner** plays on Home after a confirmed payment with a full bowl: she looks at the bowl, leans in, takes three bites with crumbs, licks, squints, sends a heart and hops. The success notice still comes first and the bowl state stays the real one. **Hello** (welcome) is a hop, a squint and a heart. A tap elsewhere in her room makes her look there for two seconds. Her eyes stay open while alive; contentment is shown in reactions and words, never by a fixed face. Reduce Motion: no loop at all; the resting artwork with the static smile/heart/text responses. Small faces (under 100px: thumbnails, stage guide, member rows, Join) stay still. Living art keeps inside its view box (the small `Cat` hops its whole view; Family turns her head less).
 - **Words first.** Every drawing has the same sentence on screen or as its label. "Show my cat" turns the drawings and her voice in reminders off; the terms stay, in words.
-- **Money words stay.** "Pay $10" is never "Feed her". Reminders in her voice keep the amount and time ("Mimi's bowl is empty soon / Susu: pay $10 in the next 2 hours"). Other members see a stage, never the reason for it.
+- **Money words stay.** "Pay $10" is never "Feed her". Reminders in her voice keep the amount and time ("Mimi's bowl is empty soon / Friday Circle: pay $10 in the next 2 hours"). Other members see a stage, never the reason for it.
 
 ## Copy and financial trust
 
@@ -133,6 +139,10 @@ Account recovery is not complete: signing in with the same passkey restores the 
 Distinguish loading, no circles, failed reads, and last-loaded values. Show a useful retry action or pull-to-refresh path. Keep input after a failure. A success notice follows confirmed success; no optimistic financial balances or fake progress percentages. No payment is supported offline; do not claim otherwise.
 
 Home prevents overlapping reads, polls only while active and focused, and refreshes on app resume. Avoid increasing request frequency or adding remote assets. Full pending-payment recovery after reconnect, local-currency estimates, push reminders, translations, and indexer history remain separate product work, not features implied by this redesign.
+
+## Welcome artwork
+
+`KittyRoom.tsx` combines the website's cat, drawn by `WebsiteCat.tsx` from the same shapes as `brandCat.ts` (12-joint tail, breathing body, leaning neck, and the shared `Head`/`CatEyes`), and the locally bundled `kitty-room.webp`. Preserve the round pupils and original iris/glints at rest. It is a brand scene with an arrival hop, the idle life above and an optional “Say hello” response, separate from a member's standing. (Name new files so they don't differ from an existing one only by case; esbuild confuses `brandCat.ts`/`BrandCat.tsx` as it does `house.ts`/`House.tsx`.) Hello shows a static heart and polite acknowledgement for 1800ms, including with reduced motion. Keep the cat above the room image and its ears, tail and cushion inside the frame. `CatScene` reuses the local painted room behind standing-cat artwork. The image origin is recorded in `kitty-room.webp.json`; no network images or new rendering dependencies are required. Returning-account welcome omits the room to keep unlock close.
 
 ## Logo assets
 

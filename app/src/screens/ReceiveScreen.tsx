@@ -11,7 +11,7 @@ import type { ScreenProps } from "../nav";
 import { QrCode } from "../Qr";
 import { useMe, useSession } from "../session";
 import { color, radius, space } from "../theme";
-import { Amount, Body, Button, Choice, Field, List, Notice, Row, Screen, Section, Small, Title } from "../ui";
+import { Amount, Body, Button, Choice, Field, List, Notice, Panel, Row, Screen, Section, Small, Title } from "../ui";
 
 // Receive: the Kitty code (a QR of this account's pay link), both balances,
 // a one-tap conversion between them (FR-SND-05), and money sent by link that
@@ -122,11 +122,13 @@ export function ReceiveScreen({ navigation }: ScreenProps<"Receive">) {
       </Section>
 
       <Section title="Move between them">
-        <Small>Instant, at Agora's fixed 1:1 price. Your phone asks for your fingerprint first.</Small>
+        <Panel tone="tile" style={{ gap: space.md }}>
+        <Small style={{ color: color.indigoSoft }}>Instant, at Agora's fixed 1:1 price. Your phone asks for your fingerprint first.</Small>
         <Choice options={DIRECTIONS} value={into} onChange={setInto} />
         <Field label="Amount" prefix="$" keyboardType="decimal-pad" value={amount} onChangeText={setAmount} />
         {amount !== "" && problem && <Small style={{ color: color.clay }}>{problem}</Small>}
         <Button label={usd && !problem ? `Move ${money(usd)}` : "Move"} busy={busy === "convert"} disabled={!!problem || !!busy} onPress={move} />
+        </Panel>
       </Section>
 
       {notice && <Notice tone={notice.tone} onClose={() => setNotice(null)}>{notice.text}</Notice>}

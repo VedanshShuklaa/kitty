@@ -2,19 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 
 import { explain, passkeyStep } from "../errors";
-import { money, shortAddress } from "../format";
+import { initials, money, shortAddress } from "../format";
 import { depositOf, isKittyCircle, JOIN_STEPS, joinCircle, joinTerms, loadSnapshot, NOT_A_CIRCLE, type Snapshot, type Terms } from "../kitty";
 import { parseInvite } from "../links";
 import type { ScreenProps } from "../nav";
 import { nameAt, rulesInWords } from "../phase";
-import { KittyLogo } from "../Brand";
 import { CatFace } from "../Cat";
 import { syncCircle } from "../restore";
 import { useMe } from "../session";
 import { firstOfferRound, payoutOrder, STAGE_NAME, termsInWords } from "../standing";
 import { getCircle, getShowCat, saveCircle } from "../store";
-import { color, font, radius, space } from "../theme";
-import { Body, Button, Heading, List, Notice, Row, Screen, Section, Small, Steps, Tag, Title, type StepState } from "../ui";
+import { color, font, space } from "../theme";
+import { Bead, Body, Button, Facts, List, Notice, Panel, Row, Screen, Section, Small, Steps, Tag, Title, type StepState } from "../ui";
 
 export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
   const { address: me, signer, confirm } = useMe();
@@ -158,9 +157,9 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
       >
         <Title>Joining {invite.title}</Title>
         <Small>Your phone may ask for your fingerprint or screen lock.</Small>
-        <View style={{ marginTop: space.md }}>
+        <Panel tone="tile" style={{ marginTop: space.sm, paddingVertical: space.lg }}>
           <Steps steps={steps} />
-        </View>
+        </Panel>
         {run.error && <Notice tone="error">{run.error}</Notice>}
       </Screen>
     );
@@ -210,22 +209,35 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
         ) : undefined
       }
     >
-      <View style={styles.hero}>
-        <KittyLogo size={64} />
-        <Small>{organizer} invited you to</Small>
-        <Title>{invite.title}</Title>
-        <Body>A place for {who}, with people you know.</Body>
+      <Panel tone="hero" style={{ marginTop: space.xs, gap: space.md }}>
+        <View style={styles.inviter}>
+          {snap && showCat ? (
+            <CatFace owner={snap.organizer} stage={snap.members.find((m) => m.address?.toLowerCase() === snap.organizer.toLowerCase())?.stage ?? "Shy"} size={48} />
+          ) : (
+            <Bead label={initials(organizer)} tone="paper" size={48} />
+          )}
+          <Small style={{ flex: 1, color: color.indigoSoft }}>{organizer} invited you to</Small>
+        </View>
+        <View style={{ gap: space.xs }}>
+          <Title>{invite.title}</Title>
+          <Body>A place for {who}, with people you know.</Body>
+        </View>
         {snap && (
-          <Small selectable>
+          <Facts
+            items={[
+              { label: "Each round", value: money(snap.rules.contribution) },
+              { label: "People", value: String(snap.rules.memberCount) },
+              ...(terms ? [{ label: "Deposit to join", value: money(deposit) }] : []),
+            ]}
+          />
+        )}
+        {snap && (
+          <Small selectable style={{ color: color.indigoSoft }}>
             The names come from the link. The circle was started by {shortAddress(snap.organizer)}. Check with {organizer} that this is theirs.
+            {terms ? " Read your terms and the rules below before you confirm." : ""}
           </Small>
         )}
-        {snap && <View style={{ marginTop: space.sm, gap: space.sm }}>
-          <Heading>{money(snap.rules.contribution)} each round</Heading>
-          <Small>{snap.rules.memberCount} people · {snap.rules.memberCount} rounds</Small>
-          {terms && <Small>Deposit to join: {money(deposit)}. Read your terms and the rules below before you confirm.</Small>}
-        </View>}
-      </View>
+      </Panel>
 
       {loadError && <><Notice tone="error">{loadError}</Notice><Button label="Try again" tone="quiet" onPress={load} /></>}
       {!snap && !loadError && <Small>Loading the circle…</Small>}
@@ -254,8 +266,8 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
               .filter((t) => t.label !== "Circles at once")
               .map((t, i, all) => (
                 <Row key={t.label} last={i === all.length - 1}>
-                  <Body style={{ flex: 1 }}>{t.label}</Body>
-                  <Body style={{ fontFamily: font.bodyBold, flexShrink: 1, textAlign: "right" }}>{t.value}</Body>
+                  <Body style={{ flex: 1, minWidth: 96 }}>{t.label}</Body>
+                  <Body style={{ fontFamily: font.bodyBold, flexShrink: 1, maxWidth: "58%", textAlign: "right" }}>{t.value}</Body>
                 </Row>
               ))}
           </List>
@@ -284,13 +296,13 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
 
       {snap && (
         <Section title="Before you join">
-          <View style={{ gap: space.sm }}>
+          <Panel tone="tile" style={{ gap: space.md }}>
             {rulesInWords(snap.rules).map((l) => (
               <Body key={l.lead}>
                 <Body style={{ fontFamily: font.bodyBold }}>{l.lead}</Body> {l.text}
               </Body>
             ))}
-          </View>
+          </Panel>
         </Section>
       )}
     </Screen>
@@ -298,5 +310,5 @@ export function JoinScreen({ route, navigation }: ScreenProps<"Join">) {
 }
 
 const styles = StyleSheet.create({
-  hero: { backgroundColor: color.pinkSoft, borderRadius: radius.hero, padding: space.lg, gap: space.xs, marginTop: space.xs },
+  inviter: { flexDirection: "row", alignItems: "center", gap: space.md },
 });

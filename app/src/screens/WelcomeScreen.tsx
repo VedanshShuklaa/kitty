@@ -3,9 +3,10 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from "re
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { explain } from "../errors";
-import { KittyLogo } from "../Brand";
+import { KittyWordmark } from "../Brand";
+import { KittyRoom } from "../KittyRoom";
 import { useSession } from "../session";
-import { color, font, radius, space } from "../theme";
+import { color, space } from "../theme";
 import { Body, Button, Check, Choice, Display, Field, Label, Notice, Small, TestnetMarker, Title } from "../ui";
 
 const COUNTRIES = [
@@ -42,21 +43,13 @@ export function WelcomeScreen() {
       <KeyboardAvoidingView style={styles.frame} behavior={Platform.OS === "ios" ? "padding" : "height"}>
       <ScrollView contentContainerStyle={{ paddingBottom: space.xl }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <View style={styles.hero}>
-          <TestnetMarker />
           <View style={styles.brand}>
-            <KittyLogo size={112} />
-            <Display style={styles.wordmark}>kitty</Display>
+            <KittyWordmark />
+            <TestnetMarker />
           </View>
-          <Display style={styles.headline}>A little each round.
-More, together.</Display>
-          <Body style={styles.tagline}>Save with people you trust. Everyone contributes, and you take turns receiving the pot.</Body>
-          <View style={styles.explainer} accessible accessibilityLabel="Start a circle, save together, take turns">
-            <Small style={styles.step}>Start a circle</Small>
-            <Small>→</Small>
-            <Small style={styles.step}>Save together</Small>
-            <Small>→</Small>
-            <Small style={styles.step}>Take turns</Small>
-          </View>
+          {!returning && <KittyRoom />}
+          <Display style={styles.headline}>{returning ? "Your circle.\nYour people." : "Save with people\nyou trust."}</Display>
+          <Body style={styles.tagline}>Everyone contributes. Each round, someone takes the pot. Your turn comes around, too.</Body>
         </View>
 
         <View style={styles.body}>
@@ -113,12 +106,9 @@ More, together.</Display>
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: color.paper },
   frame: { flex: 1, width: "100%", maxWidth: 600, alignSelf: "center" },
-  hero: { paddingHorizontal: space.lg, paddingTop: space.md, paddingBottom: space.lg, backgroundColor: color.surface, borderBottomLeftRadius: radius.hero, borderBottomRightRadius: radius.hero },
-  brand: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: space.md, marginTop: space.lg, marginBottom: space.md },
-  wordmark: { color: color.pink, fontSize: 52, lineHeight: 60 },
-  headline: { fontSize: 34, lineHeight: 40, letterSpacing: -0.8 },
+  hero: { paddingHorizontal: space.md, paddingTop: space.sm, backgroundColor: color.surface, gap: space.md },
+  brand: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: space.sm, marginBottom: space.xs },
+  headline: { fontSize: 34, lineHeight: 38, letterSpacing: -0.8 },
   tagline: { color: color.slate, marginTop: space.sm },
-  explainer: { flexDirection: "row", flexWrap: "wrap", gap: space.sm, marginTop: space.lg },
-  step: { color: color.pink, fontFamily: font.bodyBold },
-  body: { padding: space.lg, gap: space.md },
+  body: { padding: space.md, marginTop: space.md, gap: space.md },
 });

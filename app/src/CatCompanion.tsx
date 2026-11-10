@@ -19,27 +19,31 @@ const CHARACTER: Record<Stage, { title: string; detail: string }> = {
 /** Presentation only. Petting is ephemeral; it cannot change the onchain standing. */
 export function CatCompanion({ owner, name, progress, showCat }: { owner: Address; name?: string; progress: Progress; showCat: boolean }) {
   const [petted, setPetted] = useState(false);
+  const [petCount, setPetCount] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   const { stage } = progress;
   const character = CHARACTER[stage];
+  const pet = () => {
+    if (timer.current) clearTimeout(timer.current);
+    setPetted(true);
+    setPetCount(count => count + 1);
+    timer.current = setTimeout(() => setPetted(false), 2200);
+  };
   return <View style={s.companion}>
     <View style={s.heading}>
-      <View style={{ flex: 1, gap: space.xs }}><Small>{showCat ? "Your little companion" : "Your standing"}</Small><Title>{showCat ? name?.trim() || "Your cat" : STAGE_NAME[stage]}</Title></View>
+      <View style={{ flex: 1, gap: space.xs }}><Title>{showCat ? name?.trim() || "Your cat" : "Your standing"}</Title></View>
       <Tag label={STAGE_NAME[stage]} tone={stage === "Away" || stage === "Wary" ? "clay" : "marigold"} />
     </View>
-    {showCat && <CatScene owner={owner} stage={stage} petted={petted} name={name} label={`${name?.trim() || "Your cat"}: ${STAGE_NAME[stage]}. ${character.detail}`} />}
+    {showCat && <CatScene owner={owner} stage={stage} petted={petted} expressionKey={petCount} name={name} onPet={stage !== "Away" ? pet : undefined} label={`${name?.trim() || "Your cat"}: ${STAGE_NAME[stage]}. ${character.detail}`} />}
     <View style={s.copy}>
+      <View style={s.next}><Heading>{stage === "Family" ? "Keep her close" : stage === "Away" || stage === "Wary" ? "The way back" : "Your next step"}</Heading><Body>{nextStep(progress)}</Body></View>
       {showCat && <><Heading>{character.title}</Heading><Body style={{ color: color.slate }}>{character.detail}</Body></>}
       {showCat && stage !== "Away" && <>
-        <Button label={`Pet ${name?.trim() || "your cat"}`} tone="quiet" size="row" onPress={() => {
-          if (timer.current) clearTimeout(timer.current);
-          setPetted(true);
-          timer.current = setTimeout(() => setPetted(false), 2200);
-        }} />
+        <Button label={`Pet ${name?.trim() || "your cat"}`} tone="quiet" size="row" onPress={pet} />
         <View accessibilityLiveRegion="polite"><Small style={{ textAlign: "center" }}>{petted ? "A little purr, just for you. Her standing stays the same." : "Just for fun. Petting doesn't change her trust."}</Small></View>
       </>}
-      <View style={s.next}><Small style={{ color: color.pink, fontFamily: font.bodyBold }}>{stage === "Family" ? "Keep her close" : stage === "Away" || stage === "Wary" ? "The way back" : "Your next step"}</Small><Body>{nextStep(progress)}</Body></View>
+
     </View>
   </View>;
 }
@@ -49,14 +53,14 @@ export function CatStageGuide({ owner, current, showCat }: { owner: Address; cur
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState(current);
   return <View style={{ gap: space.md }}>
-    <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen(!open)} style={s.guideToggle}>
+    <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} aria-expanded={open} onPress={() => setOpen(!open)} style={s.guideToggle}>
       <View style={{ flex: 1, gap: space.xs }}><Heading>How her trust changes</Heading><Small>Meet the six stages and what they mean.</Small></View>
       <Body style={{ color: color.pink, fontSize: 24 }}>{open ? '−' : '+'}</Body>
     </Pressable>
     {open && <>
       <Small>Explore a stage below. Your current stage is {STAGE_NAME[current]}.</Small>
       <View style={s.stages}>
-        {STAGES.map(stage => <Pressable key={stage} accessibilityRole="button" accessibilityLabel={`Explore ${STAGE_NAME[stage]}${stage === current ? ', your current stage' : ''}`} accessibilityState={{ selected: stage === selected }} onPress={() => setSelected(stage)} style={[s.stage, stage === selected && s.selected]}>
+        {STAGES.map(stage => <Pressable key={stage} accessibilityRole="button" accessibilityLabel={`Explore ${STAGE_NAME[stage]}${stage === current ? ', your current stage' : ''}`} accessibilityState={{ selected: stage === selected }} aria-selected={stage === selected} onPress={() => setSelected(stage)} style={[s.stage, stage === selected && s.selected]}>
           {showCat && <Cat owner={owner} stage={stage} size={88} hidden />}
           <Body style={{ fontFamily: font.bodyBold, textAlign: "center" }}>{STAGE_NAME[stage]}</Body>
           {stage === current && <Small style={{ color: color.pink, textAlign: "center" }}>Your stage</Small>}
@@ -73,10 +77,10 @@ export function CatStageGuide({ owner, current, showCat }: { owner: Address; cur
 }
 
 const s = StyleSheet.create({
-  companion: { backgroundColor: color.surface, borderRadius: radius.hero, overflow: "hidden", borderWidth: 1, borderColor: color.line },
-  heading: { flexDirection: "row", flexWrap: "wrap", gap: space.sm, alignItems: "center", padding: space.lg },
+  companion: { backgroundColor: color.pinkTile, borderRadius: radius.hero, overflow: "hidden" },
+  heading: { flexDirection: "row", flexWrap: "wrap", gap: space.sm, alignItems: "center", padding: space.md },
   copy: { padding: space.lg, gap: space.sm },
-  next: { marginTop: space.sm, padding: space.md, borderRadius: radius.control, backgroundColor: color.pinkSoft, gap: space.sm },
+  next: { paddingBottom: space.md, marginBottom: space.xs, borderBottomWidth: 1, borderBottomColor: color.line, gap: space.sm },
   guideToggle: { flexDirection: "row", alignItems: "center", gap: space.md, minHeight: 64, paddingVertical: space.sm },
   stages: { flexDirection: "row", flexWrap: "wrap", gap: space.sm },
   stage: { flexBasis: "30%", flexGrow: 1, minWidth: 82, alignItems: "center", paddingVertical: space.sm, paddingHorizontal: 4, borderWidth: 2, borderColor: color.line, borderRadius: radius.control, backgroundColor: color.surface },

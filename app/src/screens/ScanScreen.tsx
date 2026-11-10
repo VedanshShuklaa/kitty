@@ -1,3 +1,4 @@
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useRef, useState } from "react";
@@ -6,7 +7,7 @@ import { StyleSheet, View } from "react-native";
 import { parsePayee, parseSendLink } from "../money";
 import type { ScreenProps } from "../nav";
 import { color, radius, space } from "../theme";
-import { Body, Button, Notice, Screen, Small, Title } from "../ui";
+import { Body, Button, Notice, Panel, Screen, Small, Title } from "../ui";
 
 // FR-SND-01: a scanned Kitty code picks the person to send to. A scanned
 // send-by-link code opens the claim screen instead.
@@ -45,7 +46,10 @@ export function ScanScreen({ navigation }: ScreenProps<"Scan">) {
     return (
       <Screen onBack={() => navigation.goBack()}>
         <Title>Scan a Kitty code</Title>
-        <Body>Kitty needs the camera to read someone's code. It's only used while this screen is open.</Body>
+        <Panel tone="tile" style={styles.ask}>
+          <Ionicons name="qr-code-outline" size={72} color={color.pink} accessibilityElementsHidden importantForAccessibility="no" />
+          <Body style={{ textAlign: "center" }}>Kitty needs the camera to read someone's code. It's only used while this screen is open.</Body>
+        </Panel>
         {permission && !permission.canAskAgain ? (
           <Notice tone="info">Camera access is off for Kitty. Turn it on in your phone's settings, or paste their link instead.</Notice>
         ) : (
@@ -73,5 +77,6 @@ export function ScanScreen({ navigation }: ScreenProps<"Scan">) {
 }
 
 const styles = StyleSheet.create({
-  frame: { aspectRatio: 1, borderRadius: radius.card, overflow: "hidden", backgroundColor: color.ink, marginTop: space.sm },
+  frame: { aspectRatio: 1, borderRadius: radius.hero, overflow: "hidden", backgroundColor: color.ink, marginTop: space.sm, borderWidth: 4, borderColor: color.pinkSoft },
+  ask: { alignItems: "center", gap: space.md, paddingVertical: space.xl, paddingHorizontal: space.lg },
 });

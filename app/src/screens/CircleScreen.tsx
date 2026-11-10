@@ -373,7 +373,10 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
         ) : undefined
       }
     >
-      <Title>{title}</Title>
+      <View style={styles.titleRow}>
+        <Bead label={initials(title)} tone="mist" size={48} />
+        <Title style={{ flex: 1 }}>{title}</Title>
+      </View>
       <View style={styles.hero}>
         <View style={styles.heroTop}>
           <Body>{snap.state === "forming" ? "Getting your circle ready" : "This round’s pot"}</Body>
@@ -383,7 +386,7 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
           <Amount>{joined} of {n}</Amount>
           <Small>people have joined</Small>
         </> : snap.state === "active" ? <>
-          <Amount selectable>{money(snap.pot)}</Amount>
+          <Amount selectable style={{ color: color.pink }}>{money(snap.pot)}</Amount>
           <Small>of {money(potOf(r))} expected · {paid} of {n} paid</Small>
         </> : <Heading>{snap.state === "completed" ? "Circle complete" : "Circle called off"}</Heading>}
         {(snap.state === "forming" || snap.state === "active") && (
@@ -395,6 +398,10 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
           />
         )}
         <Body>{heroLine}</Body>
+        {snap.state === "active" && <View style={styles.deadline}>
+          <Small>Payment due</Small>
+          <Body style={{ fontFamily: font.bodyBold, flexShrink: 1 }}>{when(snap.due)}</Body>
+        </View>}
         {snap.yield && snap.yield.earned > 0n && (
           <Small>
             Deposits have earned {money(snap.yield.earned)} so far (simulated testnet yield, following earnAUSD on Monad mainnet
@@ -404,12 +411,7 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
       </View>
       {loadError && <><Notice tone="error">Couldn't refresh. These are the last loaded amounts. Refresh before making a payment.</Notice><Button label="Try again" tone="quiet" busy={refreshing} onPress={refresh} /></>}
 
-      <View style={{ gap: space.sm }}>
-        {showCat && <House pieces={snap.state === "forming" ? 0 : (pieces ?? 0)} residents={residents} react={ate} />}
-        <Small>{houseWords({ state: snap.state, pieces: snap.state === "forming" ? 0 : pieces, joined, memberCount: n, round: snap.round })}</Small>
-      </View>
-
-      <View style={{ gap: space.xs }}>
+      <View style={styles.status}>
         <Heading>{p.headline}</Heading>
         <Body style={{ color: color.slate }}>{p.detail}</Body>
         {primary?.kind === "pay" && snap.me && (snap.me.creditUsed > 0n || snap.me.holdbackReleased > 0n) && (
@@ -432,6 +434,11 @@ export function CircleScreen({ route, navigation }: ScreenProps<"Circle">) {
           ))}
         </List>
       </Section>
+
+      <View style={{ gap: space.sm }}>
+        {showCat && <House pieces={snap.state === "forming" ? 0 : (pieces ?? 0)} residents={residents} react={ate} />}
+        <Small>{houseWords({ state: snap.state, pieces: snap.state === "forming" ? 0 : pieces, joined, memberCount: n, round: snap.round })}</Small>
+      </View>
 
       {snap.state === "forming" && ref?.organizer && (
         <Section title="Invite links">
@@ -571,6 +578,9 @@ function MemberRow({ m, snap, name, me, now, last }: { m: Member; snap: Snapshot
 }
 
 const styles = StyleSheet.create({
+  titleRow: { flexDirection: "row", alignItems: "center", gap: space.md },
   hero: { backgroundColor: color.pinkSoft, borderRadius: radius.hero, padding: space.lg, gap: space.sm },
   heroTop: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: space.sm },
+  deadline: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: space.sm, marginTop: space.sm, paddingTop: space.md, borderTopWidth: 1, borderTopColor: color.line },
+  status: { gap: space.sm, paddingVertical: space.sm },
 });
