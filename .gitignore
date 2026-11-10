@@ -50,3 +50,9 @@ site/skills-lock.json
 
 # Local design screenshots
 output/
+
+# Local app design review captures
+**/.impeccable/review/
+
+# Demo crew keys (services/src/demo/crew.ts)
+services/.crew.json

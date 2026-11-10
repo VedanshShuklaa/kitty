@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="A practical camera-free workflow for making Kitty motion videos with Codex or Claude Code, a browser, and local rendering.">
+  <title>Make Kitty move · Production guide</title>
+  <link rel="stylesheet" href="../assets/kit.css">
+  <style>
+    .production .route-map{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:2rem 0;padding:0;list-style:none;border:1px solid #E8DEE3;border-radius:24px;overflow:hidden;background:#fff}
+    .production .route-map li{padding:1.25rem;border-right:1px solid #E8DEE3}.production .route-map li:last-child{border:0}.production .route-map strong{display:block;margin:.35rem 0}.production .route-map small{color:#71636C}
+    .production .route-map .step-number{font-size:2rem;font-weight:800;color:#AD245F}
+    .production .guide-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:2rem}.production .guide-columns>*{min-width:0}
+    .production .prompt{white-space:pre-wrap;overflow-wrap:anywhere;font-family:inherit;line-height:1.65;background:#FCE5EF;color:#32232D;padding:1.4rem;border-radius:18px;max-width:82ch}
+    .production .swatches{display:flex;flex-wrap:wrap;gap:1rem;list-style:none;padding:0}.production .swatches li{display:flex;gap:.6rem;align-items:center}.production .swatch{width:2rem;height:2rem;border:1px solid #71636C;border-radius:50%;flex:none}
+    .production .table-wrap{overflow:auto;max-width:100%}.production table{min-width:620px}.production td,.production th{vertical-align:top}.production pre{max-width:100%;overflow:auto}.production details{margin:1rem 0}.production summary{cursor:pointer;font-weight:700;padding:.7rem 0}.production .compact{font-size:.95rem}.production section{scroll-margin-top:2rem}
+    @media(max-width:700px){.production .guide-columns{grid-template-columns:1fr;gap:0}.production .route-map{grid-template-columns:1fr 1fr}.production .route-map li{border-bottom:1px solid #E8DEE3}.production .route-map li:nth-child(2){border-right:0}}
+    @media print{.production nav{display:none}.production details>*{display:block}.production .table-wrap{overflow:visible}.production table{min-width:0}}
+  </style>
+</head>
+<body class="production">
+<a class="skip-link" href="#main">Skip to guide</a>
+<header class="site-header">
+  <a class="brand" href="../index.html">Kitty / Field guide</a>
+  <nav aria-label="Kitty documentation">
+    <a href="../market-research.html">Research</a>
+    <a href="script.html">Scripts</a>
+    <a href="production.html" aria-current="page">Production</a>
+    <a href="animatic.html">Motion study</a>
+    <a href="../submission/index.html">Submission</a>
+  </nav>
+</header>
+<main id="main">
+  <header class="hero">
+    <p class="eyebrow">Production guide · researched October 6, 2026</p>
+    <h1>Make Kitty move.<br>No camera required.</h1>
+    <p class="lead">Use code to animate the story, existing Kitty artwork to give it character, and captions to make every scene understandable. Your laptop is the studio. Friends can help from wherever they are, whenever they are free.</p>
+    <p><a class="button" href="animatic.html">Open the motion study</a> <a href="#setup">Set up the local workflow</a></p>
+  </header>
+
+  <section aria-labelledby="recommendation">
+    <h2 id="recommendation">Start with the included HTML motion study</h2>
+    <p>The recommended first cut is a 90-second animated explainer: SVG shapes, Kitty cats, three friends, clear terms and a simple contribution-to-payout sequence. Codex or Claude Code edits the source; a browser renders each exact frame; FFmpeg assembles the MP4. No actor, location, screen-recording performance or video-generation subscription is needed.</p>
+    <ol class="route-map" aria-label="Production workflow">
+      <li><span class="step-number">1</span><strong>Choose the words</strong><small>Use the revised script and its claim limits.</small></li>
+      <li><span class="step-number">2</span><strong>Let code animate</strong><small>Change a scene, scrub it, inspect a still.</small></li>
+      <li><span class="step-number">3</span><strong>Render locally</strong><small>Browser frames become a repeatable MP4.</small></li>
+      <li><span class="step-number">4</span><strong>Add evidence</strong><small>Only verified app captures support live claims.</small></li>
+    </ol>
+    <p class="note"><strong>Know what you are making.</strong> The motion study is an illustrated explanation with sample data. It does not execute payments. A polished animation can explain Kitty; it cannot prove a passkey worked, a transaction settled or another device recovered an account. Keep “Illustrated demo · sample data” visible, and retain test-dollar labels wherever amounts appear.</p>
+    <div class="table-wrap"><table>
+      <caption>Production routes considered</caption>
+      <thead><tr><th scope="col">Route</th><th scope="col">Best use</th><th scope="col">Decision for Kitty</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Included HTML + Playwright + FFmpeg</th><td>Small, clear motion graphics; precise text and amounts; direct editing by a coding agent.</td><td><strong>Use now.</strong> Minimal new moving parts and no per-render service bill. Playwright captures browser output; FFmpeg encodes the frames. <a href="https://playwright.dev/docs/screenshots">Screenshot docs</a> · <a href="https://ffmpeg.org/ffmpeg.html">FFmpeg docs</a></td></tr>
+        <tr><th scope="row">Remotion</th><td>More compositions, narration tracks, reusable React scenes and many aspect ratios.</td><td>Best next step if the first cut grows. Local rendering; commercial free-license eligibility depends on the organization and collaboration, not how many people appear in the demo. <a href="https://www.remotion.dev/docs/license/pricing">License</a></td></tr>
+        <tr><th scope="row">DaVinci Resolve</th><td>Manual trimming, audio finishing and combining genuine screen captures.</td><td>Optional finishing editor. A free edition exists; use it if already comfortable with it. It is an extra installation and learning task for this first cut. <a href="https://www.blackmagicdesign.com/products/davinciresolve">Official product page</a></td></tr>
+        <tr><th scope="row">Generative video</th><td>Optional abstract texture or atmosphere behind an opening title.</td><td>Skip for the first cut. This is a design judgment: precise UI, repeatable amounts and readable captions matter more here than photorealism. Never generate transaction receipts, user testimonials or pretend device evidence.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section aria-labelledby="look">
+    <h2 id="look">A small circle of friends, drawn in Kitty's own style</h2>
+    <p>Use three named cat portraits around one shared pot. Each contribution follows a short path toward the center; the recipient's turn becomes clear through position and a written label. End with a completed record. The visual metaphor is shared commitment, not a country, village, costume or invented family history.</p>
+    <ul class="swatches" aria-label="Kitty production colors">
+      <li><span class="swatch" style="background:#F8F6F7" aria-hidden="true"></span>Paper #F8F6F7</li>
+      <li><span class="swatch" style="background:#32232D" aria-hidden="true"></span>Ink #32232D</li>
+      <li><span class="swatch" style="background:#AD245F" aria-hidden="true"></span>Pink #AD245F</li>
+      <li><span class="swatch" style="background:#FCE5EF" aria-hidden="true"></span>Soft pink #FCE5EF</li>
+      <li><span class="swatch" style="background:#246448" aria-hidden="true"></span>Paid #246448</li>
+    </ul>
+    <div class="guide-columns">
+      <div><h3>What stays consistent</h3><ul>
+        <li>Bricolage Grotesque for titles, Figtree for reading. Reuse local licensed font files and existing logo/cat artwork.</li>
+        <li>One sentence and one main action per scene. Keep amounts and payment states readable; no rolling balance counters.</li>
+        <li>Use the same three names and coat colors throughout. Choose real names with permission or neutral sample names; nationalities need not appear.</li>
+        <li>A narrow text column plus a large visual in landscape. Stack them deliberately for portrait; do not crop a wide render.</li>
+      </ul></div>
+      <div><h3>Motion that explains</h3><ul>
+        <li>Plan 0.25–0.5-second transitions and at least 2–4 seconds to read a short caption. These are editing targets, not measured user research.</li>
+        <li>Connect money movement to a visible “Paid” or “Next recipient” label. Do not make value appear from decorative sparkle.</li>
+        <li>Keep the mascot out of authentication sheets, payment confirmations and errors, as the app guide requires.</li>
+        <li>Expose play, pause and scrub controls in HTML. Respect reduced motion for default playback; export stills for a static alternative.</li>
+      </ul></div>
+    </div>
+    <p>The <a href="script.html">script artifact</a> supplies alternate final cuts; <code>timeline.js</code> owns the included motion study's narration and timing. The opening should answer “Why save together?”, the middle “How does a round work?”, and the ending “What can I try today?”. Bidding, missed contributions and recovery belong in the longer product or sponsor cut, where their conditions have room to be explained.</p>
+  </section>
+
+  <section id="setup" aria-labelledby="setup-title">
+    <h2 id="setup-title">Set up once, then work scene by scene</h2>
+    <p>The commands below target this Linux checkout. They are setup instructions, not a claim that dependencies were installed or an account was funded. On this machine, Node 24, FFmpeg, Codex and Claude Code were found during the documentation review. Use the coding assistant you already have access to; buying both does not improve this workflow.</p>
+    <h3>1. Open the folder and check the tools</h3>
+    <pre><code>cd /home/vedansh/Desktop/Hackathons/Kitty
+node --version
+ffmpeg -version
+codex --version
+claude --version</code></pre>
+    <p>Node 24 or newer matches the repository's declared requirement. If a tool is missing, have the agent identify your operating system and propose the specific installation. For another machine, official instructions are available for <a href="https://developers.openai.com/codex/cli">Codex</a>, <a href="https://code.claude.com/docs/en/overview">Claude Code</a> and <a href="https://ffmpeg.org/download.html">FFmpeg</a>. The native Claude installer is currently recommended; an existing working installation does not need replacing.</p>
+    <h3>2. Preview the artifact before installing a video framework</h3>
+    <p>Open <a href="animatic.html">animatic.html</a> directly in a browser. Play it, pause it and scrub. An exact time can be reviewed with <a href="animatic.html?t=30">?t=30</a>. Use this to approve the wording and visual order before spending time on a full render.</p>
+    <p>For a local HTTP preview, serve only the documentation folder. In one terminal:</p>
+    <pre><code>python3 -m http.server 4175 --bind 127.0.0.1 --directory docs</code></pre>
+    <p>Then open <a href="http://127.0.0.1:4175/demo/animatic.html">http://127.0.0.1:4175/demo/animatic.html</a>. Leave that terminal open while previewing; Ctrl+C stops it. This is local preview, not publication.</p>
+    <h3>3. Ask your assistant to prepare the first cut</h3>
+    <pre><code>cd /home/vedansh/Desktop/Hackathons/Kitty
+codex</code></pre>
+    <p>Or run <code>claude</code> in the same directory. Paste the <a href="#prompts">build prompt below</a>. Give the agent the real file paths, the one scene to change and an observable result. Both CLIs can work in an existing repository; local CLI help was checked for this guide, alongside the <a href="https://developers.openai.com/codex/cli">Codex documentation</a> and <a href="https://code.claude.com/docs/en/quickstart">Claude quickstart</a>.</p>
+    <h3>4. Export a short draft before the whole film</h3>
+    <p>Use the included renderer's help for its dependency check and exact supported options:</p>
+    <pre><code>node docs/demo/render.mjs --help</code></pre>
+    <div id="render-commands">
+      <p>Install the renderer tools in a separate temporary folder, leaving the app dependencies alone. Keep the generated package-lock.json with an archived project if you need reproducible exports later.</p>
+      <pre><code>npm install --prefix /tmp/kitty-motion-tools playwright
+/tmp/kitty-motion-tools/node_modules/.bin/playwright install chromium
+node docs/demo/render.mjs --out output/kitty-motion/draft.mp4 --duration 5 --fps 12
+node docs/demo/render.mjs --out output/kitty-motion/kitty-silent.mp4 --width 1920 --height 1080 --fps 30 --duration 90
+node docs/demo/render.mjs --out output/kitty-motion/kitty-portrait.mp4 --width 1080 --height 1920 --fps 30 --duration 90</code></pre>
+      <p>The default resolution is 1280×720. Use that for review on a modest laptop. Each export also writes matching SRT and VTT files beside the MP4. The exporter refuses to overwrite existing outputs; choose a new filename for each revision. It streams frames to FFmpeg rather than storing thousands of images.</p>
+      <p>If Playwright is installed elsewhere, set <code>KITTY_PLAYWRIGHT_ROOT</code> to its node_modules folder. To use an installed Chrome binary, set <code>KITTY_BROWSER_EXECUTABLE</code>. This checkout also has an existing preview-tools installation:</p>
+      <pre><code>KITTY_PLAYWRIGHT_ROOT=/tmp/kitty-ui-preview/node_modules KITTY_BROWSER_EXECUTABLE=/usr/bin/google-chrome node docs/demo/render.mjs --out output/kitty-motion/local-draft.mp4 --duration 5 --fps 12</code></pre>
+      <p><strong>If setup fails:</strong> “Executable doesn't exist” means Chromium still needs installing; “FFmpeg missing” means its executable is not on PATH. In a restricted assistant sandbox, a Chrome socket-permission error requires approval to run the local renderer outside that sandbox. A temporary dependency folder can disappear after cleanup, so rerun the two install commands when needed.</p>
+      <p>The editable source is <code>animatic.html</code>, <code>motion.css</code>, <code>motion.js</code> and <code>timeline.js</code>. The bundled <a href="animatic.srt">SRT</a> and <a href="animatic.vtt">VTT</a> describe this motion study's narration. Its timeline differs from the alternate polished explainer in the script book: choose one before generating a voice track. If you edit timeline.js, use the newly rendered subtitle files; regenerate the bundled caption downloads before sharing the HTML pack.</p>
+    </div>
+    <p>Render a five-second draft, inspect a still from each scene and both layouts, then render the full film. Fixed frame times, bundled fonts and image preloading make the result repeatable. Source files work offline; the coding assistant itself may need internet access.</p>
+    <h3>5. Add real screen artwork only where it helps</h3>
+    <p>The existing QA preview uses actual app components with mocked services. Its transactions are inert. It is useful for screen images, not for functional evidence. The current entry point documents this setup:</p>
+    <pre><code>pnpm install --frozen-lockfile
+npm install --prefix /tmp/kitty-ui-preview react@19.2.3 react-dom@19.2.3 react-native-web esbuild sharp
+node app/qa/preview.mjs</code></pre>
+    <p>If port 4174 already has an older preview running, start an independent one with <code>KITTY_PREVIEW_PORT=4176 node app/qa/preview.mjs</code> and use the printed port. Restart a preview after changing its mock names; the screen-source watcher does not reload the harness itself.</p>
+    <p>Use <code>http://127.0.0.1:4174/?screen=Home</code>, <code>?screen=Circle</code>, <code>?screen=Me</code> or <code>?screen=Cats</code>. Take screenshots at a fixed viewport after fonts load. Keep a “Sample interface” label in the edit. The preview has only its declared screens and mock state transitions; a clickable button does not establish that a payment happened. Pin the installed dependency versions if turning these captures into a recurring production pipeline.</p>
+  </section>
+
+  <section id="prompts" aria-labelledby="prompts-title">
+    <h2 id="prompts-title">Prompts that give the agent a concrete job</h2>
+    <p>Copy one at a time into Codex or Claude Code. Ask for artifacts and rendered evidence, not a list of ideas. Have one agent own the animation source while a reviewer checks screenshots; two writers should not edit the same scene simultaneously.</p>
+    <h3>Build the illustrated cut</h3>
+    <pre class="prompt">Read docs/demo/script.html, docs/demo/production.html, UI_GUIDE.md and the existing docs/demo/animatic.html. Use the included motion study and exporter as the base. Make a 90-second, camera-free Kitty explainer for friends saving together. Keep the agreed story and country-neutral wording. Use existing Kitty artwork, local fonts, #F8F6F7 paper, #32232D ink and #AD245F pink. Do not invent financial features or outcomes.
+
+Animate HTML/SVG from a single explicit timeline time. No Date.now-based financial values, random state, network data, CSS animation clocks or real payment calls in the render. Keep sample-data and test-dollar labels visible. Preserve play/pause, keyboard scrub, reduced-motion behavior and fixed-time inspection. Finish landscape first and adapt portrait intentionally.
+
+Edit one scene at a time. Save a still at its opening, middle and end. Render a five-second draft before the full film. Produce HTML review notes, MP4 and SRT/VTT captions; do not create new Markdown reports. Report the exact commands run and any part that was not verified.</pre>
+    <h3>Polish a scene without rewriting the story</h3>
+    <pre class="prompt">Review the scene at [time in seconds] in docs/demo/animatic.html. The problem is [specific issue: text crowded / contribution path unclear / portrait overlap]. Keep the wording, amounts, timing, labels and existing Kitty design. Fix only this scene and its responsive layout. Check landscape and portrait at the same exact time, including long names. Show before/after stills and identify any changed file.</pre>
+    <h3>Prepare narration and captions</h3>
+    <pre class="prompt">Take the approved narration from docs/demo/script.html. Create scene-numbered UTF-8 text files, a pronunciation list, a timed caption manifest and an HTML audio checklist under output/kitty-motion/. Expand AUSD as “A U S D” in the voice input where helpful, while retaining correct on-screen spelling. Use a calm, friendly delivery and leave pauses around financial amounts.
+
+For now produce files only. If a paid stock-voice provider is selected later, generate one file per scene within the chosen budget and keep API keys outside source. Do not clone a participant's voice. After audio exists, measure each file and adjust captions to what is actually spoken; do not assume generated speech fits the planned timing. Export SRT and VTT alongside the captioned MP4.</pre>
+    <h3>Check the final cut as a skeptical viewer</h3>
+    <pre class="prompt">Review the exported Kitty film at normal speed, then inspect stills around every scene boundary. Check caption timing and readability, amount consistency, names, spelling, disclosures, audio cutoffs, black frames, font loading, clipping and portrait composition. Confirm every live claim has an actual matching clip or record. A simulated passkey sheet, illustrative timer or mocked receipt is not proof.
+
+Compare the film to docs/demo/script.html and docs/submission/index.html. Write a short HTML review with exact timestamps and fix material issues. Do not add results we did not observe or claim the video has been submitted.</pre>
+  </section>
+
+  <section id="audio" aria-labelledby="audio-title">
+    <h2 id="audio-title">Voice is optional. Readable captions are essential.</h2>
+    <p><strong>The zero-extra-cost version is silent and fully captioned.</strong> It needs neither a microphone nor an API key. Write captions as part of the scene, not as an afterthought. Export a separate subtitle file too, so a video host can expose accessible captions and translated tracks.</p>
+    <div class="table-wrap"><table>
+      <caption>Audio choices, checked October 6, 2026</caption>
+      <thead><tr><th scope="col">Option</th><th scope="col">Incremental cost</th><th scope="col">Practical use</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Captions only</th><td>$0 service spend</td><td>Recommended first render. No music required; the complete story works muted.</td></tr>
+        <tr><th scope="row">Your own voice</th><td>$0 if using your existing phone or laptop microphone</td><td>Optional, no camera. Record short sections near soft furnishings. Retake only the affected sentence.</td></tr>
+        <tr><th scope="row">ElevenLabs stock TTS</th><td>Starter lists $6/month and 30,000 credits before any temporary promotion or tax.</td><td>Optional generated narration. Use a built-in/appropriately licensed voice. The free plan does not include commercial use, so do not assume its downloads cover a promotional launch film. <a href="https://elevenlabs.io/pricing">Pricing</a> · <a href="https://help.elevenlabs.io/hc/en-us/articles/13313564601361-Can-I-publish-the-content-I-generate-on-the-platform">Publication terms</a></td></tr>
+      </tbody>
+    </table></div>
+    <ol>
+      <li><strong>Lock the narration.</strong> Make one text file per scene. For a 90-second edit, roughly 160–185 words leaves room for pauses; treat this as a planning estimate and time the actual voice.</li>
+      <li><strong>Generate or record short chunks.</strong> Keep the same narrator and settings. A friend can check names and pronunciation without appearing or speaking in the film.</li>
+      <li><strong>Fit the visuals to the voice.</strong> Place each clip at its scene start, listen for clipped words and add silence between ideas. Shorten the script if needed; avoid racing the voice through money terms.</li>
+      <li><strong>Time the captions to the audio.</strong> Use no more than two lines, approximately 32–42 characters per line as a starting point. Include relevant non-speech sounds. Review at phone size and with audio muted.</li>
+      <li><strong>Keep the track simple.</strong> Voice alone is sufficient. If using music, obtain a license for the actual use, retain its source and keep it quiet beneath speech. Mark synthetic narration in the credits/description.</li>
+    </ol>
+    <p>After a correctly timed <code>narration.wav</code> exists, this optional FFmpeg command attaches it to a silent export. It pads short audio and ends with the video; listen first so a long narration is not cut off. Replace paths with the actual exported filenames.</p>
+    <pre><code>ffmpeg -i output/kitty-motion/kitty-silent.mp4 \
+  -i output/kitty-motion/narration.wav \
+  -map 0:v:0 -map 1:a:0 -c:v copy -c:a aac -b:a 192k \
+  -af apad -shortest -movflags +faststart \
+  output/kitty-motion/kitty-narrated.mp4</code></pre>
+    <p class="compact">The mapping and padding behavior follows the <a href="https://ffmpeg.org/ffmpeg.html">FFmpeg manual</a> and <a href="https://ffmpeg.org/ffmpeg-filters.html#apad">apad filter documentation</a>. This adds audio; it does not align sentences or rewrite subtitle timing automatically.</p>
+  </section>
+
+  <section id="friends" aria-labelledby="friends-title">
+    <h2 id="friends-title">Let friends help asynchronously</h2>
+    <p>Your friends can simply be themselves. The story does not require anybody to represent their country, perform an accent, share a home or pretend to be related. A three-person cast makes the explanation easy to follow; the contract currently permits 2–12 members, so three is a demo choice, not a minimum requirement.</p>
+    <div class="guide-columns">
+      <div><h3>No device or recording needed</h3><ol>
+        <li>Send the HTML or a draft MP4 privately.</li>
+        <li>Ask each person: “What do you think happens to the money?”, “What happens after my turn?”, and “Which line was unclear?”.</li>
+        <li>Let them choose a display name or pseudonym and a cat. Request permission before using their name or feedback publicly.</li>
+        <li>Keep a dated feedback note. Three friends provide early qualitative feedback, not market validation.</li>
+      </ol></div>
+      <div><h3>Optional actual testnet participation</h3><ol>
+        <li>Use independent accounts and their own devices. Do not share a Google account, passkey or password to stage a group.</li>
+        <li>Choose a schedule that accommodates time zones. They can record small screen-only clips separately; nobody needs a camera.</li>
+        <li>Record the app version, chain, address, transaction hash and UTC time beside each clip.</li>
+        <li>Label clips from separate takes. Mark shortened waits. Use the <a href="#testnet-runbook">testnet runbook</a> for any timed bidding/recovery test.</li>
+      </ol></div>
+    </div>
+    <p class="note"><strong>A cross-device recovery claim needs a real cross-device test.</strong> Use one tester's own synced passkey setup on devices they control. That is separate from three friends holding independent accounts. If a secure system prompt is blank in a screen capture, show the real transition and label the omitted system sheet. An animated fingerprint icon remains illustrative.</p>
+  </section>
+
+  <section id="testnet-runbook"><h2>Optional screen-only testnet runbook</h2>
+    <p>The animation does not need any of these steps. Use them later to obtain actual contract evidence or support a friend on a phone. Funding, creating, joining and playing a circle send testnet transactions. They are instructions to run deliberately; no network action is performed by opening this guide.</p>
+    <h3>A laptop can fill the test seats</h3>
+    <p>From the repository root, install dependencies. If <code>services/.env</code> does not already exist, copy <code>services/.env.example</code> to it. Set the documented RPC/service configuration without pasting keys into chat. Existing deployed contract addresses come from <code>deployments/10143.json</code>. Use the sponsor or a testnet-only <code>CREW_FUNDER_KEY</code> for gas.</p>
+    <pre><code>pnpm demo:check
+pnpm demo:crew init 3
+pnpm demo:crew list
+pnpm demo:crew fund
+pnpm demo:crew create --names "Host,FriendA,FriendB" --amount 5 --every 120 --start 5 --offers 0 --title "Friday Circle"</code></pre>
+    <p><code>demo:check</code> is read-only. <code>init</code> writes local test keys and reads their state; <code>fund</code> and <code>create</code> submit transactions. The helper prints an invite for each remaining seat. Join those seats and let the crew complete the short practice:</p>
+    <pre><code>pnpm demo:crew join 'PASTE_FRIEND_A_INVITE_HERE'
+pnpm demo:crew join 'PASTE_FRIEND_B_INVITE_HERE'
+pnpm demo:crew status CIRCLE_ADDRESS
+pnpm demo:crew play CIRCLE_ADDRESS --close</code></pre>
+    <p>Replace the uppercase placeholders; never run them literally. Keep invite links quoted because their fragments contain shell characters. Use actual circle and participant identifiers in the evidence record. <code>play --close</code> pays for eligible crew accounts, closes rounds and collects at the end. It is not a native passkey test.</p>
+    <p>Fresh defaults are Host, FriendA and FriendB. An existing <code>services/.crew.json</code> retains its original names and keys; nothing is renamed. The helper can assign an available account when a matching name is absent. Check <code>list</code>, join output and <code>status</code> to map accounts to seats. Use <code>--as EXISTING_NAME</code> only for an account already in that local file. Keys live in the gitignored crew file: do not publish it.</p>
+    <h3>One phone plus two helpers</h3>
+    <p>Create the circle in the actual app, invite your friends or join two seats with the helper, and record only the app screen. For the main demo use three members, $5, Every 10 min, In 30 min and earning off. Keep offers off until the simple cycle works. Start <code>pnpm demo:watch --circle CIRCLE_ADDRESS --name Host=PUBLIC_ADDRESS</code> in another terminal to retain matching indexer observations.</p>
+    <p>For the optional offer/miss story, create a separate circle with Host, Friend B, Friend A in the intended order; inspect the actual standing-based order. Enable offers up to 30%. Both not-yet-paid-out members must be eligible when the offer is committed. In round 2, Friend A contributes and offers 10%; Friend B skips the payment on purpose. Never infer that a prior miss leaves an account eligible for the next rehearsal.</p>
+    <div class="table-wrap"><table><thead><tr><th>10-minute test cadence</th><th>Action</th></tr></thead><tbody><tr><td>Before D1 − 4 min</td><td>Finish joining. D1 is the first due time shown by the chain/app.</td></tr><tr><td>Before each due time D</td><td>Pay the contribution shown. The demo grace window ends at D + 2 min.</td></tr><tr><td>D2 − 4 min to D2</td><td>Eligible Friend A seals the offer after paying.</td></tr><tr><td>D2 to D2 + 1 min</td><td>Reveal on the supported, unlocked device. Missing this window invalidates that offer.</td></tr><tr><td>At or after D + 2 min</td><td>An open member app or running keeper closes the round. If you want to capture the phone's auto-close notice, keep competing closers off.</td></tr></tbody></table></div>
+    <p>Read live due times after any late close; subsequent windows can shift. Offers and deliberately missed rounds require rehearsal, not a perfectly synchronized video shoot. If the original device cannot provide a passkey sheet in a screen recording, keep the real before/after sequence and caption the omitted secure prompt. Do not invent a successful prompt.</p>
+    <h3>When a rehearsal stalls</h3><ul><li>No gas or faucet cooldown: read the preflight output and fund test accounts ahead of time; sponsor caps can be shared by an IP address.</li><li>No offer button: check the commit window, unpaid status, standing and the number of eligible members.</li><li>Round waiting: keep the app open, tap the available close action, or run the keeper with a funded testnet key.</li><li>Join window expired: use the cancellation/refund path and start a new practice with enough joining time.</li><li>Restore incomplete: verify the same passkey and network services. Record a failure honestly; an animation cannot turn it into a pass.</li></ul>
+    <p>Collect remaining balances when the test circle finishes. Keep original captures and public receipt IDs, then cut them asynchronously into the product or sponsor video. No camera or shared location is needed.</p>
+  </section>
+
+  <section id="evidence" aria-labelledby="evidence-title">
+    <h2 id="evidence-title">Keep explanation and proof easy to distinguish</h2>
+    <div class="table-wrap"><table>
+      <caption>What each kind of footage can support</caption>
+      <thead><tr><th scope="col">Material</th><th scope="col">Label</th><th scope="col">What it establishes</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">SVG / HTML motion</th><td>Illustrated demo · sample data</td><td>The intended flow and the product idea.</td></tr>
+        <tr><th scope="row">QA browser screenshot</th><td>Sample interface · mocked data</td><td>How actual components look in a preview.</td></tr>
+        <tr><th scope="row">Actual app screen capture</th><td>Monad testnet · recorded [date]</td><td>Observed behavior in that specific build and take.</td></tr>
+        <tr><th scope="row">Explorer or indexer record</th><td>Actual transaction / query</td><td>The linked record. A terminal replay should say “recorded evidence,” not “live.”</td></tr>
+      </tbody>
+    </table></div>
+    <p>Do not add measured seconds, prompt counts, successful recovery, live indexer latency or completed payouts until they have been observed and retained. Do not call a testnet balance spendable cash or imply that an illustrated international group proves legal availability, local payment support or cash-out access in every country. The <a href="../submission/index.html">submission artifact</a> keeps missing proof explicit.</p>
+    <p>For authentic evidence, keep an unedited original and an evidence record with <code>clip</code>, <code>capturedAtUtc</code>, <code>appVersion</code>, <code>chainId</code>, <code>circleAddress</code>, <code>txHash</code>, <code>claim</code> and <code>editNotes</code>. Store only the public identifiers needed for review. A laptop-operated scripted member must be called a scripted member, not an independent user.</p>
+  </section>
+
+  <section id="remotion" aria-labelledby="remotion-title">
+    <h2 id="remotion-title">When to graduate to Remotion</h2>
+    <p>Move only when you need richer audio sequencing, repeated versions or a larger scene library. A Remotion composition names the video and defines width, height, frame rate and duration; its React components calculate what to draw at each frame. This fits a coding agent well and keeps typography and amounts editable. <a href="https://www.remotion.dev/docs/composition">Composition docs</a></p>
+    <p>The current license offers free commercial use for eligible individuals and companies of up to three people; collaborations and organizations of four or more need a company license. Check the actual team arrangement and installed version's terms. Merely putting three friends in a film does not determine eligibility. <a href="https://www.remotion.dev/docs/license/pricing">Pricing and eligibility</a> · <a href="https://www.remotion.dev/docs/license/faq">Collaboration FAQ</a></p>
+    <details>
+      <summary>Optional Remotion setup and render commands</summary>
+      <p>Scaffold in a fresh directory outside any Git checkout; the current noninteractive scaffolder rejects an existing repository. This example uses a temporary directory for evaluation. Copy approved source into a durable project afterward; do not depend on temporary files as your archive. <a href="https://www.remotion.dev/docs/cli/create-video">Scaffolder docs</a></p>
+      <pre><code>cd /tmp
+npx create-video --yes --blank kitty-remotion
+cd /tmp/kitty-remotion
+npm install
+npx remotion studio src/index.ts</code></pre>
+      <p>Ask the agent to create <code>KittyExplainer</code> as a 1920×1080, 30 fps, 2,700-frame composition using the approved scenes. Use <code>useCurrentFrame()</code> and deterministic interpolation; keep assets local and all Remotion packages at the same resolved version. For portrait, create a separate composition layout.</p>
+      <pre><code>npx remotion still src/index.ts KittyExplainer out/scene.png --frame=450
+npx remotion render src/index.ts KittyExplainer out/draft.mp4 --frames=0-149 --scale=0.5 --concurrency=1
+npx remotion render src/index.ts KittyExplainer out/kitty.mp4 --codec=h264 --pixel-format=yuv420p --crf=18 --concurrency=1</code></pre>
+      <p>Start with one render worker on a modest laptop. Increase concurrency only after a successful draft. If memory is tight, the documented <code>--disallow-parallel-encoding</code> flag trades speed for lower memory pressure. Commands follow <a href="https://www.remotion.dev/docs/cli/render">the render CLI</a>.</p>
+      <p>For captions, <code>@remotion/captions</code> can parse an SRT file into timed caption objects with <code>parseSrt({input})</code>. The agent still needs to render the active caption at the current frame; parsing does not place words on the video. Use manually checked cues for this short film. <a href="https://www.remotion.dev/docs/captions/parse-srt">Caption parser</a></p>
+    </details>
+  </section>
+
+  <section id="delivery" aria-labelledby="delivery-title">
+    <h2 id="delivery-title">An achievable first delivery</h2>
+    <div class="table-wrap"><table>
+      <caption>Planning estimates, not hardware benchmarks or vendor promises</caption>
+      <thead><tr><th scope="col">Item</th><th scope="col">Practical starting point</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Equipment</th><td>Existing laptop, browser and internet for setup/assistant access. No camera or dedicated microphone. For these simple 2D scenes, aim for 8 GB RAM; 16 GB gives more room. A discrete GPU is not a design requirement. Test your actual machine.</td></tr>
+        <tr><th scope="row">Storage</th><td>Reserve roughly 5–10 GB for tools, source assets and draft exports; retaining every 1080p PNG frame can require more. Clean only disposable frames after the final file has been checked.</td></tr>
+        <tr><th scope="row">Time</th><td>Estimate 30–60 minutes to read/review the first story, 1–3 hours to adapt scenes, 30–90 minutes for captions/audio, and 30–60 minutes for final review. First-time setup and real device evidence can add substantially more. Render a five-second sample to measure speed before predicting a full export.</td></tr>
+        <tr><th scope="row">Software spend</th><td>$0 incremental for the captioned local path if you already have coding-assistant access; electricity, bandwidth and your time excluded. AI subscription/API usage is separate. Optional licensed stock narration: budget approximately $6 plus tax for one Starter month at the checked price.</td></tr>
+      </tbody>
+    </table></div>
+    <h3>Export package</h3>
+    <ul>
+      <li><strong>Master:</strong> 1920×1080, 30 fps, H.264 MP4, yuv420p; AAC audio if present. Keep a 1280×720 draft for quick review.</li>
+      <li><strong>Social version:</strong> deliberately rearranged 1080×1920, 30 fps; make a separate 30-second cut from the script rather than merely speeding up the master.</li>
+      <li><strong>Accessibility:</strong> readable embedded captions plus UTF-8 SRT/VTT, an HTML transcript and useful poster image.</li>
+      <li><strong>Evidence:</strong> source clips and a small HTML/JSON record. Keep verified proof clips separate from the illustrated explainer.</li>
+      <li><strong>Archive:</strong> editable scene source, exact dependency lockfile if dependencies were added, fonts/artwork sources and music/voice license notes.</li>
+    </ul>
+    <p>Review the final encoded file on a phone-sized player as well as a laptop. Check it muted, listen once without watching, and inspect the first and last frame of every transition. Confirm the current submission form's duration and evidence rules before selecting a cut; the old script's guessed limits are not authority. Uploading or publishing is a separate step from making the files.</p>
+  </section>
+</main>
+<footer><p>Kitty production research · October 6, 2026. Tool documentation and pricing can change. <a href="../index.html">Back to the field guide</a></p></footer>
+</body>
+</html>

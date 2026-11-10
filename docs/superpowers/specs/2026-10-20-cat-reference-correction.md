@@ -1,0 +1,11 @@
+# Restore the original cat's character
+
+User feedback: “now they look really weird, the shape and coloring and all doesn't match the original, can you improve all of that using emils skills and impeccable?” This supersedes the previous artwork finish verdict. The original website artwork in `app/src/brandCat.ts` and `site/public/index.html` is the pinned visual reference; the rejected pose captures in `.impeccable/review/cat-art/` are anti-reference, not authority.
+
+Correction: use the original skull, tall ears, cheek tufts, compact two-lobed muzzle, round pupils, iris gradients, eye highlights, mouth, whiskers, seated body, chest and paws. Adapt that character to the existing six standing poses and deterministic coat/pattern identities. Rose follows the source pink gradient values. Other coats use coordinated head/body/muzzle/paw ramps with the same lighting and facial geometry. Preserve blue-charcoal Midnight with silver muzzle and amber eyes. Rebuild the overly wide belly pose with a compact torso and four connected, staggered paws.
+
+Quality bar: the original pink website cat, shown beside the actual new companion in `?screen=Cats`; same character shape and coloring at phone scale. Retain the website's white/pink/warm-room UI, existing copy and standing meaning. No new concept or brand direction is being chosen. Android is the product; per the user's continuing instruction, this review is local web first. Native appearance/performance requires a later phone check.
+
+Motion: keep bounded blink/petting reactions and static reduced-motion feedback, with original resting eye geometry shared between welcome and standing cats. Do not animate financial state or alter existing authentication/payment behavior. No new dependency or remote artwork.
+
+Verification: one batch across all six coats/poses, markings, thumbnail bounds, key screen layouts, expression/reduced-motion behavior, TypeScript and existing app tests; then one correction confirmation if needed and a fresh Impeccable finish reviewer supplied the user's rejection plus original/reference/corrected captures. Update targeted artwork documentation only. Stay on `design/website-inspired-app`; preserve other local edits. Nothing committed, pushed, deployed or published.

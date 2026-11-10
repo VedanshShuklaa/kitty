@@ -9,7 +9,10 @@
     "sponsor": "tsx src/sponsor/index.ts",
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "demo:check": "tsx src/demo/check.ts",
+    "demo:watch": "tsx src/demo/watch.ts",
+    "demo:crew": "tsx src/demo/crew.ts"
   },
   "dependencies": {
     "fastify": "^5.12.5",

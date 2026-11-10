@@ -1,0 +1,196 @@
+KITTY — AFTER MEET KITTY
+Prepared 8 October 2026
+
+Ten X drafts and two templates. Drafts only; nothing posted or scheduled.
+Context, media directions, alt text and sources: kitty-followups.html
+Research: monad-field-notes.html
+
+Suggested order: 02, 03, 04, 05, 07, 06, 09, then an actual feedback/result update.
+Use 08 or 11 when you want a focused question. Use 10 only after native capture.
+
+POST 02
+243 characters before URL shortening.
+Text ready. Optional existing motion cut; label sample data and gross pot.
+
+A Kitty round, in numbers:
+
+3 friends put in 5 test AUSD each.
+15 test AUSD in the gross pot.
+One person's turn to receive it.
+
+Deposits are separate. Payout rules can hold part back.
+
+This example uses no offers.
+Monad testnet. No real money.
+
+------------------------------------------------
+
+POST 03
+258 characters before URL shortening.
+Text ready. Optional standing screen; petting does not change standing.
+
+You can pet your Kitty.
+You can't pet your way to better standing.
+
+The cat reflects your record across savings circles: commitments kept, payments missed, debts left behind.
+
+A little face for a record that would otherwise be easy to ignore.
+
+Monad testnet.
+
+------------------------------------------------
+
+POST 04
+265 characters before URL shortening.
+Pair with current-build stage-guide and keepsake captures. Label sample data. This does not announce a new APK.
+
+A small Kitty update:
+
+Six cat stages, with a guide you can open to understand them.
+Keepsakes from your circle history.
+Clearer standing and debt states.
+
+The cat is the friendly part. Understanding what it means is the job.
+
+Built for our Monad testnet prototype.
+
+------------------------------------------------
+
+POST 05
+270 characters before URL shortening.
+Text ready. Optional join-screen capture with contribution and deposit visible.
+
+Two amounts you'll see when joining Kitty:
+
+Contribution: what you put into the pot each round.
+Deposit: a separate amount that helps cover missed payments.
+
+We want that difference to be clear before anyone joins.
+
+Which word needs a better explanation?
+
+Monad testnet.
+
+------------------------------------------------
+
+POST 06
+261 characters before URL shortening.
+Text ready. Introduces ordinary missed payments; defaults need a fuller worked example.
+
+What if someone misses a Kitty payment?
+
+The rules use their deposit, then available pool funds. They still need to catch up.
+
+Those buffers can run short. A contract doesn't make every payout guaranteed.
+
+That's part of the circle's terms, too.
+
+Monad testnet.
+
+------------------------------------------------
+
+POST 07
+267 characters before URL shortening.
+Text ready. Optional existing circle diagram showing continuing contributions.
+
+Getting the pot doesn't mean you're done.
+
+If your Kitty turn comes first, you still contribute in the rounds after it. The next person is counting on the same promise you made.
+
+Your turn changes when you receive the pot, not whether you keep paying.
+
+Monad testnet.
+
+------------------------------------------------
+
+POST 08
+237 characters before URL shortening.
+Text ready. A discussion prompt, not a claim of prior user research.
+
+Before joining a Kitty circle, you should be able to answer:
+
+What do I put in?
+When is my turn?
+What happens if I miss a payment?
+
+That's the clarity we're building toward.
+
+If you've run a savings circle, which question comes up first?
+
+------------------------------------------------
+
+POST 09
+240 characters before URL shortening.
+Check that the current Android download and practice path work before posting. Native installation was not re-tested for this pack.
+
+Want to try one Kitty practice circle?
+
+Android + Monad testnet. Test AUSD only; it has no cash value.
+
+Start here:
+https://kitty-circle.vercel.app/download
+
+When you reach the circle, tell us the first thing you had to stop and figure out.
+
+------------------------------------------------
+
+POST 10
+233 characters before URL shortening.
+REQUIRES genuine native payment capture and matching receipt. Do not use with a sample preview or animation.
+
+One contribution, from tap to record.
+
+This clip follows a real Kitty payment on Monad testnet: the amount due, the confirmation, and the updated circle.
+
+Test AUSD only. No real money.
+
+Could you tell what changed after the payment?
+
+------------------------------------------------
+
+POST 11
+257 characters before URL shortening.
+Text ready. Optional sample standing view; label sample data.
+
+A Kitty design question:
+
+Would you understand your cat's standing better from the stage name, the circle history, or both together?
+
+We're trying to make the record easy to read without turning every screen into a scorecard.
+
+Which would you look at first?
+
+------------------------------------------------
+
+FEEDBACK TEMPLATE
+Template: replace all brackets with actual observations; re-check length.
+Do not present placeholder text as observed results.
+
+Kitty build note:
+
+[Specific thing we observed in a test.]
+
+We changed [one label, step or screen].
+
+Next test: can someone [complete the task] without us explaining it?
+
+Monad testnet. [Attach the actual change.]
+
+------------------------------------------------
+
+RESULTS TEMPLATE
+Template: replace all brackets with actual observations; re-check length.
+Do not present placeholder text as observed results.
+
+Kitty practice-circle notes:
+
+[N] people tried it.
+[n/N] joined without help.
+[n/N] could explain what they still owed after payout.
+
+Biggest sticking point: [observed issue].
+Next change: [specific change].
+
+Monad testnet. Test AUSD only.
+
+------------------------------------------------

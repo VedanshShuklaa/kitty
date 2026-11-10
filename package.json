@@ -13,6 +13,10 @@
     "test:indexer": "pnpm --filter indexer test",
     "test:services": "pnpm --filter services test",
     "test:app": "pnpm --filter app test",
-    "lint": "pnpm -r lint"
+    "lint": "pnpm -r lint",
+    "keeper": "pnpm --filter services keeper",
+    "demo:check": "pnpm --filter services demo:check",
+    "demo:watch": "pnpm --filter services demo:watch",
+    "demo:crew": "pnpm --filter services demo:crew"
   }
 }

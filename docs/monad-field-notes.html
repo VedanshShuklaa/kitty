@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Six Monad ecosystem communication case studies: pitches, demos, public shipping, and practical lessons for Kitty, with dated sources.">
+  <title>Monad field notes · Kitty</title>
+  <link rel="icon" href="assets/kitty-logo.png" type="image/png">
+  <link rel="stylesheet" href="assets/kit.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to research</a>
+<header class="topbar">
+  <a class="brand" href="index.html"><img src="assets/kitty-logo.png" alt="">kitty</a>
+  <nav aria-label="Kitty documents"><a href="index.html">Story kit</a><a href="monad-field-notes.html" aria-current="page">Monad research</a><a href="kitty-followups.html">Follow-up posts</a><a href="demo/production.html">Production</a></nav>
+</header>
+<main id="main">
+  <div class="hero">
+    <p class="eyebrow">Research notebook · 8 October 2026</p>
+    <h1>Show the habit.<br>Then show the work.</h1>
+    <p class="lede">What Kitty can learn from six Monad ecosystem products: how they pitch, demonstrate a first action, and bring people along while the product changes.</p>
+    <p>The most useful pattern is a familiar situation, one visible action, and an honest reason to return. The strongest public records also show friction, failed incentives and changes of direction.</p>
+    <div class="actions"><a class="button" href="kitty-followups.html">Open Kitty's next posts</a><a class="button secondary" href="#watch">Pitch &amp; demo library</a></div>
+    <p class="small">Researched 7–8 October 2026. Communication case studies, not a ranking or a claim that these are direct savings-circle competitors. The broader <a href="market-research.html">savings-market research</a> remains separate.</p>
+  </div>
+  <nav class="toc" aria-label="On this page"><a href="#decisions">What to use</a><a href="#map">Case map</a><a href="#kizzy">Kizzy</a><a href="#lootgo">LootGO</a><a href="#haha">HaHa</a><a href="#kuru">Kuru</a><a href="#curvance">Curvance</a><a href="#fluffle">Fluffle</a><a href="#watch">Demos</a><a href="#kittys-demo">Kitty's next demo</a><a href="#method">Evidence &amp; limits</a></nav>
+
+  <section id="decisions" aria-labelledby="decisions-title">
+    <h2 id="decisions-title">Five decisions for Kitty</h2>
+    <div class="grid">
+      <article class="card"><h3>1. Keep the familiar opening</h3><p>Your first post already does this: a savings circle your family recognizes. Kizzy's historical pitch started with familiar media habits; LootGO uses a familiar walking game. <strong>Next, explain one round with three people and a visible result.</strong> <a href="#kizzy">Kizzy example</a> · <a href="#lootgo">LootGO example</a></p></article>
+      <article class="card"><h3>2. Make each demo answer a question</h3><p>Kuru's documentation separates swapping from trading; Curvance gives testers specific actions. For Kitty, answer “What do I put in?”, “What do I receive?” and “What do I still owe?” in separate short cuts. <a href="#kuru">Kuru example</a> · <a href="#curvance">Curvance example</a></p></article>
+      <article class="card"><h3>3. Publish a change with its reason</h3><p>Kizzy records dated releases and user friction. HaHa's old development posts distinguish available work from upcoming work. Kitty can show a stage guide, clearer payment state or corrected sentence, then ask whether the change helped. <a href="#kizzy">Kizzy log</a> · <a href="#haha">HaHa log</a></p></article>
+      <article class="card"><h3>4. Give the mascot a precise job</h3><p>For Kitty, the cat makes an account's standing visible. Explain that relationship and show the record beside it. Whether this helps people understand or keep a commitment is a hypothesis to test; appealing artwork alone does not establish it. <a href="#fluffle">Fluffle comparison</a> · <a href="../README.md">Kitty's current behavior</a></p></article>
+    </div>
+    <div class="callout"><strong>5. Measure a completed task.</strong> Kizzy's later writing describes weak retention after rewards; HaHa's shutdown announcement shows why impressive acquisition claims are insufficient evidence of durability. For Kitty, record how many invited humans join without help and correctly explain their remaining obligation. Treat likes, views and scripted demo accounts as different measures. <a href="#kizzy">Retention evidence</a> · <a href="#haha">Shutdown evidence</a></div>
+    <p class="small">These are recommendations inferred from the cases, not experimentally proven marketing rules. No optimal posting frequency, conversion lift or mascot effect was established.</p>
+  </section>
+
+  <section id="map" aria-labelledby="map-title">
+    <h2 id="map-title">The cases, with time attached</h2>
+    <div class="table-wrap"><table>
+      <caption>Why each product is useful to study</caption>
+      <thead><tr><th scope="col">Product</th><th scope="col">Evidence reviewed</th><th scope="col">Useful lesson</th><th scope="col">Status qualification</th></tr></thead>
+      <tbody>
+        <tr><th scope="row"><a href="#kizzy">Kizzy</a></th><td>2024 pitch transcript; 2026 guides and retrospectives</td><td>Audience participation → worked example → invitation; candid learning later</td><td>August 2026 post describes retiring PvP and a casino pivot.</td></tr>
+        <tr><th scope="row"><a href="#lootgo">LootGO</a></th><td>2024 pitch transcript; docs, campaign pages and store history</td><td>Three-action demo and a shared community objective</td><td>Multi-chain. Pre-mainnet campaign pages are historical.</td></tr>
+        <tr><th scope="row"><a href="#haha">HaHa Wallet</a></th><td>2024 development log; 2025 quests; founder shutdown statement</td><td>Concrete updates and a reason for a second visit</td><td>Announced servers would shut down 31 July 2026; operational state not independently tested.</td></tr>
+        <tr><th scope="row"><a href="#kuru">Kuru</a></th><td>2024–25 launch writing; current product docs</td><td>Connect infrastructure to a visible user task</td><td>Documented interface reviewed; no trade executed.</td></tr>
+        <tr><th scope="row"><a href="#curvance">Curvance</a></th><td>2024 testnet guide; 2026 Monad articles</td><td>Specific tester tasks and explicit configuration limits</td><td>Early testnet guide was on Sepolia; later sources establish Monad context.</td></tr>
+        <tr><th scope="row"><a href="#fluffle">Fluffle</a></th><td>2025 ecosystem description; 2026 product page and terms</td><td>Recheck the actual product behind a familiar mascot</td><td>Current voice-data proposition differs from the historical focus-app description.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section id="kizzy" aria-labelledby="kizzy-title">
+    <p class="eyebrow">01 · Familiar behavior, followed by public course correction</p>
+    <h2 id="kizzy-title">Kizzy: the pitch is only the first chapter</h2>
+    <p><strong>Observed pitch.</strong> In the November 2024 Bangkok competition, the founder asks about familiar social-media and betting habits before introducing the product. At <a href="https://www.youtube.com/watch?v=IlODZnHHM3g&amp;t=4288s">1:11:28</a>, the explanation follows one creator, a views threshold and an over/under outcome. At <a href="https://www.youtube.com/watch?v=IlODZnHHM3g&amp;t=4452s">1:14:12</a>, it ends with an invitation. This is a historical pitch, reviewed through the recording's transcript.</p>
+    <p><strong>Demo pattern.</strong> The first-party <a href="https://blog.kizzy.io/get-started-new-player-guide/">new-player guide</a>, dated 5 February 2026 and subsequently edited, breaks access into illustrated steps: sign in, install the PWA, explore, then complete the required account and funding steps. Its usefulness is the visible sequence. It should not be treated as instructions for today's changed product.</p>
+    <p><strong>What they put in public.</strong> The <a href="https://blog.kizzy.io/purple-k-is-powering-up-welcome-back/">11 March 2026 retrospective</a> ties changes to dates: missions and fixes in January, a February frontend overhaul, browsing without authentication on 2 March, and caption bets on 6 March. It also describes users leaving after a reward-qualification campaign. The <a href="https://blog.kizzy.io/is-kizzy-even-shipping-announcement-recap/">22 April recap</a> makes shipped and planned work inspectable and discusses criticism of its UI overhaul.</p>
+    <div class="callout"><strong>Counter-evidence matters.</strong> The <a href="https://blog.kizzy.io/kizzy-the-monad-crypto-casino-story-terminating-pvp-and-forging-our-future/">25 August 2026 retrospective</a> says PvP was effectively retired. It discusses manipulable social metrics, difficulty sustaining two-sided liquidity, conversion friction and weak reward-driven retention, alongside a move toward casino products. These are the team's explanations, not an independent causal study. A polished early pitch did not establish a durable model.</div>
+    <p><strong>For Kitty.</strong> Borrow the explanation structure and the frank development log. Show one round, then publish a specific uncertainty or change: “We added a stage guide. Can you tell what changes your cat's standing?” Follow the same question through feedback and a later fix. The financial incentives and gambling mechanics do not transfer to Kitty's saving commitment.</p>
+    <p class="small">A particularly useful follow-up: the <a href="https://www.youtube.com/watch?v=IlODZnHHM3g&amp;t=4575s">judges' manipulation question at 1:16:15</a>, read alongside the later retrospective. For Kitty, anticipate the equivalent hard question: what can still go wrong when someone misses a payment?</p>
+  </section>
+
+  <section id="lootgo" aria-labelledby="lootgo-title">
+    <p class="eyebrow">02 · A first action you can picture</p>
+    <h2 id="lootgo-title">LootGO: walk, collect, open</h2>
+    <p><strong>Observed pitch.</strong> The <a href="https://lootgo.gitbook.io/lootgo">official documentation</a> uses the analogy “Pokémon GO, but with crypto rewards.” At <a href="https://www.youtube.com/watch?v=IlODZnHHM3g&amp;t=4741s">1:19:01 in the Bangkok pitch</a>, walking, collecting and opening boxes make the first experience concrete. The later <a href="https://www.youtube.com/watch?v=IlODZnHHM3g&amp;t=5011s">Q&amp;A at 1:23:31</a> turns to sponsor acquisition and reward funding. The transcript supports the narrative sequence; it does not verify the economics.</p>
+    <p><strong>Demo pattern.</strong> The <a href="https://momentum.lootgo.app/">Monad Treasure Hunt page</a> compresses participation into three illustrated actions, with partner identities close to the activity. Its December date lacks a year, so it is a campaign example rather than a confirmed live offer. The <a href="https://road.lootgo.app/">Road to Mainnet page</a> links individual walking to a shared billion-step target and intermediate milestones. That is a historical pre-mainnet objective; neither the target nor a loading counter proves participation or completion.</p>
+    <p><strong>What they put in public.</strong> The <a href="https://apps.apple.com/us/app/lootgo/id6740266137">App Store version history</a> records concrete 2025 work such as map updates and events. The <a href="https://github.com/loot-Go/lootgo.app">public hackathon repository</a> provides access links and technical material. That repository's Solana work must be kept separate from claims about Monad activity.</p>
+    <p><strong>For Kitty.</strong> Use “Join a circle → pay a round → see the record” as a demo spine. For a tester invitation, give one achievable task and a clear endpoint. An initial target might be three independent testers explaining the next payment correctly; call it a target until measured. A community counter is useful only if the underlying behavior matters.</p>
+    <p class="small"><strong>Limit:</strong> product pages, campaigns and release notes establish communication and shipping examples, not sustained engagement. LootGO spans multiple chains; being associated with Monad does not make every feature Monad-specific.</p>
+  </section>
+
+  <section id="haha" aria-labelledby="haha-title">
+    <p class="eyebrow">03 · Useful historical practice, qualified by a shutdown announcement</p>
+    <h2 id="haha-title">HaHa Wallet: make progress specific</h2>
+    <p><strong>Observed positioning and demo.</strong> HaHa's public material combines a consumer wallet with Monad-related quests. The <a href="https://blog.haha.me/haha-wallet-x-enjoyoors-part-2-now-unlocked/">28 July 2025 Enjoyoors post</a> explains a quest path and a second unlock inside a finite July campaign. It is an illustrated participation guide, not evidence that the campaign is still available.</p>
+    <p><strong>What they put in public.</strong> The <a href="https://blog.haha.me/haha-in-development-whats-going-on-in-the-backend/">18 November 2024 development update</a> separates mobile and extension work, names interface and connection improvements, and distinguishes partner-only development access from future invitations. Its value is specificity: a reader can see which part changed and who can use it.</p>
+    <p><strong>Why a sequel can work.</strong> “Part 2” gives prior participants a recognizable reason to revisit, with a new task rather than a repeated introduction. For Kitty, that can become a recurring “One round with Kitty” series: contribution, payout, missed payment, final collection. Each episode should resolve one question.</p>
+    <div class="callout"><strong>Historical case.</strong> On the <a href="https://www.linkedin.com/company/haha-app">official company LinkedIn page</a>, a reposted statement from founder Mu Li specifies a server shutdown date of <strong>31 July 2026</strong> and describes difficulty reaching the required scale. The exact publication date was not resolved. A still-visible landing page is insufficient evidence of an operating service; we did not independently test the shutdown. This is not an installation recommendation.</div>
+    <p><strong>For Kitty.</strong> Publish “built in this version,” “available to testers,” and “next to verify” separately. Turn a prior post into a useful sequel. HaHa's acquisition and activity figures were self-reported, and the shutdown announcement makes them especially unsuitable as proof that quest participation creates a sustainable business.</p>
+  </section>
+
+  <section id="kuru" aria-labelledby="kuru-title">
+    <p class="eyebrow">04 · Explain why the infrastructure changes the experience</p>
+    <h2 id="kuru-title">Kuru: connect the chain to the task</h2>
+    <p><strong>Observed pitch.</strong> The <a href="https://blog.kuru.io/p/kuru-labs-raises-2-million-seed-round">25 July 2024 announcement</a> connects the costs and responsiveness of onchain order books to what Monad could enable. By <a href="https://blog.kuru.io/p/kuru-labs-raises-116m-led-by-paradigm">7 July 2025</a>, the account emphasizes an integrated trading experience and hybrid liquidity. The pitch evolves with the product; its architecture should not be frozen at the seed announcement.</p>
+    <p><strong>Demo pattern.</strong> The current <a href="https://docs.kuru.io/">documentation</a> presents a trading hub. Separate <a href="https://docs.kuru.io/product/swap">Swap</a> and <a href="https://docs.kuru.io/product/trade">Trade</a> pages show interface elements, settings and resulting states, including positions, orders and unclaimed assets. This is a documented UI walkthrough. We did not execute a trade or verify a video demo.</p>
+    <p><strong>What they put in public.</strong> The dated announcements and detailed docs expose how the product is being framed and used. This source set does not establish a regular founder build-log cadence, nor whether a particular post drove adoption.</p>
+    <p><strong>For Kitty.</strong> Put the observable outcome first: a member can see whether their contribution was recorded and what happens next. Explain Monad when showing the recurring transaction or shared record. Explain Mera when showing the passkey. A partner-specific clip should show the relevant action and evidence; a row of partner logos cannot do that job.</p>
+  </section>
+
+  <section id="curvance" aria-labelledby="curvance-title">
+    <p class="eyebrow">05 · Give testers a task and a place for the answer</p>
+    <h2 id="curvance-title">Curvance: turn access into a feedback loop</h2>
+    <p><strong>Observed pitch.</strong> The <a href="https://blog.curvance.com/posts/using-pendle-pt-ausd-as-collateral-on-curvance/">27 June 2026 PT-AUSD article</a> starts with a particular asset and collateral use case on Monad, then explains mechanics and risks. It is a narrow user job, not a generic claim about the future of DeFi. The underlying lending strategy is not a recommendation for Kitty users.</p>
+    <p><strong>Demo and participation pattern.</strong> The <a href="https://curvance.medium.com/curvance-testnet-guide-c678b2bb76a9">testnet guide dated 22 April 2024</a> provides illustrated tasks such as obtaining test assets, depositing, borrowing and repaying, with phased access and an explicit feedback channel. That guide describes <strong>Sepolia</strong>; it is historical process evidence, not a current Monad walkthrough. Rewarded tasks also complicate any inference about organic demand.</p>
+    <p><strong>What they put in public.</strong> The guide makes participation concrete. The <a href="https://blog.curvance.com/posts/oracles-curvance/">16 September 2026 oracle article</a> further distinguishes supported capabilities from the configuration actually in use. This is a useful standard for technical communication: readers should be able to tell what is live.</p>
+    <p><strong>For Kitty.</strong> Ask a tester to join a practice circle, find the next due amount and explain what happens after their payout. End with a specific prompt: “Which number looked like a fee?” Record the confusing screen, the change, and the next person's result. When describing automation, preserve Kitty's actual dependency: a round closes through a member's open app or a running keeper; the repository says no hosted keeper is running.</p>
+  </section>
+
+  <section id="fluffle" aria-labelledby="fluffle-title">
+    <p class="eyebrow">06 · A mascot can outlast a product description</p>
+    <h2 id="fluffle-title">Fluffle: verify what the habit is now</h2>
+    <p><strong>Historical versus current pitch.</strong> A <a href="https://castlelabs.io/research/the-monad-ecosystem-guide-everything">12 November 2025 ecosystem guide</a> describes a focus-oriented experience with a dragon island. This is a secondary snapshot. The <a href="https://www.fluffle.world/">current first-party site</a> instead leads with earning from conversations with friends: calls become eligible voice data for buyers. The evidence establishes a changed public proposition, not the exact pivot date or its cause.</p>
+    <p><strong>Demo pattern.</strong> The current landing-page sequence moves from finding friends to calling and the data/reward process. It makes a social activity the entry point. The <a href="https://www.fluffle.world/terms">terms, updated 18 June 2026</a>, condition compensation on eligible recordings being purchased or approved by partners and describe optional USDC payouts to a Monad wallet. This matters when interpreting the simple headline; conversation alone does not establish payment.</p>
+    <p><strong>Build-in-public coverage gap.</strong> We found product messaging and a historical description, but did not verify a dated sequence of founder updates explaining the change. Do not invent a shipping cadence, retention story or reason for the shift.</p>
+    <p><strong>For Kitty.</strong> Give the cat a short, accurate explanation beside its visible state. Let people open the standing guide and inspect what the record means. Test comprehension before assuming the character changes saving behavior. A model where people sell voice data is only a messaging comparison; it is not a proposed feature for Kitty.</p>
+  </section>
+
+  <section id="watch" aria-labelledby="watch-title">
+    <h2 id="watch-title">A pitch &amp; demo library to return to</h2>
+    <p>The <a href="https://madness.monad.xyz/madness-events/madness-bangkok-2024">official Bangkok event page</a> dates the competition to 16–17 November 2024 and links the recording. Its upload date is later. The entries below specify what was actually reviewed.</p>
+    <div class="table-wrap"><table>
+      <caption>Reference material and the question to ask while reviewing it</caption>
+      <thead><tr><th scope="col">Open the example</th><th scope="col">Review type</th><th scope="col">What to inspect</th><th scope="col">Kitty adaptation</th></tr></thead>
+      <tbody>
+        <tr><th scope="row"><a href="https://www.youtube.com/watch?v=IlODZnHHM3g&amp;t=4158s">Kizzy chapter · 1:09:18</a></th><td>Pitch + Q&amp;A transcript</td><td>How a familiar habit becomes a concrete product example and invitation.</td><td>One round before the full feature set.</td></tr>
+        <tr><th scope="row"><a href="https://www.youtube.com/watch?v=IlODZnHHM3g&amp;t=4676s">LootGO chapter · 1:17:56</a></th><td>Pitch + Q&amp;A transcript</td><td>How little explanation the first action needs, and which economics judges question.</td><td>A short action loop plus a direct answer about obligations.</td></tr>
+        <tr><th scope="row"><a href="https://blog.kizzy.io/get-started-new-player-guide/">Kizzy player guide</a></th><td>Historical illustrated guide</td><td>The sequence from access to a first meaningful action.</td><td>Show the join flow and its deposit clearly.</td></tr>
+        <tr><th scope="row"><a href="https://momentum.lootgo.app/">LootGO Treasure Hunt</a></th><td>Campaign page</td><td>Three steps, a recognizable goal, and an invitation.</td><td>One bounded practice-circle task.</td></tr>
+        <tr><th scope="row"><a href="https://docs.kuru.io/product/trade">Kuru Trade</a></th><td>Documented UI</td><td>How the action and its resulting state are named.</td><td>Contribution submitted → recorded → next amount due.</td></tr>
+        <tr><th scope="row"><a href="https://curvance.medium.com/curvance-testnet-guide-c678b2bb76a9">Curvance testnet guide</a></th><td>Historical Sepolia tutorial</td><td>A task list that produces actionable feedback.</td><td>Ask where the person got stuck, with one screen or step.</td></tr>
+      </tbody>
+    </table></div>
+    <p class="small">The two pitch chapters were reviewed through available transcripts, including audience/judge questions. We did not watch the entire four-hour recording or validate every slide and video frame. Written guides are identified as such; none of these reviews involved funding a wallet or executing a product transaction.</p>
+  </section>
+
+  <section id="kittys-demo" aria-labelledby="kittys-demo-title">
+    <h2 id="kittys-demo-title">Kitty's next 45 seconds</h2>
+    <p><strong>Recommended next post:</strong> the <a href="kitty-followups.html#post-02">three-person round</a>. The introduction already covers the idea, custody and cat. Move the story forward by answering what happens to one contribution.</p>
+    <div class="table-wrap"><table>
+      <caption>A proposed product-demo cut; not a claim that this recording already exists</caption>
+      <thead><tr><th scope="col">Time</th><th scope="col">Show</th><th scope="col">Viewer should understand</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">0–5s</th><td>One named circle, three members and 5 test AUSD each</td><td>A 15 test AUSD gross pot, with deposits separate.</td></tr>
+        <tr><th scope="row">5–15s</th><td>Terms: contribution, deposit, payout order and any holdback</td><td>What joining commits this person to.</td></tr>
+        <tr><th scope="row">15–25s</th><td>A real contribution action and matching recorded state</td><td>What changed after paying; link the receipt when claiming settlement.</td></tr>
+        <tr><th scope="row">25–35s</th><td>The recipient's paid amount and any retained amount</td><td>Gross pot and immediately available payout can differ.</td></tr>
+        <tr><th scope="row">35–45s</th><td>The next due amount and a single practice invitation</td><td>Receiving a payout does not remove future contributions.</td></tr>
+      </tbody>
+    </table></div>
+    <p>Reuse the <a href="demo/animatic.html">existing motion study</a> for the arithmetic explainer and the existing app preview for sample screen images. Keep an “Illustrated demo · sample data · Monad testnet” label visible. For a working-product cut, follow the <a href="demo/production.html#testnet-runbook">native evidence runbook</a>; mark edits and compressed waits. An animated payment is explanation, not a receipt.</p>
+    <h3>A repeatable public-build note</h3>
+    <p><strong>Question → observed difficulty → change → next test.</strong> Only fill the middle two after they happen. If the change is developer-driven, say that; do not invent a tester quote to give it a story. The <a href="kitty-followups.html#templates">post pack includes fill-in drafts</a>.</p>
+    <h3>What to measure during the next practice run</h3>
+    <ul>
+      <li><strong>Access:</strong> invited humans, people who start, and people who join without help. Report both counts and the denominator.</li>
+      <li><strong>Understanding:</strong> people who correctly explain deposit versus contribution and their obligation after payout.</li>
+      <li><strong>Completion:</strong> people who pay the first round and finish the practice circle. Separate scripted accounts and assisted sessions.</li>
+      <li><strong>Return:</strong> follow up after an agreed interval. A minute-long testnet rehearsal does not establish a real recurring saving habit.</li>
+    </ul>
+    <p class="small">These are proposed research measures. No new user interviews, cohort experiment or product-usage analysis was conducted for this artifact.</p>
+  </section>
+
+  <section id="method" aria-labelledby="method-title">
+    <h2 id="method-title">How to read the evidence</h2>
+    <p><strong>Selection.</strong> Six cases cover consumer behavior, a mascot-led proposition, wallets, trading and lending. They were selected for transferable communication examples and accessible evidence. This is a purposive sample with survivorship and documentation bias, not a census of Monad products or a competitive market-share study.</p>
+    <p><strong>Source hierarchy.</strong> Product docs, company blogs, store release notes and the official event/recording are primary material for what teams said or showed. The Fluffle history uses a clearly identified secondary ecosystem guide. HaHa's shutdown date comes from its founder's statement reposted by the official company account. Links appear beside the claims they support.</p>
+    <p><strong>Dates and confidence.</strong> Visible publication dates are supplied where available; some pages are undated or subsequently edited. Historical testnets and campaigns are not described as current offers. Kizzy's changed positioning and HaHa's shutdown announcement are material qualifications, not footnotes to ignore.</p>
+    <p><strong>What remains unknown.</strong> We did not audit team-reported metrics, attribute conversions to posts, establish current campaign availability, or infer outcomes from follower counts. We found no reliable basis for a “best-performing post” ranking. Direct X access and indexing were uneven, so dated first-party write-ups and the recording carry most of the build-in-public evidence.</p>
+    <p><strong>Kitty claim basis.</strong> Follow-up copy uses your supplied <a href="https://x.com/Kitty_Monad/status/2107426942249214288">first-post text</a>, the current <a href="../README.md">repository README</a>, existing <a href="demo/script.html">scripts</a>, and the local build log. This research did not independently re-run live app flows. Posts that claim an observed native transaction have a capture requirement in the companion pack.</p>
+  </section>
+</main>
+<footer>Kitty research artifact · 8 October 2026 · Sources support observations; proposed applications are editorial judgments. <a href="kitty-followups.html">Continue to the follow-up posts</a>.</footer>
+</body>
+</html>

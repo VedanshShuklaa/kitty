@@ -1,20 +1,41 @@
 # Kitty
 
-**Your circle, minus the collector.**
+**Save with people you trust.**
 
-Kitty is a rotating savings circle (a *susu*, *chama*, *esusu* or ROSCA) on [Monad](https://monad.xyz)
+Kitty helps friends run rotating savings circles on [Monad](https://monad.xyz)
 testnet. A group of people who trust each other each put in the same amount every round, and each round
-one of them takes the whole pot. A contract holds the money instead of a collector: it takes the
-deposits, covers anyone who misses a round, hands out the pot in a fair order, and returns what's left
+one of them receives the scheduled pot payout. A contract holds the money instead of a collector: it takes the
+deposits, uses available deposits and pool funds to cover misses, applies the payout rules, and returns what's left
 at the end. Members sign in with a **passkey** (fingerprint or screen lock). There is no seed phrase,
 no wallet app, and no gas to find.
 
 Everything runs on testnet with test dollars (Agora's testnet AUSD). It is a hackathon build, not a
 financial product.
 
-- Android app: <https://kitty-circle.vercel.app/download>
+- Android app: <https://kitty-circle.vercel.app/download> (Android only for now)
 - Site, invite and money-link pages: <https://kitty-circle.vercel.app>
-- Live contract addresses: [`deployments/10143.json`](deployments/10143.json) (verified on MonadVision)
+- Live contract addresses: [`deployments/10143.json`](deployments/10143.json), verified on Monad
+  testnet
+- The indexer's GraphQL, public: <https://kitty-circle.vercel.app/api/graphql>
+
+## For judges
+
+Kitty is entered in Monad's Metropolis hackathon in the **Consumer Products & Payments** track,
+and for four bounties:
+
+| Bounty | What to look at | Write-up |
+| --- | --- | --- |
+| Agora: Best Cross-Border Payments App | Sending through Agora's Instant Settlement pair, with the recipient as the swap's destination ([`app/src/money.ts`](app/src/money.ts)) | [docs/submission/index.html#agora](docs/submission/index.html#agora) |
+| Envio: Best Use of Envio | A two-chain HyperIndex behind every screen that needs the past ([`indexer/`](indexer/)) | [docs/submission/index.html#envio](docs/submission/index.html#envio) |
+| Best Mera-Powered UX | Passkey sessions with expiry and same-passkey restoration through the indexer and encrypted storage ([`app/src/session.tsx`](app/src/session.tsx), [`app/src/policy.ts`](app/src/policy.ts)) | [docs/submission/index.html#mera-ux](docs/submission/index.html#mera-ux) |
+| Mera: One Passkey, Many Keys | Seven HKDF namespaces: sealed-bid salts, invite capabilities, roster encryption, a profile vault and send links ([`app/src/account/keys.ts`](app/src/account/keys.ts)) | [docs/submission/index.html#mera-keys](docs/submission/index.html#mera-keys) |
+
+To try it on an Android phone, follow the
+[steps to try](docs/submission/index.html#steps-to-try). Revised scripts, market research,
+and a camera-free AI production workflow are in the [HTML production kit](docs/index.html).
+The included [motion draft](docs/demo/animatic.html) illustrates the idea with sample data; it is not live payment evidence.
+See the [Monad product field notes](docs/monad-field-notes.html) for sourced pitch, demo and public-build examples,
+and the [Kitty follow-up post pack](docs/kitty-followups.html) for copy after the introduction.
 
 ## How a circle works
 
@@ -34,8 +55,8 @@ financial product.
 6. **Finish.** When every round has run, everyone collects their deposit, their credits, their share of
    the pool and any (simulated) yield.
 
-Rounds close by themselves: any member's app hands out a due pot, and `services/` has a keeper that
-does it for everyone. If a round is closed late, the next round's due time moves so its members still
+Rounds close when a member's open app submits the close, or when the `services/` keeper runs.
+No hosted keeper is currently running. If a round is closed late, the next round's due time moves so its members still
 get a full window to pay.
 
 ### Standing: Feed the Kitty
@@ -65,8 +86,9 @@ A pnpm monorepo:
 A passkey's WebAuthn PRF output is the root secret. Every other key Kitty needs is derived from it with
 domain-separated HKDF: the account key, each round's sealed-bid salt, each seat's invite key, the
 roster key and its per-member wrap, the profile key, and the one-time keys behind send links. A
-reinstall on a new phone signs in with the same passkey and gets everything back, including the
-ability to open a sealed offer. Nothing secret is stored on the phone or the server.
+reinstall can restore the account and encrypted app state with the same supported passkey and
+available network services, including the ability to open an offer within its reveal window.
+Root secrets are not uploaded; invite and send links carry capabilities that must remain private.
 
 ### Money moves through Agora
 
@@ -94,6 +116,28 @@ and TypeScript sides can't silently disagree.
   its domain is the passkey's relying party. Every API write is rate-limited, and signed where it can
   be.
 
+## What's real, and what stands in
+
+| Real, on Monad testnet | Stands in for something else |
+| --- | --- |
+| The contracts, circles, payments, offers, covers, defaults and standing | Agora's testnet AUSD has no cash value. Agora's faucet stands in for a fiat on-ramp, because Agora's account and route APIs are production-only |
+| Passkey accounts (Mera), sponsored gas, encrypted app state | CTK stands in for the USDC the mainnet Instant Settlement pair settles to |
+| Sends and conversions through Agora's Instant Settlement pair | Yield on deposits is simulated: `KittyEarnVault` pays a fixed testnet rate from a funded reserve, sped up so a month accrues every 10 minutes. The live earnAUSD rate the indexer derives from mainnet is shown beside it, not paid |
+| The Envio indexer, on both chains | |
+
+### Limits
+
+- Android only. There's no iPhone build without an Apple developer account.
+- Testnet only. Real money needs a licensed on- and off-ramp partner in each country, and legal advice
+  on the proposed operating model and launch jurisdiction. Broad positioning does not establish
+  real-money availability in any country.
+- No server push notifications. Reminders are scheduled on the phone from each circle's rules.
+- Rounds close when a member's app has the circle open, or when the keeper runs. No hosted keeper is
+  running.
+- If AUSD's issuer froze a circle's address mid-round, the circle would have no graceful way out. A
+  frozen pot recipient is handled: their pot waits as a credit.
+- Standing can still be farmed by a ring of accounts that keep making small circles with new people.
+
 ## Getting started
 
 Requires Node 24+, [pnpm](https://pnpm.io) 10 and [Foundry](https://getfoundry.sh).
@@ -108,8 +152,8 @@ cp app/.env.example app/.env
 Tests:
 
 ```bash
-pnpm test                 # app (Jest), indexer and services (Vitest)
-pnpm test:contracts       # forge test, invariants included
+pnpm test                 # app (Jest, 71), indexer (Vitest, 23) and services (Vitest, 9)
+pnpm test:contracts       # forge test: 129, invariants included (one fork-only test skips without --fork-url)
 ```
 
 Run things:
@@ -117,13 +161,23 @@ Run things:
 ```bash
 pnpm --filter app start            # Expo dev server (needs a development build on a phone)
 pnpm --filter indexer codegen      # after a schema or config change
-pnpm --filter services keeper      # close due rounds; needs KEEPER_PRIVATE_KEY with a little MON
+pnpm keeper                        # close due rounds; needs KEEPER_PRIVATE_KEY with a little MON
 node app/qa/preview.mjs            # sample-data browser preview of the screens (see app/qa/README.md)
+```
+
+Demo helpers, used for testnet rehearsals and screen-only evidence ([production guide](docs/demo/production.html#testnet-runbook)):
+
+```bash
+pnpm demo:check                    # read-only preflight: site, sponsor, indexer, contracts, Agora
+pnpm demo:watch --circle 0x…       # each event as Envio Cloud serves it, and how soon after its block
+pnpm demo:crew                     # scripted test members: join from invite links, pay, miss, bid, collect
 ```
 
 Deploying contracts: see the header of `contracts/script/Deploy.s.sol`. Deploy the site with
 `cd site && vercel --prod` (Git deploys are off on purpose). The indexer deploys from `main` on Envio
 Cloud.
+
+Android APK naming and Google Play publishing: see [`app/RELEASE.md`](app/RELEASE.md).
 
 ## License
 
