@@ -767,3 +767,134 @@ points at `6ff5e3d` (old schema, doesn't index the new factory); `/api/graphql` 
 factory don't appear in feeds/restore, and the keeper (which lists circles from the indexer) finds none.
 Next: user checks the Envio dashboard for 94f19d0 (or contacts Envio); once `38e3c74` serves and is synced,
 repoint `INDEXER_URL` and `cd site && vercel --prod`.
+
+**2026-10-06 — Envio unstuck; INDEXER_URL on the new schema.**
+`94f19d0` held a dev-tier slot (dashboard "Active") but never served. User deleted it and `10a9436`, then
+`envio-cloud deployment deploy kitty 8d71fc4 vedanshshuklaa -y` (needs `-y`, no tty): built in 8 s, synced both
+chains in minutes at `https://indexer.dev.hyperindex.xyz/1374e00/v1/graphql`. Set as Vercel `INDEXER_URL`, site
+redeployed; the app's `logIndex`-ordered feed query answers through `/api/graphql`. Old `d228088` (`6ff5e3d`) unused now.
+Next: delete `d228088` when convenient; phone test of APK d001e5b5.
+
+**2026-10-06 — C5 demo kit: scripts, submission answers, helpers, README. Not committed.**
+`docs/demo/script.md` (15 takes from one live 3-person circle; edit lists + voiceover for the 3:00 product demo,
+2:00 pitch, four bounty cuts, 30 s promo), `docs/demo/filming.md` (setup, run of show, fixes),
+`docs/submission/` (every form field paste-ready, all under 5k of 8k chars; `[[…]]` blanks for numbers from the
+shoot; the saved description says Face ID and must be replaced). Helpers in `services/src/demo/`: `pnpm demo:check`
+(preflight, read-only), `demo:watch` (Envio events with lag after block, measured ~1–3 s), `demo:crew` (test members
+from invite links; keys in gitignored `services/.crew.json`). Crew verified live: 3-member 1-min circle with a sealed
+15% offer, closes, collect (`0x1B95…E500`). README: judges table, real-vs-stand-in, limits, test counts.
+Next: user films (both phones on one Google account for T11), fills the blanks, pastes; pitch needs team lines.
+
+
+**2026-10-06 — Generalized story and camera-free production kit.**
+Added the HTML research, scripts, submission answers and AI production guide at `docs/index.html`; generalized preview/helper names and circle copy. Built a 90-second motion study with verified landscape/portrait MP4 exports and captions; 71 app tests, TypeScript and Android export pass.
+Next: review the HTML pack, add optional narration and genuine device/sponsor evidence, then confirm current submission requirements. No publication or live transaction performed.
+
+**2026-10-07 — 35 X posts with media (`output/social/posts/`, gitignored).**
+`posts.md` (text, alt text, sources) + `index.html` review page + `media/NN-slug.{png,mp4}`: 27 cards, 6 new videos
+(circle explainer, Mera passkey, cat stages, sealed offer, create circle, Agora send) + the two petting clips. App
+footage is the sample-data preview with neutral names, labelled as such; fingerprint sheet is illustrative. Not posted.
+Next: user reviews and posts; post 21 ("turns one next month") must go out before 24 Nov.
+
+**2026-10-09 — `demo-claude/`: live-narration deck, six reels, recorded footage, playbook. Not committed.**
+New folder (GPT's `docs/` untouched). `deck/index.html`: 1920×1080 deck, text left, phone(s) right playing footage
+segments cut by named marks (`footage/marks.js`), presenter window (`P`) with script + timers; reels in `deck/reels.js`:
+pitch 1:58, product 2:54, Agora 1:53, Mera UX 1:43, Mera keys 1:27, Envio 1:40, plus architecture/key-tree/send/indexer
+diagrams. `studio/`: real screens on RN-web over a scripted sample-data story (`engine.js`), 17 clips recorded at 60 fps
+with humanized finger paths (`record.mjs`, `scenes.mjs`); `indexer` clip is real live Envio data. `index.html` playbook:
+research (Colosseum, ETHGlobal, Devpost, YC), scripts, OBS setup, scrcpy proof list, sources. Founder: IIIT (not IIT) Nagpur.
+Found: `format.ts span()` prints "23 h 60 min" near whole hours; feed says "You opened their offer"; disk ~99% full.
+Next: user records real-device proof (passkey timing → [X.X], clear-storage restore, two-phone reveal), then the six videos.
+
+**2026-10-09 — `demo-claude/phone/`: real-phone re-shoot of the product demo (Codex's `demo-GPT/` left as is).**
+User's verdict on Codex's draft: sign-up (real phone) good, browser footage after it "robotic" (fake cursor). v2 drives
+the real phone over adb instead (`phone/capture/phone.mjs`, `take.mjs`: Gboard key taps with slips, held taps, flick
+scrolls, scrcpy recording, crew plays Sam/Priya). `phone/footage/onboard.mp4` = user's clip (copied to `phone/source/`) with bars cropped and the
+FLAG_SECURE-black passkey interval redrawn (`phone/overlays/passkey.html`, AOSP Credential Manager layout, dark #353843).
+adb/scrcpy in `demo-claude/.build/tools/` (gitignored). Next: phone on USB with debugging on, then `take.mjs probe` and the take; cut to ≤216 s (3:00 at 1.2x).
+
+**2026-10-10 — Real-phone product demo exported: `demo-claude/phone/exports/kitty-live.mp4` (214.8 s = 2:59 at 1.2x).**
+Take 3 on the user's OnePlus (fresh account; first account's cat went Wary after a scripted miss in take 2 — 1-min rounds
+were too fast for adb, use 2-min). Real circle "Diwali Fund" with crew Tunde/Esi as Sam/Priya: WhatsApp invite, 3 rounds,
+Priya's sealed 10% offer, Sam's covered miss, collect, cat, Agora send (ready to cash out) + explorer, Receive.
+`phone/edit/live.mjs` cuts/speeds take3 (black passkey frames redrawn, WhatsApp contacts/chat blurred); deck reel
+`deck/reels-live.js` (first reel; `#stage.real` CSS: no drawn status bar); `phone/edit/export.mjs` renders it.
+Voiceover: `phone/exports/kitty-live-voiceover.md`. Next: four bounty reels (Agora, Mera UX, Mera keys, Envio).
+
+**2026-10-10 — Four bounty videos exported (`demo-claude/phone/exports/kitty-{agora,meraux,merakeys,envio}Live.mp4`, each < 2:00).**
+Take 4 (phone): Priya (crew) sends $15 ready to cash out → Home; convert back via Instant Settlement (first passkey try
+flaked); lock/unlock (retaken as take 5); stateless test = Android Settings → Clear data (OnePlus blocks `pm clear`) →
+"I already have an account" → circles, names, cat name restored. Envio take: live console (`phone/overlays/envio-live.html`)
+beside the phone while a real $5 send lands (~3 s to index). Clips: `phone/edit/bounty.mjs`; reels: `deck/reels-bounty.js`;
+export supports `full` slides and trimmed phone clips. Paste-ready answers: `phone/exports/bounty-answers.md`.
+
+**2026-10-14 — 30 s product ad: `demo-claude/phone/exports/kitty-ad.mp4` (effects only) + `kitty-ad-music.mp4`.**
+For the form's optional ad field (30 s cap). Pink cat walks in, loafs, morphs into a phone; Ama makes "Mensah Family
+Susu", shares it in a WhatsApp-style chat; phone splits into six (London/Accra/Kumasi/Houston/Dubai/Toronto), five join
+by fingerprint; late pay, pot, sealed 10% offer, covered miss + catch-up; end card. Screens = real app via the studio with
+sample data (six recorded perspectives, `studio/scenes-ad.mjs`; engine gained ad presets, `payArrears`, `K.jump`,
+`remote.close/catchUp`). Stage/render/sound in `demo-claude/promo/` (see SPEC.md); 29.6 s, 1080p60, -14 LUFS.
+Next: user listens (sound unheard by me), uploads, pastes the link.
+
+**2026-10-15 — Expiry sweep: indexer redeployed, APK moved to a GitHub Release.**
+Envio stopped the dev-tier deployment `8d71fc4` (~13 Oct, ~470k blocks behind, then `deletingDeploymemt`; restart
+fails). Redeployed commit `94f19d0` (same indexer code): `https://indexer.dev.hyperindex.xyz/38e3c74/v1/graphql`,
+synced; Vercel `INDEXER_URL` repointed, site redeployed. EAS artifacts expire 14 days after build (d001e5b5 on
+20 Oct), so the APK is now release `apk-d001e5b5` and `/download` redirects to
+`github.com/VedanshShuklaa/kitty/releases/latest/download/kitty.apk` (SHA-256 47bb5152…0aa5). Future APKs: new
+release with asset `kitty.apk`, marked latest. Fine: sponsor 32.4 MON, Upstash, contracts. Envio CLI JWT ends ~1 Nov.
+
+**2026-10-15 — Demo/output folders moved out of the repo; old media trashed.**
+`demo-claude/`, `demo-GPT/` and `output/` now live in `/home/vedansh/Desktop/Hackathons/` (next to `Kitty/`), not in
+the repo. Old recordings and images went to the system Trash (not deleted): raw scrcpy .mkv takes, promo render frames,
+`kitty-live.mp4` v1/v2 (v3 + v3-1.2x kept), `demo-GPT/draft` + `.build`, duplicate story kit, cat-ui shots, old APK.
+`studio/preview.mjs`, `phone/capture/envio-rec.mjs` and `take4.mjs` use repo-relative paths and need fixing if re-run.
+
+**2026-10-16 — Landing page with the animated cat, branch `landing-cat` (local only, not committed or pushed).**
+`site/public/index.html` rewritten to the mockup (one screen, four layouts, shed order per the spec); cat is one inline
+layered SVG in the same 1600x1200 box as the room art; motion in `site/public/js/kitty.js` (springs, parallax head
+turn, blinks, ear flicks, 12-joint tail, hop, hover/press/pet, tilt, reduced motion, frame shedding). Room art source
+`site/art/room.svg`, rendered by `site/art/render.sh` to `public/img/room-*.{avif,webp}` + `logo-*.webp`. Checked
+locally: no scroll/clip at all 10 target sizes, routes + CSP unchanged, Lighthouse mobile perf 91 / a11y 100 / CLS 0,
+cat SVG + script ~11 KB gz, ~0.1 ms script per frame. Not checked: a real mid-range Android, 60 fps on device.
+Next: user reviews at localhost; phone test; commit and `cd site && vercel --prod` only when they say so.
+
+**2026-10-16 — Landing page responsive pass (`landing-cat`, uncommitted).**
+Below desktop the steps are now 2x2 pink tiles (icon beside title, like desktop) instead of a ragged icon strip; tablet
+button full width. New `site/public/js/fit.js` measures and sheds step descriptions, then explainer, then the long proof
+line only when the copy overflows; the proof line never wraps (short version when the long one won't fit). Playwright:
+0 px overflow at 21 sizes 320x568 to 2560x1440 incl. phone landscape (was up to 53 px at desktop heights ~820-920).
+
+**2026-10-16 — Landing page merged (PR #1, `01888ca`) and live.** Only `site/` landing files went in; the other
+uncommitted work (README, docs/, services demo, CLAUDE.md log) stays uncommitted on main. `cd site && vercel --prod`
+done; `/`, js, img, `/j/*`, assetlinks, `/download` (307), `/api/graphql` verified on kitty-circle.vercel.app.
+Next: phone test of the landing page on a real Android.
+
+**2026-10-23 — Branch `design/website-inspired-app`: remaining screens in the website identity (local, uncommitted).**
+Create, Join, Bid, Paste, MeetCat, Send, Receive, Scan, Claim now match Welcome/Home/Circle/Account through `ui.tsx`:
+Ionicons replace text glyphs, bordered lists with row chevrons, 0.97 press squeeze, new `Panel`/`Facts`, `mist` tag
+and `paper` bead tones. Visual only; no logic or copy claims changed. Preview (`app/qa/preview.mjs`) now renders all 13
+screens; new `app/qa/screens-checks.js` (48 layouts + interactions) passes with the older suites, tsc, 71 jest,
+Android JS export. Impeccable finish review + ECC React review fixes applied. Web renders only.
+Next: user reviews locally; then a preview APK on the phone (icons, press scale, fonts, slider tint, large text).
+
+**2026-11-10 — Checks re-run after deps reinstall; indexer healthy; X "upgrade" video of the new UI.**
+`node_modules` had been deleted; `pnpm install` restored them. All green on `design/website-inspired-app`: tsc, 71 jest,
+Android JS export, indexer 23 vitest, services 9, forge 129/130 (fork skip), and the four browser QA scripts (screens 48,
+website-refresh 29, cat-expression 108 poses, cat-checks) with zero failures. Envio `38e3c74` synced to chain head on
+both chains; no redeploy needed. X video: `Kitty-demo-stuff/demo-claude/upgrade/exports/kitty-upgrade.mp4` (48.5 s,
+1080p60, -14 LUFS; `-silent` variant too), real screens via RN-web with sample data (end card says so); rebuild steps in
+that folder's README. New UI is still uncommitted and not in an APK, so `/download` serves the old UI.
+Next: user reviews video; commit branch, build preview APK as a GitHub Release, phone check, then post.
+
+**2026-11-10 — Living cats (website motion in the app) + upgrade-only X video. Uncommitted on the branch.**
+`app/src/catLife.ts` ports `kitty.js` (springs, 2.5D head turn, blinks, ear flicks, tail, breathing, idle look-around
+between room spots); `useCatLife.ts` runs it only when visible and Reduce Motion is off, and sheds on slow phones. New
+reactions: pet (button or tap on her), dinner on Home after paying (lean, bites, crumbs, lick, hop), hello, look where tapped.
+`WebsiteCat.tsx` = the website cat with its 12-joint tail on Welcome (not `BrandCat.tsx`: esbuild confuses it with
+`brandCat.ts`). `useCatExpression.ts` removed. Caught before shipping: Welcome renders outside the NavigationContainer, so
+`useFocusEffect` would have crashed it; the hook reads NavigationContext instead (`cats.test.tsx` guards it, checked by
+reverting). UI_GUIDE motion rule rewritten (cats only). 83 jest, tsc, Android export, all 4 browser QA suites pass.
+Video replaced: `Kitty-demo-stuff/demo-claude/upgrade/exports/kitty-upgrade.mp4` (37 s): before (main) → after wipes of
+four screens, then idle/pet/dinner close-ups. Not checked: frame rate on a real low-end Android.
+Next: phone test of the living cats (preview APK), then commit, APK release, post.
